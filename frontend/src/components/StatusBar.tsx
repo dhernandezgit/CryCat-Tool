@@ -210,6 +210,14 @@ export default function StatusBar({ job, backendOk, result, estimate,
               <div style={{ width: `${Math.max(4, pct)}%` }} />
             </div>
             <span className="eta" data-testid="eta">{pct}%{etaTxt}</span>
+            <img
+              className="piensa"
+              data-testid="piensa"
+              src="/piensa.png"
+              alt=""
+              title={t("Pensando…")}
+              onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+            />
           </>
         )}
       </div>

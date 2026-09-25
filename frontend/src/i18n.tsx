@@ -14,6 +14,7 @@ export const EN: Record<string, string> = {
 
   // ----------------------------------------------------------- status bar --
   "Optimizando…": "Optimizing…",
+  "Pensando…": "Thinking…",
   "Listo para empezar": "Ready to start",
   "Activar sonido": "Enable sound",
   "Silenciar": "Mute",

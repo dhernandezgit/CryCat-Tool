@@ -454,3 +454,14 @@ input::placeholder { color: #cbbfc8; opacity: 1; font-style: italic; }
   margin-top: 6px;
 }
 .modal .error { color: var(--danger); font-weight: 700; }
+
+/* gato "pensando" junto a la barra de progreso (frontend/public/piensa.png) */
+.piensa {
+  height: 46px; width: auto; flex: none; object-fit: contain;
+  animation: piensa-brinco 0.7s ease-in-out infinite;
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.18));
+}
+@keyframes piensa-brinco {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-5px) rotate(-3deg); }
+}
