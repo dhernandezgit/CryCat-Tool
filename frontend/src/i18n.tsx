@@ -185,8 +185,10 @@ export const EN: Record<string, string> = {
     "Images rotate between the project's own and Pikmin Bloom ones.",
   "Comprobar si hay versiones nuevas al iniciar":
     "Check for new versions on startup",
-  "🐱 CryCat · hecha por Daniel Hernández Ferrándiz":
-    "🐱 CryCat · made by Daniel Hernández Ferrándiz",
+  ["😿 CryCat · hecha por Daniel Hernández Ferrándiz y Wivi.eve, " +
+   "para los artistas."]:
+    "😿 CryCat · made by Daniel Hernández Ferrándiz and Wivi.eve, " +
+    "for the artists.",
 
   // -------------------------------------------------------------- visor --
   ["Mostrar/ocultar guías de límites Cricut (tecla G) — solo en la vista " +

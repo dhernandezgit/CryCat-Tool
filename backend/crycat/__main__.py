@@ -139,6 +139,13 @@ def main() -> None:
     except Exception:
         pass
 
+    # imágenes de Pikmin Bloom: si faltan y hay Internet, se descargan solas
+    try:
+        from . import extras
+        extras.descargar_en_segundo_plano()
+    except Exception:
+        pass
+
     # latido con el estado (número de imágenes cargadas)
     from .store import session
     parar = threading.Event()

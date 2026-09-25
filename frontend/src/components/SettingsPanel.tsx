@@ -547,8 +547,9 @@ export default function SettingsPanel({ settings, saveSettings, applySettings }:
 
       <div className="creditos" data-testid="creditos">
         {destacar(
-          t("🐱 CryCat · hecha por Daniel Hernández Ferrándiz"),
-          ["CryCat", "Daniel Hernández Ferrándiz"],
+          t("😿 CryCat · hecha por Daniel Hernández Ferrándiz y Wivi.eve, " +
+            "para los artistas."),
+          ["CryCat", "Daniel Hernández Ferrándiz", "Wivi.eve"],
         )}
       </div>
 

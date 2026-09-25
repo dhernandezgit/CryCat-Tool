@@ -14,7 +14,7 @@ APP_NAME = "CryCat"
 APP_W = 210.0
 APP_H = 297.0
 
-CONFIG_VERSION = 14  # subir para migrar configuraciones antiguas
+CONFIG_VERSION = 15  # subir para migrar configuraciones antiguas
 
 
 def app_config_dir() -> Path:
@@ -71,7 +71,7 @@ DEFAULTS: dict = {
     "corte_factor": 1.0,
     # Extras (Pikmin animado y sonido)
     "pikmin_activo": True,
-    "pikmin_frecuencia_min": 1.0,   # minutos (promedio) entre apariciones
+    "pikmin_frecuencia_min": 5.0,   # minutos (promedio) entre apariciones
     "pikmin_sonido": True,
     "pikmin_sonido_morir": True,
     "volumen": 0.5,

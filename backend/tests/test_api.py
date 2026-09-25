@@ -349,7 +349,7 @@ def test_defaults_extras_pikmin(client):
     c, st, _ = client
     s = c.get("/api/settings").json()["settings"]
     assert s["pikmin_activo"] is True
-    assert s["pikmin_frecuencia_min"] == 1.0
+    assert s["pikmin_frecuencia_min"] == 5.0  # 5 minutos de media
     assert s["pikmin_sonido"] is True
     assert s["pikmin_sonido_morir"] is True
     assert s["volumen"] == 0.5

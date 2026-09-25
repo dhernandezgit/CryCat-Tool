@@ -81,15 +81,15 @@ export default function PikminPet({
   >(null);
   const timer = useRef<number | undefined>(undefined);
 
-  const delayBase = minDelay !== undefined && maxDelay !== undefined
-    ? null
-    : Math.max(5000, frecuenciaMin * 60_000);
+  const delayBase = Math.max(5000, frecuenciaMin * 60_000);
 
   const programar = () => {
     if (!activo) return;
-    const base = delayBase ?? (maxDelay as number);
-    const min = minDelay ?? base;
-    const delay = min + Math.random() * Math.max(1, base - min);
+    // apariciones IRREGULARES: nunca a la hora exacta. Se sortea entre la
+    // mitad y vez y media de la frecuencia media (así la media es la pedida).
+    const min = minDelay ?? Math.round(delayBase * 0.5);
+    const max = maxDelay ?? Math.round(delayBase * 1.5);
+    const delay = min + Math.random() * Math.max(1, max - min);
     timer.current = window.setTimeout(() => {
       const muere = sonidoMorir && Math.random() < 0.25;
       setPet({

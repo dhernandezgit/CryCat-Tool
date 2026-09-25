@@ -36,10 +36,14 @@ curl -fsSL https://raw.githubusercontent.com/dhernandezgit/CryCat-Tool/main/inst
   relación con Nintendo**. Los personajes, nombres e imágenes de Pikmin/Pokémon
   que aparecen como decoración (la mascota animada, sus sonidos y los mensajes
   graciosos de Pokémon) se usan de forma **meramente ilustrativa y no comercial**.
-- **Las imágenes de Pikmin Bloom no se distribuyen en este repositorio**: se
-  descargan opcionalmente al compilar con `scripts/descargar_pikmin_bloom.py`.
-  Si eres titular de los derechos y quieres que se retire cualquier contenido,
-  abre un *issue* y se elimina de inmediato.
+- **Las imágenes de Pikmin/Pikmin Bloom no se distribuyen en este repositorio**:
+  se descargan automáticamente (al compilar, o al primer arranque desde el
+  código fuente si hay Internet) desde las wikis de fans:
+  **Pikmin Bloom** → [pikminwiki.com](https://www.pikminwiki.com)
+  (categoría *Pikmin Bloom Decor Pikmin images*) y **Pikmin clásicos** →
+  [pikmin.fandom.com](https://pikmin.fandom.com). El ejecutable ya las lleva
+  incluidas. Si eres titular de los derechos y quieres que se retire cualquier
+  contenido, abre un *issue* y se elimina de inmediato.
 - **Cricut y Design Space son marcas registradas de Provo Craft.** CryCat es una
   herramienta independiente, no oficial ni patrocinada por Cricut.
 - Esta aplicación se ofrece **tal cual**, sin garantías. Úsala bajo tu
@@ -242,7 +246,7 @@ Si te gusta la herramienta y quieres invitar a un café al que la hizo:
 
 ## 📜 Créditos
 
-**CryCat** la ha hecho **Daniel Hernández Ferrándiz**.
+**CryCat** la han hecho **Daniel Hernández Ferrándiz** y **Wivi.eve**, para los artistas. 😿
 
 Gracias especiales a la comunidad de Cricut por compartir medidas y trucos, y
 a las wikis de Pikmin por mantener el material de referencia.

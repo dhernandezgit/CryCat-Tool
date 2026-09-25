@@ -16,14 +16,18 @@ echo "── 2/6 Iconos ──────────────────�
 
 echo "── 3/6 Recursos (Pikmin) ─────────────────────────"
 cd "$ROOT"
-if [ ! -d frontend/public/pikmin ]; then
-  echo "   · descargando Pikmin básicos…"
-  backend/.venv/bin/python scripts/descargar_pikmin.py || true
-fi
-if [ ! -f frontend/public/pikmin_bloom/indice.json ]; then
-  echo "   · descargando Pikmin Bloom…"
-  backend/.venv/bin/python scripts/descargar_pikmin_bloom.py || true
-  backend/.venv/bin/python scripts/indice_pikmin_bloom.py || true
+if [ -d backend/crycat/web/pikmin ] && [ -f backend/crycat/web/pikmin_bloom/indice.json ]; then
+  echo "   · las imágenes de Pikmin ya vienen en el paquete"
+else
+  if [ ! -d frontend/public/pikmin ]; then
+    echo "   · descargando Pikmin básicos…"
+    backend/.venv/bin/python scripts/descargar_pikmin.py || true
+  fi
+  if [ ! -f frontend/public/pikmin_bloom/indice.json ]; then
+    echo "   · descargando Pikmin Bloom (puede tardar unos minutos)…"
+    backend/.venv/bin/python scripts/descargar_pikmin_bloom.py || true
+    backend/.venv/bin/python scripts/indice_pikmin_bloom.py || true
+  fi
 fi
 
 echo "── 4/6 Frontend (React) ──────────────────────────"

@@ -1,4 +1,4 @@
-﻿# =====================================================================
+﻿﻿# =====================================================================
 #  CryCat · Windows TODO EN UNO (con feedback visual de cada paso)
 # =====================================================================
 #  Genera UN SOLO ARCHIVO:  dist\CryCat.exe
@@ -90,18 +90,24 @@ Ok "Iconos generados"
 # ---------- recursos ----------
 Paso 4 7 "Recursos opcionales (Pikmin)"
 Set-Location "$Root"
-if (-not (Test-Path "frontend\public\pikmin")) {
-  Info "descargando Pikmin básicos…"
-  & "$Root\backend\.venv\Scripts\python.exe" "$Root\scripts\descargar_pikmin.py"
-  if ($LASTEXITCODE -ne 0) { Aviso "no se pudieron descargar los Pikmin (se continúa sin ellos)" }
-}
-if (-not (Test-Path "frontend\public\pikmin_bloom\indice.json")) {
-  Info "descargando Pikmin Bloom (puede tardar)…"
-  & "$Root\backend\.venv\Scripts\python.exe" "$Root\scripts\descargar_pikmin_bloom.py"
-  if ($LASTEXITCODE -eq 0) {
-    & "$Root\backend\.venv\Scripts\python.exe" "$Root\scripts\indice_pikmin_bloom.py"
-  } else {
-    Aviso "no se pudo descargar Pikmin Bloom (se continúa sin ellos)"
+$pikminWeb = Test-Path "$Root\backend\crycat\web\pikmin"
+$bloomWeb = Test-Path "$Root\backend\crycat\web\pikmin_bloom\indice.json"
+if ($pikminWeb -and $bloomWeb) {
+  Info "las imágenes de Pikmin ya vienen en el paquete (no hace falta descargarlas)"
+} else {
+  if (-not (Test-Path "frontend\public\pikmin")) {
+    Info "descargando Pikmin básicos…"
+    & "$Root\backend\.venv\Scripts\python.exe" "$Root\scripts\descargar_pikmin.py"
+    if ($LASTEXITCODE -ne 0) { Aviso "no se pudieron descargar los Pikmin (se continúa sin ellos)" }
+  }
+  if (-not (Test-Path "frontend\public\pikmin_bloom\indice.json")) {
+    Info "descargando Pikmin Bloom (puede tardar unos minutos)…"
+    & "$Root\backend\.venv\Scripts\python.exe" "$Root\scripts\descargar_pikmin_bloom.py"
+    if ($LASTEXITCODE -eq 0) {
+      & "$Root\backend\.venv\Scripts\python.exe" "$Root\scripts\indice_pikmin_bloom.py"
+    } else {
+      Aviso "no se pudo descargar Pikmin Bloom (se continúa sin ellos)"
+    }
   }
 }
 Ok "Recursos listos"
