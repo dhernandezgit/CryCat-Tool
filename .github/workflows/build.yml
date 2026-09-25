@@ -42,7 +42,7 @@ jobs:
         shell: pwsh
         continue-on-error: true
         run: |
-          .\packaging\build_windows.ps1 2>&1 | Tee-Object -FilePath build-windows.log
+          .\packaging\build_windows.ps1 -Log build-windows.log
           exit $LASTEXITCODE
       - name: Diagnóstico (publicar el error en un issue)
         if: steps.build.outcome == 'failure'
@@ -50,7 +50,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if (-not (Test-Path build-windows.log)) { "sin log" | Out-File build-windows.log }
+          if (-not (Test-Path build-windows.log)) { "sin log (no se generó transcripción)" | Out-File build-windows.log }
           $tail = (Get-Content build-windows.log -Tail 90) -join "`n"
           $titulo = "🛠️ Fallo del build de Windows"
           $cuerpo = "Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`n`n" + '```text' + "`n$tail`n" + '```'

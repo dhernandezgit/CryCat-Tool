@@ -12,7 +12,8 @@
 param(
   [switch]$SoloArchivoUnico,   # omite el instalador Inno Setup
   [switch]$SinTests,           # omite los tests (más rápido)
-  [string]$PythonExe = "python"  # ruta o comando de Python 3.10+
+  [string]$PythonExe = "python",  # ruta o comando de Python 3.10+
+  [string]$Log = ""               # fichero de transcripción (para depurar)
 )
 
 $ErrorActionPreference = "Stop"
@@ -25,6 +26,9 @@ if (Get-Variable PSNativeCommandUseErrorActionPreference -ErrorAction SilentlyCo
 }
 $Root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 $inicio = Get-Date
+if ($Log) {
+  try { Start-Transcript -Path $Log -Force | Out-Null } catch {}
+}
 
 function Paso($n, $total, $texto) {
   Write-Host ""
@@ -168,3 +172,4 @@ Write-Host "  → cópialo donde quieras y haz doble clic. Se abre en el navegad
 Write-Host "  → los archivos originales nunca se modifican; todo es local." -ForegroundColor Gray
 Write-Host ("═" * 62) -ForegroundColor Magenta
 Write-Host ""
+if ($Log) { try { Stop-Transcript | Out-Null } catch {} }
