@@ -598,3 +598,41 @@ def test_offset_por_elemento_une_flotantes(client):
     c.patch(f"/api/assets/{d['id']}", json={"offset_mm": 0.0})
     b = next(x for x in c.get("/api/assets").json() if x["id"] == d["id"])
     assert abs(b["w_mm"] - base) < 0.05
+
+def test_espacio_de_color_y_simulacion(client):
+    """El PNG sale con perfil ICC del espacio elegido y la simulación ajusta."""
+    import time
+    c, st, _ = client
+    upload(c, "a.png")
+    c.post("/api/optimize")
+    for _ in range(200):
+        if c.get("/api/result").json()["pages"]:
+            break
+        time.sleep(0.05)
+    d = c.get("/api/settings").json()["settings"]
+    assert d["espacio_color"] == "srgb"
+    assert d["simular_impresion"] is False
+    # con adobe rgb el export sigue funcionando (perfil embebido)
+    r2 = c.put("/api/settings", json={"espacio_color": "adobergb",
+                                      "simular_impresion": True,
+                                      "sim_cmyk": True, "sim_saturacion": 1.15})
+    assert r2.json()["settings"]["espacio_color"] == "adobergb"
+    # vista previa simulada
+    p = c.get("/api/pages/0.png?sim=1")
+    assert p.status_code == 200 and p.headers["content-type"] == "image/png"
+    p2 = c.get("/api/pages/0.png")
+    assert p2.status_code == 200
+
+def test_presets_de_fabrica(client):
+    """Hay presets listos (chapa, pegatina, hoja…) con valores sensatos."""
+    c, st, _ = client
+    d = c.get("/api/presets/factory").json()["presets"]
+    for clave in ("chapa", "pegatina", "hoja", "iman", "vinilo"):
+        assert clave in d, clave
+    assert d["chapa"]["espacio_mm"] <= 1.0          # la chapa va apretada
+    assert d["hoja"]["espacio_mm"] == 0.0           # la hoja, sin espacio
+    assert d["pegatina"]["offset_activo"] is True   # pegatina con borde
+    # y se pueden aplicar como ajustes normales
+    r = c.put("/api/settings", json=d["pegatina"])
+    assert r.status_code == 200
+    assert r.json()["settings"]["offset_activo"] is True

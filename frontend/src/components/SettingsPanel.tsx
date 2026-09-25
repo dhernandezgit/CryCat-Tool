@@ -35,6 +35,11 @@ function destacar(texto: string, partes: string[]): React.ReactNode[] {
       partes.includes(trozo) ? <strong key={i}>{trozo}</strong> : trozo);
 }
 
+const nombrePreset: Record<string, string> = {
+  chapa: "Chapa", pegatina: "Pegatina", hoja: "Hoja de pegatinas",
+  iman: "Imán", "pegatina-grande": "Pegatina grande", vinilo: "Vinilo",
+};
+
 export default function SettingsPanel({ settings, saveSettings, applySettings }: Props) {
   const t = useT();
   const [open, setOpen] = useState<Record<string, boolean>>({
@@ -45,6 +50,13 @@ export default function SettingsPanel({ settings, saveSettings, applySettings }:
   const [perfiles, setPerfiles] = useState<string[]>([]);
   const [nombrePerfil, setNombrePerfil] = useState("");
   const [avisoTxt, setAvisoTxt] = useState("");
+  const [presetsFabrica, setPresetsFabrica] = useState<
+    Record<string, Partial<AppSettings>>>({});
+  useEffect(() => {
+    api.factoryPresets()
+      .then((d) => setPresetsFabrica(d.presets ?? {}))
+      .catch(() => undefined);
+  }, []);
   const toggle = (id: string) => setOpen((o) => ({ ...o, [id]: !o[id] }));
   // el servidor relanza la optimización con los ajustes que la afectan
   const set = (p: Partial<AppSettings>) => saveSettings(p);
@@ -302,6 +314,23 @@ export default function SettingsPanel({ settings, saveSettings, applySettings }:
         ])}
         {num("Tiempo máximo", "opt_tiempo_max_s", 0.5, 120, 0.5, "s")}
         <div className="ctl">
+          <label>{t("Perfiles listos")}</label>
+          <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
+            {Object.entries(presetsFabrica).map(([clave, valores]) => (
+              <button
+                key={clave}
+                data-testid={`preset-${clave}`}
+                onClick={() => set(valores as Partial<AppSettings>)}
+              >
+                {t(nombrePreset[clave] ?? clave)}
+              </button>
+            ))}
+          </div>
+          <div className="hint">
+            {t("Chapa: casi sin espacio · Pegatina: espacio y borde · Hoja: sin espacio ni borde · Imán: borde blanco")}
+          </div>
+        </div>
+        <div className="ctl">
           <label>{t("Ajustes rápidos")}</label>
           <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
             <button data-testid="preset-chapa"
@@ -335,6 +364,36 @@ export default function SettingsPanel({ settings, saveSettings, applySettings }:
 
       {/* -------- Imagen -------- */}
       <Section id="imagen" title={t("Imagen")} open={open.imagen} toggle={toggle}>
+        {num("Sangrado de impresión", "bleed_mm", 0, 5, 0.2, "mm")}
+        <div className="hint">
+          {t("Repite el color del borde hacia fuera para que no salga reborde blanco si la impresora no está perfectamente alineada (0 = sin sangrado).")}
+        </div>
+        {sel("Espacio de color de impresión", "espacio_color", [
+          ["srgb", "sRGB (estándar, el más seguro)"],
+          ["adobergb", "AdobeRGB (más gamas verdes/azules)"],
+        ])}
+        <label className="row">
+          <input type="checkbox" data-testid="set-simular_impresion"
+            checked={settings.simular_impresion === true}
+            onChange={(e) => set({ simular_impresion: e.target.checked })} />
+          {t("Previsualizar la impresión (simular el espacio de color)")}
+        </label>
+        {settings.simular_impresion && (
+          <>
+            <label className="row">
+              <input type="checkbox" data-testid="set-sim_cmyk"
+                checked={settings.sim_cmyk === true}
+                onChange={(e) => set({ sim_cmyk: e.target.checked })} />
+              {t("Simular el recorte de CMYK (amarillea azules/verdes)")}
+            </label>
+            {num("Saturación de la simulación", "sim_saturacion", 0.5, 2, 0.05)}
+            {num("Contraste de la simulación", "sim_contraste", 0.5, 2, 0.05)}
+            {num("Brillo de la simulación", "sim_brillo", 0.5, 2, 0.05)}
+            <div className="hint">
+              {t("Sube saturación/contraste para compensar lo que apaga la impresión. El archivo no se modifica: solo la vista previa.")}
+            </div>
+          </>
+        )}
         {sel("Formato de color de salida", "color_formato", [
           ["rgba", "PNG con transparencia (recomendado)"],
           ["rgb", "PNG con fondo blanco"],

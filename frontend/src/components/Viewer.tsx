@@ -308,7 +308,7 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
         }}
         data-testid={`page-${i}`}
       >
-        <img className="sheet" src={api.pageUrl(i, version)} alt={t("Página {i}", { i: i + 1 })} draggable={false} />
+        <img className="sheet" src={api.pageUrl(i, version, settings.simular_impresion === true)} alt={t("Página {i}", { i: i + 1 })} draggable={false} />
         {ui.guidesVisible && guidePath && (
           <svg className="overlay-svg" viewBox={`0 0 ${sheetW} ${sheetH}`} preserveAspectRatio="none">
             <path

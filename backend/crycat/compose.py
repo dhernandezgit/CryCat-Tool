@@ -11,6 +11,7 @@ from pathlib import Path
 from PIL import Image
 
 from .geometry import CutArea, mm_to_px
+from .imaging import trim
 from .packer import Placement
 
 MARCAS_DIR = Path(__file__).parent / "web" / "marcas"
@@ -27,14 +28,89 @@ def _srgb_bytes() -> bytes | None:
         return None
 
 
-def _save_png(img: Image.Image, path: Path, dpi: float) -> None:
+def _icc_bytes(perfil: str = "srgb") -> bytes | None:
+    """Perfil ICC de salida: sRGB o AdobeRGB (si Pillow lo conoce)."""
+    nombre = (perfil or "srgb").lower()
+    if nombre in ("adobergb", "adobe-rgb", "a98"):
+        for candidato in ("Adobe RGB (1998)", "AdobeRGB1998"):
+            try:
+                paletas = {p.name.encode(): p for p in
+                           __import__("PIL.ImageCms", fromlist=["x"])
+                           .ImageCmsProfile.__dict__.get("_cms", [])}
+            except Exception:
+                paletas = {}
+            try:
+                from PIL import ImageCms
+                ruta = ImageCms.getOpenProfile(candidato)
+                return ImageCms.ImageCmsProfile(ruta).tobytes()
+            except Exception:
+                continue
+    return _srgb_bytes()
+
+
+def _save_png(img: Image.Image, path: Path, dpi: float,
+              perfil: str = "srgb") -> None:
     """PNG sin pérdidas a máxima calidad: sin cuantizar, con pHYs (ppp) y
-    perfil sRGB embebido."""
+    perfil de color embebido (sRGB o AdobeRGB)."""
     kwargs: dict = {"format": "PNG", "dpi": (dpi, dpi), "optimize": False}
-    icc = _srgb_bytes()
+    icc = _icc_bytes(perfil)
     if icc:
         kwargs["icc_profile"] = icc
     img.save(path, **kwargs)
+
+
+def con_bleed(img: Image.Image, pixeles: int = 0) -> Image.Image:
+    """Sangrado de impresión: repite el color del borde hacia fuera.
+
+    Evita el reborde blanco si la impresora no está perfectamente alineada.
+    """
+    if pixeles <= 0:
+        return img
+    from scipy import ndimage
+    import numpy as np
+    rgba = trim(img.convert("RGBA"))
+    # lienzo ampliado para que el sangrado tenga sitio
+    lienzo = Image.new("RGBA", (rgba.width + 2 * pixeles,
+                                rgba.height + 2 * pixeles), (0, 0, 0, 0))
+    lienzo.paste(rgba, (pixeles, pixeles))
+    arr = np.asarray(lienzo).copy()
+    mask = arr[..., 3] > 20
+    if not mask.any():
+        return rgba
+    _d, (iy, ix) = ndimage.distance_transform_edt(~mask, return_indices=True)
+    nuevo = arr[iy, ix].copy()
+    yy, xx = np.mgrid[-pixeles:pixeles + 1, -pixeles:pixeles + 1]
+    struct = (xx * xx + yy * yy) <= (pixeles * pixeles + pixeles)
+    fuera = ndimage.binary_dilation(mask, structure=struct)
+    nuevo[..., 3] = np.where(fuera, 255, 0)
+    nuevo[mask] = arr[mask]
+    return trim(Image.fromarray(nuevo, "RGBA"))
+
+
+def simular_impresion(img: Image.Image, espacio: str = "srgb",
+                      saturacion: float = 1.0, contraste: float = 1.0,
+                      brillo: float = 1.0) -> Image.Image:
+    """Simula cómo se verá al imprimir en otro espacio (CMYK/AdobeRGB).
+
+    No toca el archivo: solo ajusta la VISTA PREVIA para que el cambio de
+    espacio no mate los colores (sube saturación/contraste si hace falta).
+    """
+    from PIL import ImageEnhance
+    out = img.convert("RGBA")
+    if saturacion != 1.0:
+        out = ImageEnhance.Color(out).enhance(max(0.0, saturacion))
+    if contraste != 1.0:
+        out = ImageEnhance.Contrast(out).enhance(max(0.0, contraste))
+    if brillo != 1.0:
+        out = ImageEnhance.Brightness(out).enhance(max(0.0, brillo))
+    # el CMYK no reproduce los verdes/azules puros: se recorta un poco el canal
+    if str(espacio).lower() in ("cmyk", "adobe-cmyk"):
+        import numpy as np
+        a = np.asarray(out).astype(np.float32)
+        a[..., 2] *= 0.94          # el azul sufre más en CMYK
+        a[..., 1] *= 0.97
+        out = Image.fromarray(np.clip(a, 0, 255).astype("uint8"), "RGBA")
+    return out
 
 
 def _content_image(asset_img: Image.Image, p: Placement) -> Image.Image:
@@ -109,8 +185,8 @@ def safe_name(name: str) -> str:
 
 def export_pages(area: CutArea, placements: list[Placement],
                  images: dict[str, Image.Image], out_dir: Path, name: str,
-                 dpi: float, full_page: bool = False, color: str = "rgba"
-                 ) -> list[Path]:
+                 dpi: float, full_page: bool = False, color: str = "rgba",
+                 perfil: str = "srgb", bleed_mm: float = 0.0) -> list[Path]:
     """Guarda las páginas en PNG máxima calidad (pHYs = dpi, sin guías).
 
     PNG es sin pérdidas: no hay cuantización ni recompresión con pérdida; se
@@ -123,19 +199,24 @@ def export_pages(area: CutArea, placements: list[Placement],
     for i in pages:
         img = render_page(area, [p for p in placements if p.page == i], images,
                           dpi, full_page, color)
+        if bleed_mm > 0:
+            img = con_bleed(img, int(round(bleed_mm / 25.4 * dpi)))
         fp = out_dir / f"pagina-{i + 1:02d}.png"
-        _save_png(img, fp, dpi)
+        _save_png(img, fp, dpi, perfil)
         written.append(fp)
     return written
 
 
 def export_single(area: CutArea, placements: list[Placement],
                   images: dict[str, Image.Image], path: Path, dpi: float,
-                  full_page: bool = False, color: str = "rgba") -> Path:
+                  full_page: bool = False, color: str = "rgba",
+                  perfil: str = "srgb", bleed_mm: float = 0.0) -> Path:
     """Guarda UNA página directamente en un PNG concreto (sin carpeta)."""
     img = render_page(area, placements, images, dpi, full_page, color)
+    if bleed_mm > 0:
+        img = con_bleed(img, int(round(bleed_mm / 25.4 * dpi)))
     path.parent.mkdir(parents=True, exist_ok=True)
-    _save_png(img, path, dpi)
+    _save_png(img, path, dpi, perfil)
     return path
 
 
@@ -200,7 +281,7 @@ def con_marcas_cricut(img: Image.Image, area: CutArea,
 def export_pdf(area: CutArea, placements: list[Placement],
                images: dict[str, Image.Image], dpi: float,
                full_page: bool = False, color: str = "rgba",
-               marcas: bool = False) -> bytes:
+               marcas: bool = False, bleed_mm: float = 0.0) -> bytes:
     """PDF a tamaño real para imprimir (una página por hoja, sin márgenes).
 
     El PDF se genera con el tamaño físico exacto de la hoja (A4/A3/…) y la
@@ -212,6 +293,8 @@ def export_pdf(area: CutArea, placements: list[Placement],
     for i in pages:
         img = render_page(area, [p for p in placements if p.page == i], images,
                           dpi, True if marcas else full_page, color)
+        if bleed_mm > 0:
+            img = con_bleed(img, int(round(bleed_mm / 25.4 * dpi)))
         if marcas:
             img = con_marcas_cricut(img, area, dpi)
         if img.mode == "RGBA":

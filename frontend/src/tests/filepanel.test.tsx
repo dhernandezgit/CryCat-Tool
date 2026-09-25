@@ -18,7 +18,7 @@ const settings = {
   pagina_w: 297, pagina_h: 210, maquina: "estandar", usar_minis: false,
   mini_min_mm: 5, mini_rotacion: "no",
   opt_metodo: "greedy", opt_calidad: "normal", opt_tiempo_max_s: 8, mini_usar_lista: false, mini_tamanos_lista: [50], auto_recalcular: true, corte_velocidad_mm_s: 50, corte_viaje_mm_s: 120, corte_extra_forma_s: 0.4, corte_factor: 1, pikmin_activo: true, pikmin_frecuencia_min: 1, pikmin_sonido: true, pikmin_sonido_morir: true, pikmin_fiesta: false, volumen: 0.5, mute: false, offset_activo: false, offset_mm: 2, offset_modo: "extender", offset_color: "#ffffff",
-  color_formato: "rgba", chequear_lineas: true, carpeta_export: "",
+   espacio_color: "srgb", bleed_mm: 0, simular_impresion: false, sim_cmyk: false, sim_saturacion: 1, sim_contraste: 1, sim_brillo: 1, color_formato: "rgba", chequear_lineas: true, carpeta_export: "",
   dpi_importacion: 300, lienzo: "recortable", tema: "wiwi",
   ver_guias: true, fondo_transparente: false,
 } as AppSettings;
@@ -174,5 +174,24 @@ describe("Panel de archivos", () => {
     expect(screen.getByTestId("tamano-v1")).toHaveTextContent("5.0×3.3 mm");
     expect(screen.getByText("100%")).toBeInTheDocument();
     expect(screen.queryByText(/NaN/)).toBeNull();
+  });
+
+  it("permite poner borde solo a un elemento (unir flotantes)", async () => {
+    render(<FilePanel assets={[asset()]} result={result} settings={settings}
+                       onChange={onChange} saveSettings={saveSettings} />);
+    expect(screen.getByTestId("offset-a1")).toHaveTextContent("0.0 mm");
+    fireEvent.click(screen.getByTestId("offset-mas-a1"));
+    expect(screen.getByTestId("offset-a1")).toHaveTextContent("0.5 mm");
+    fireEvent.click(screen.getByTestId("offset-menos-a1"));
+    expect(screen.getByTestId("offset-a1")).toHaveTextContent("0.0 mm");
+    // nunca baja de 0
+    fireEvent.click(screen.getByTestId("offset-menos-a1"));
+    expect(screen.getByTestId("offset-a1")).toHaveTextContent("0.0 mm");
+    await waitFor(() =>
+      expect(global.fetch).toHaveBeenCalledWith(
+        "/api/assets/a1",
+        expect.objectContaining({ method: "PATCH" })
+      )
+    );
   });
 });

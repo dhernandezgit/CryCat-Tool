@@ -166,3 +166,21 @@ def test_safe_name():
     assert compose.safe_name("../mi caña/") == ".._mi_caña"  # guiones de borde fuera
     assert compose.safe_name("") == ""                        # vacío -> solo fecha
     assert len(compose.safe_name("x" * 300)) <= 60
+
+def test_sangrado_de_impresion():
+    """El sangrado repite el color del borde hacia fuera (sin reborde blanco)."""
+    import numpy as np
+    from PIL import Image, ImageDraw
+    from crycat import compose
+    im = Image.new("RGBA", (60, 60), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    d.ellipse((16, 16, 44, 44), fill=(255, 60, 60, 255))
+    sin = compose.trim(im)                 # recorte ajustado al dibujo
+    con = compose.con_bleed(im, 10)        # con 10 px de sangrado
+    assert con.size[0] >= sin.size[0] + 18  # crece hacia fuera
+    b = np.asarray(sin)
+    a = np.asarray(con)
+    assert b[0, 0, 3] == 0                  # el recorte acaba transparente
+    assert a[0, 0, 3] == 0                  # la esquina sigue vacía
+    ys, xs = np.where(a[:, :, 3] > 200)
+    assert xs.min() < 5 and ys.min() < 5    # pero el color llega al borde

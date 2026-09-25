@@ -198,6 +198,11 @@ def create_app(store: Session = session) -> FastAPI:
         except Exception:
             return {"ok": False, "url": url}
 
+    @app.get("/api/presets/factory")
+    def factory_presets():
+        """Presets de fábrica (chapa, pegatina, hoja, imán, vinilo…)."""
+        return {"presets": cfg.PRESETS_INTERESANTES}
+
     # --------------------------------------------------------- perfiles ----
     @app.get("/api/presets")
     def list_presets():
@@ -551,7 +556,9 @@ def create_app(store: Session = session) -> FastAPI:
                 n += 1
             compose.export_single(store.area, store.last.placements,
                                   store.images(), archivo, dpi,
-                                  full_page=full, color=color)
+                                  full_page=full, color=color,
+                                  perfil=settings.get("espacio_color", "srgb"),
+                                  bleed_mm=float(settings.get("bleed_mm", 0) or 0))
             settings.set({"carpeta_export": str(base)})
             return {"ok": True, "folder": str(base), "files": [str(archivo)]}
         # varias páginas: carpeta con las páginas (sin JSON)
@@ -562,10 +569,31 @@ def create_app(store: Session = session) -> FastAPI:
             n += 1
         written = compose.export_pages(
             store.area, store.last.placements, store.images(), out, name,
-            dpi, full_page=full, color=color)
+            dpi, full_page=full, color=color,
+            perfil=settings.get("espacio_color", "srgb"),
+            bleed_mm=float(settings.get("bleed_mm", 0) or 0))
         settings.set({"carpeta_export": str(base)})
         return {"ok": True, "folder": str(out),
                 "files": [str(f) for f in written]}
+
+    @app.get("/api/pages/{i}.png")
+    def page_png(i: int, v: str = "", sim: int = 0):
+        """Página renderizada (con simulación de impresión si se pide)."""
+        if not store.last or not store.area:
+            raise HTTPException(404, tr("sin optimización previa"))
+        dpi = float(settings.get("dpi_salida", 300))
+        img = compose.render_page(
+            store.area, [p for p in store.last.placements if p.page == i],
+            store.images(), dpi, settings.get("lienzo") == "pagina",
+            settings.get("color_formato", "rgba"))
+        if sim:
+            img = compose.simular_impresion(
+                img,
+                "cmyk" if settings.get("sim_cmyk") else "srgb",
+                float(settings.get("sim_saturacion", 1.0)),
+                float(settings.get("sim_contraste", 1.0)),
+                float(settings.get("sim_brillo", 1.0)))
+        return _png_response(img.convert("RGBA"))
 
     @app.get("/api/print.pdf")
     def print_pdf():
@@ -575,6 +603,7 @@ def create_app(store: Session = session) -> FastAPI:
             store.area, store.last.placements, store.images(),
             float(settings.get("dpi_salida", 300)),
             full_page=settings.get("lienzo") == "pagina", marcas=True,
+            bleed_mm=float(settings.get("bleed_mm", 0) or 0),
             color=settings.get("color_formato", "rgba"))
         return Response(data, media_type="application/pdf",
                         headers={"Content-Disposition":

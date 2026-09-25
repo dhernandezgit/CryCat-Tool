@@ -14,7 +14,7 @@ APP_NAME = "CryCat"
 APP_W = 210.0
 APP_H = 297.0
 
-CONFIG_VERSION = 17  # subir para migrar configuraciones antiguas
+CONFIG_VERSION = 19  # subir para migrar configuraciones antiguas
 
 
 def app_config_dir() -> Path:
@@ -85,6 +85,15 @@ DEFAULTS: dict = {
     "offset_color": "#ffffff",
     # Imagen
     "color_formato": "rgba",     # rgba | rgb
+    # Espacio de color de impresión (etiqueta ICC del PNG) y simulación en
+    # pantalla para que el cambio de espacio no apague los colores
+    "espacio_color": "srgb",     # srgb | adobergb
+    "bleed_mm": 0.0,             # sangrado de impresión (mm de borde extra)
+    "simular_impresion": False,  # ver en pantalla cómo quedará al imprimir
+    "sim_cmyk": False,           # simular recorte de CMYK
+    "sim_saturacion": 1.0,       # ajustes para compensar la pérdida de color
+    "sim_contraste": 1.0,
+    "sim_brillo": 1.0,
     "chequear_lineas": True,
     "carpeta_export": "",
     "dpi_importacion": 300,      # DPI que asume Design Space al importar
@@ -166,3 +175,20 @@ def save_presets(presets: dict) -> None:
     PRESETS_FILE.parent.mkdir(parents=True, exist_ok=True)
     PRESETS_FILE.write_text(json.dumps(presets, ensure_ascii=False, indent=2),
                             "utf-8")
+
+
+# Perfiles listos para usar (la UI los ofrece con un botón)
+PRESETS_INTERESANTES: dict[str, dict] = {
+    "chapa": {"espacio_mm": 0.5, "margen_mm": 0.5, "offset_activo": False,
+              "usar_minis": True, "mini_min_mm": 4.0},
+    "pegatina": {"espacio_mm": 2.0, "margen_mm": 1.0, "offset_activo": True,
+                 "offset_mm": 1.0, "offset_modo": "extender"},
+    "hoja": {"espacio_mm": 0.0, "margen_mm": 0.5, "offset_activo": False},
+    "iman": {"espacio_mm": 1.0, "margen_mm": 1.0, "offset_activo": True,
+             "offset_mm": 0.8, "offset_modo": "blanco"},
+    "pegatina-grande": {"espacio_mm": 3.0, "margen_mm": 1.5,
+                        "offset_activo": True, "offset_mm": 2.0,
+                        "offset_modo": "extender", "dpi_salida": 300},
+    "vinilo": {"espacio_mm": 1.5, "margen_mm": 1.0, "offset_activo": False,
+               "rotacion": "libre", "opt_metodo": "genetic"},
+}

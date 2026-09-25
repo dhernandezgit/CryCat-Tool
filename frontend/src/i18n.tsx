@@ -113,6 +113,12 @@ export const EN: Record<string, string> = {
   "Rápida (más gruesa, para bocetos)": "Fast (coarser, for drafts)",
   "Ajustes rápidos": "Quick settings",
   "Chapa": "Badge",
+  "Perfiles listos": "Ready-made presets",
+  "Imán": "Magnet",
+  "Pegatina grande": "Large sticker",
+  "Vinilo": "Vinyl",
+  "Chapa: casi sin espacio · Pegatina: espacio y borde · Hoja: sin espacio ni borde · Imán: borde blanco":
+    "Badge: almost no spacing · Sticker: spacing and border · Sheet: no spacing or border · Magnet: white border",
   "Pegatina": "Sticker",
   "Chapa: casi sin espacio entre piezas":
     "Badge: almost no spacing between pieces",
@@ -126,6 +132,21 @@ export const EN: Record<string, string> = {
   "La eficiencia del último cálculo se muestra en la barra de estado.":
     "The efficiency of the last run is shown in the status bar.",
   "Formato de color de salida": "Output color format",
+  "Espacio de color de impresión": "Print color space",
+  "Sangrado de impresión": "Print bleed",
+  "Repite el color del borde hacia fuera para que no salga reborde blanco si la impresora no está perfectamente alineada (0 = sin sangrado).":
+    "Extends the edge colour outwards so no white fringe appears if the printer is not perfectly aligned (0 = no bleed).",
+  "sRGB (estándar, el más seguro)": "sRGB (standard, safest)",
+  "AdobeRGB (más gamas verdes/azules)": "AdobeRGB (wider greens/blues)",
+  "Previsualizar la impresión (simular el espacio de color)":
+    "Preview the print (simulate the color space)",
+  "Simular el recorte de CMYK (amarillea azules/verdes)":
+    "Simulate CMYK clipping (yellowing of blues/greens)",
+  "Saturación de la simulación": "Simulation saturation",
+  "Contraste de la simulación": "Simulation contrast",
+  "Brillo de la simulación": "Simulation brightness",
+  "Sube saturación/contraste para compensar lo que apaga la impresión. El archivo no se modifica: solo la vista previa.":
+    "Raise saturation/contrast to offset what printing dulls. The file is not modified: preview only.",
   "PNG con transparencia (recomendado)": "PNG with transparency (recommended)",
   "PNG con fondo blanco": "PNG with white background",
   "Comprobación de líneas anómalas": "Odd line detection",

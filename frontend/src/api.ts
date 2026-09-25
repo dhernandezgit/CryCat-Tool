@@ -84,6 +84,13 @@ export interface AppSettings {
   offset_modo: "extender" | "blanco" | "color";
   offset_color: string;
   color_formato: "rgba" | "rgb";
+  espacio_color: "srgb" | "adobergb";
+  bleed_mm: number;
+  simular_impresion: boolean;
+  sim_cmyk: boolean;
+  sim_saturacion: number;
+  sim_contraste: number;
+  sim_brillo: number;
   chequear_lineas: boolean;
   carpeta_export: string;
   dpi_importacion: number;
@@ -283,7 +290,8 @@ export const api = {
       paginas: { pagina: number; formas: number; segundos: number }[];
       desglose: { corte_s?: number; viaje_s?: number; extra_s?: number };
     }>("/api/estimate"),
-  pageUrl: (i: number, v: number) => `/api/pages/${i}.png?v=${v}`,
+  pageUrl: (i: number, v: number, sim = false) =>
+    `/api/pages/${i}.png?v=${v}${sim ? "&sim=1" : ""}`,
   move: (uid: string, x: number, y: number) =>
     req<{ ok: boolean; placement: Placement; job: Job | null }>(
       `/api/placements/move`, {
@@ -320,6 +328,9 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ path }),
     }),
+  factoryPresets: () =>
+    req<{ presets: Record<string, Partial<AppSettings>> }>(
+      "/api/presets/factory"),
   assetsFolder: () =>
     req<{ path: string; exists: boolean }>("/api/assets-folder"),
   setIcon: (file: Blob) => {
