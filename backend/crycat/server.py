@@ -74,7 +74,8 @@ def _persist_asset(a: Asset) -> None:
         json.dumps({"name": a.name, "dpi_origen": a.dpi_origen,
                     "warnings": a.warnings, "bg_removed": a.bg_removed,
                     "copies": a.copies, "mini_enabled": a.mini_enabled,
-                    "mini_quota": a.mini_quota, "scale_pct": a.scale_pct},
+                    "mini_quota": a.mini_quota, "scale_pct": a.scale_pct,
+                    "offset_mm": a.offset_mm},
                    ensure_ascii=False), "utf-8")
 
 
@@ -284,6 +285,11 @@ def create_app(store: Session = session) -> FastAPI:
         if "mini_quota" in payload:
             # cuota de minis: 1 = reparto equitativo; 3 = el triple (decimales ok)
             a.mini_quota = min(100.0, max(1.0, float(payload["mini_quota"])))
+        if "offset_mm" in payload:
+            # borde SOLO de este elemento (0 = usar el ajuste global)
+            a.offset_mm = min(20.0, max(0.0, float(payload["offset_mm"])))
+            if hasattr(a, "_cache_offset"):
+                del a._cache_offset
         if "scale_pct" in payload:
             a.scale_pct = min(1000.0, max(5.0, float(payload["scale_pct"])))
         store.save()

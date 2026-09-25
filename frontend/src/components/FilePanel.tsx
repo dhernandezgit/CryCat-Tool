@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api, assetSizeMm, normalizeAsset, prepareFile, type AppSettings, type Asset, type Result } from "../api";
 import { useT } from "../i18n";
+import ImportDialog from "./ImportDialog";
 
 interface Props {
   assets: Asset[];
@@ -201,6 +202,32 @@ function AssetCard({ a, result, onChange, onEditarContorno }: {
           />
           <span>mm</span>
         </div>
+        <div className="exact-row">
+          <span title={t("Borde solo de este elemento para unir trozos flotantes (0 = ajuste global)")}>
+            {t("Borde")}
+          </span>
+          <button
+            className="quota-btn"
+            data-testid={`offset-menos-${a.id}`}
+            onClick={() => patch({
+              offset_mm: Math.max(0, Math.round((local.offset_mm - 0.5) * 2) / 2),
+            })}
+          >
+            −
+          </button>
+          <span className="quota-val" data-testid={`offset-${a.id}`}>
+            {local.offset_mm.toFixed(1)} mm
+          </span>
+          <button
+            className="quota-btn"
+            data-testid={`offset-mas-${a.id}`}
+            onClick={() => patch({
+              offset_mm: Math.min(20, Math.round((local.offset_mm + 0.5) * 2) / 2),
+            })}
+          >
+            +
+          </button>
+        </div>
         {normalesColocados > 0 && (
           <div className="size-mm">{t("Colocadas: {n}", { n: normalesColocados })}</div>
         )}
@@ -268,16 +295,21 @@ export default function FilePanel({ assets, result, settings, onChange, saveSett
   const inputRef = useRef<HTMLInputElement>(null);
   const [over, setOver] = useState(false);
 
+  const [importados, setImportados] = useState<Asset[] | null>(null);
+
   const uploadFiles = async (files: FileList | File[]) => {
+    const subidos: Asset[] = [];
     for (const f of Array.from(files)) {
       try {
         const { blob, name } = await prepareFile(f);
-        await api.upload(blob, name);
+        subidos.push(normalizeAsset(await api.upload(blob, name)));
       } catch (e) {
         console.error(e);
       }
     }
     await onChange();
+    // varias a la vez → popup para adaptar los tamaños en bloque
+    if (subidos.length > 1) setImportados(subidos);
   };
 
   const usarMinis = settings.usar_minis;
@@ -341,6 +373,13 @@ export default function FilePanel({ assets, result, settings, onChange, saveSett
       >
         {t("Descartar imágenes")}
       </button>
+
+      <ImportDialog
+        open={!!importados}
+        assets={importados ?? []}
+        onClose={() => setImportados(null)}
+        onDone={async () => { await onChange(); }}
+      />
     </div>
   );
 }

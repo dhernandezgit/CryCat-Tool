@@ -336,8 +336,12 @@ def aplicar_offset(img: Image.Image, radio_px: float,
     if r <= 0:
         return trim(img.convert("RGBA"))
 
-    rgba = img.convert("RGBA")
-    arr = np.asarray(rgba).copy()
+    # lienzo AMPLIADO para que el borde no se recorte (el contenido se centra)
+    rgba = trim(img.convert("RGBA"))
+    lienzo = Image.new("RGBA", (rgba.width + 2 * r, rgba.height + 2 * r),
+                       (0, 0, 0, 0))
+    lienzo.paste(rgba, (r, r))
+    arr = np.asarray(lienzo).copy()
     alpha = arr[..., 3]
     mask = alpha > 20
 

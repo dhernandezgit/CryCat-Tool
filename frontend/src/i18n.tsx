@@ -286,6 +286,9 @@ export const EN: Record<string, string> = {
   // ------------------------------------------------------------- varios --
   "Personalizado": "Custom",
   "Escala": "Scale",
+  "Borde": "Border",
+  "Borde solo de este elemento para unir trozos flotantes (0 = ajuste global)":
+    "Border for this item only, to merge floating pieces (0 = global setting)",
   "Ancho": "Width",
   "Alto": "Height",
   "Tamaño exacto en milímetros (mantiene la proporción)":
@@ -297,6 +300,18 @@ export const EN: Record<string, string> = {
   "Carpeta": "Folder",
   "Abrir carpeta": "Open folder",
   "Continuar": "Continue",
+  "Adaptar los tamaños importados": "Adjust imported sizes",
+  "Cómo quedan sobre un A4": "How they fit on A4",
+  "Selecciona los que quieras (todos por defecto)":
+    "Select the ones you want (all by default)",
+  "Escala de los seleccionados": "Scale of the selected",
+  "Tamaño del lado": "Side size",
+  "Medir el tamaño por": "Measure size by",
+  "Lado mayor": "Longest side",
+  "Lado menor": "Shortest side",
+  "Círculo equivalente (aprox.)": "Equivalent circle (approx.)",
+  "Aplicar a los seleccionados": "Apply to selected",
+  "{n} elementos ajustados ✓": "{n} items adjusted ✓",
   "Pasos en Cricut Design Space": "Steps in Cricut Design Space",
   "Cómo usar tu PNG en Cricut Design Space":
     "How to use your PNG in Cricut Design Space",

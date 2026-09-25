@@ -9,7 +9,7 @@ declare const global: { fetch: unknown };
 const asset = (over: Partial<Asset> = {}): Asset => ({
   id: "a1", name: "gato.png", w_px: 100, h_px: 80, w_mm: 8.47, h_mm: 6.77,
   w_mm_base: 8.47, h_mm_base: 6.77, scale_pct: 100,
-  dpi_origen: 300, copies: 1, mini_enabled: false, mini_quota: 1,
+  dpi_origen: 300, copies: 1, mini_enabled: false, mini_quota: 1, offset_mm: 0,
   bg_removed: false, warnings: [], ...over,
 });
 
@@ -167,7 +167,7 @@ describe("Panel de archivos", () => {
   it("no muestra NaN aunque falten campos (sesiones antiguas)", () => {
     const viejo = {
       id: "v1", name: "viejo.png", w_px: 60, h_px: 40, w_mm: 5, h_mm: 3.3,
-      dpi_origen: 300, copies: 1, mini_enabled: false, mini_quota: 1,
+      dpi_origen: 300, copies: 1, mini_enabled: false, mini_quota: 1, offset_mm: 0,
       bg_removed: false,
     } as unknown as Asset;   // sin scale_pct ni w_mm_base
     render(<FilePanel assets={[viejo]} result={null} settings={settings} onChange={onChange} saveSettings={saveSettings} />);

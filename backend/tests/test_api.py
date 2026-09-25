@@ -583,3 +583,18 @@ def test_sin_assets_result_vacio(client):
     assert res["pages"] == 0
     r = c.post("/api/export", json={"name": "x"})
     assert r.status_code == 400
+
+def test_offset_por_elemento_une_flotantes(client):
+    """El borde de un elemento crece su tamaño efectivo y no toca a los demás."""
+    c, st, _ = client
+    d = upload(c, "a.png").json()
+    base = d["w_mm_base"]
+    c.patch(f"/api/assets/{d['id']}", json={"offset_mm": 2.0})
+    a = next(x for x in c.get("/api/assets").json() if x["id"] == d["id"])
+    assert a["offset_mm"] == 2.0
+    assert abs(a["w_mm"] - (base + 4.0)) < 0.15      # crece 2×2 mm
+    assert c.get(f"/api/assets/{d['id']}/preview.png").status_code == 200
+    # volver a 0 lo deja como estaba
+    c.patch(f"/api/assets/{d['id']}", json={"offset_mm": 0.0})
+    b = next(x for x in c.get("/api/assets").json() if x["id"] == d["id"])
+    assert abs(b["w_mm"] - base) < 0.05

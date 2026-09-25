@@ -32,6 +32,9 @@ class Asset:
         # (1 = reparto equitativo; 3 = el triple; admite decimales)
         self.mini_quota = 1.0
         self.scale_pct = 100.0  # escala del elemento (100% = tamaño natural)
+        # borde SOLO de este elemento (0 = usar el ajuste global). Sirve para
+        # unir trozos flotantes del dibujo en una sola pegatina.
+        self.offset_mm = 0.0
         self.bg_removed = False
 
     @property
@@ -54,6 +57,7 @@ class Asset:
             "dpi_origen": self.dpi_origen,
             "copies": self.copies, "mini_enabled": self.mini_enabled,
             "mini_quota": self.mini_quota, "scale_pct": self.scale_pct,
+            "offset_mm": self.offset_mm,
             "bg_removed": self.bg_removed,
             "warnings": self.warnings,
         }
@@ -96,25 +100,26 @@ class Session:
     def asset_dicts(self) -> list[dict]:
         with self._lock:
             out = [a.to_dict() for a in self.assets.values()]
-        # si hay offset, el tamaño efectivo crece 2×mm (el borde forma parte
-        # de la pieza, así que el empaquetado debe contarlo)
-        off = _offset_actual()
-        if off is not None:
-            mm = off[0]
-            for d in out:
+        # si hay borde (propio del elemento o global), el tamaño efectivo
+        # crece 2×mm: el borde forma parte de la pieza y el empaquetado lo cuenta
+        for d in out:
+            a = self.assets.get(d["id"])
+            off = _offset_de(a) if a is not None else None
+            if off is not None:
+                mm = off[0]
                 d["w_mm"] = round(d["w_mm"] + 2 * mm, 2)
                 d["h_mm"] = round(d["h_mm"] + 2 * mm, 2)
-                d["offset_mm"] = mm
         return out
 
     def images(self) -> dict[str, Image.Image]:
-        """Imágenes de trabajo con el offset/borde aplicado si está activo."""
-        off = _offset_actual()
-        if off is None:
-            return {a.id: a.img for a in self.assets.values()}
-        mm, modo, color = off
+        """Imágenes de trabajo con el borde aplicado (por elemento o global)."""
         out: dict[str, Image.Image] = {}
         for a in self.assets.values():
+            off = _offset_de(a)
+            if off is None:
+                out[a.id] = a.img
+                continue
+            mm, modo, color = off
             clave = (round(mm, 3), modo, color)
             cache = getattr(a, "_cache_offset", None)
             if cache is None or cache[0] != clave:
@@ -194,6 +199,7 @@ class Session:
                 a.mini_enabled = bool(meta.get("mini_enabled", False))
                 # sesiones antiguas: la cuota empieza en 1 (reparto equitativo)
                 a.mini_quota = float(meta.get("mini_quota", 1.0))
+                a.offset_mm = float(meta.get("offset_mm", 0.0) or 0.0)
                 a.scale_pct = float(meta.get("scale_pct", 100.0))
                 a.bg_removed = bool(meta.get("bg_removed", False))
                 self.assets[a.id] = a
@@ -209,6 +215,17 @@ class Session:
 
 def new_id() -> str:
     return uuid.uuid4().hex[:12]
+
+
+def _offset_de(a) -> tuple[float, str, tuple[int, int, int]] | None:
+    """Offset efectivo de un elemento: el suyo si tiene, si no el global."""
+    propio = float(getattr(a, "offset_mm", 0.0) or 0.0)
+    if propio > 0:
+        base = _offset_actual()
+        modo = base[1] if base else str(settings.get("offset_modo", "extender"))
+        color = base[2] if base else (255, 255, 255)
+        return propio, modo, color
+    return _offset_actual()
 
 
 def _offset_actual() -> tuple[float, str, tuple[int, int, int]] | None:

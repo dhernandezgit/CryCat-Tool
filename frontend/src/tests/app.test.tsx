@@ -7,7 +7,7 @@ import App from "../App";
 const asset = {
   id: "a1", name: "gato.png", w_px: 100, h_px: 80, w_mm: 8.47, h_mm: 6.77,
   w_mm_base: 8.47, h_mm_base: 6.77, scale_pct: 100, dpi_origen: 300,
-  copies: 2, mini_enabled: false, mini_quota: 1,
+  copies: 2, mini_enabled: false, mini_quota: 1, offset_mm: 0,
   bg_removed: false, warnings: [],
 };
 const result = {
