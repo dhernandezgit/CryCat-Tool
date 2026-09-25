@@ -26,6 +26,9 @@ jobs:
 
   windows:
     runs-on: windows-latest
+    permissions:
+      contents: read
+      issues: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -35,21 +38,51 @@ jobs:
       - name: Inno Setup (para el instalador con accesos directos)
         run: choco install innosetup --no-progress -y
       - name: Build (CryCat.exe + instalador)
+        id: build
         shell: pwsh
-        run: .\packaging\build_windows.ps1
+        continue-on-error: true
+        run: |
+          .\packaging\build_windows.ps1 2>&1 | Tee-Object -FilePath build-windows.log
+          exit $LASTEXITCODE
+      - name: Diagnóstico (publicar el error en un issue)
+        if: steps.build.outcome == 'failure'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if (-not (Test-Path build-windows.log)) { "sin log" | Out-File build-windows.log }
+          $tail = (Get-Content build-windows.log -Tail 90) -join "`n"
+          $titulo = "🛠️ Fallo del build de Windows"
+          $cuerpo = "Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`n`n" + '```text' + "`n$tail`n" + '```'
+          $h = @{ Authorization = "Bearer $env:GH_TOKEN"; "User-Agent" = "crycat-ci"; Accept = "application/vnd.github+json" }
+          $json = @{ title = $titulo; body = $cuerpo; labels = @("ci") } | ConvertTo-Json
+          $abiertos = Invoke-RestMethod -Uri "https://api.github.com/repos/${{ github.repository }}/issues?state=open" -Headers $h
+          $prev = $abiertos | Where-Object { $_.title -eq $titulo -and -not $_.pull_request } | Select-Object -First 1
+          if ($prev) {
+            Invoke-RestMethod -Method Patch -Uri "https://api.github.com/repos/${{ github.repository }}/issues/$($prev.number)" -Headers $h -Body $json -ContentType "application/json" | Out-Null
+          } else {
+            Invoke-RestMethod -Method Post -Uri "https://api.github.com/repos/${{ github.repository }}/issues" -Headers $h -Body $json -ContentType "application/json" | Out-Null
+          }
+          Write-Host "log publicado en el issue de diagnóstico"
       - name: Subir CryCat.exe
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: crycat-windows
-          if-no-files-found: error
+          if-no-files-found: warn
           path: dist/CryCat.exe
       - name: Subir instalador (si se generó)
+        if: always()
         uses: actions/upload-artifact@v4
         continue-on-error: true
         with:
           name: crycat-windows-setup
           if-no-files-found: warn
           path: packaging/Output/crycat-setup.exe
+      - name: Fallar el job si el build falló
+        if: steps.build.outcome == 'failure'
+        shell: pwsh
+        run: exit 1
 
   release:
     # al empujar una etiqueta vX.Y.Z se publica la release con los archivos
