@@ -58,8 +58,16 @@ las limpia, las escala y **las coloca de la forma más eficiente posible** en el
 área recortable de tu Cricut, generando un PNG a 300 ppp listo para
 *Print Then Cut*.
 
-- **Empaquetado por silueta real** (no por cajas): encaja unas piezas con otras
-  aprovechando el hueco hasta la eficiencia máxima, con espaciado configurable.
+- **Empaquetado por silueta real** (no por cajas): el contorno se extrae con
+  OpenCV y se simplifica; el solape se calcula **siempre con la forma de verdad**
+  (un círculo ocupa 0,79 de su caja, no 1,00). La eficiencia que ves es la
+  superficie real de las siluetas.
+- **4 métodos de optimización**: *Greedy/Bottom-Left* (rápido, por defecto),
+  *Largest First*, *Voronoi* (huecos libres) y *Genético* (máxima calidad), con
+  **compactación tipo DeepNest** y **3 niveles de calidad** (exacta/normal/rápida).
+- **Tamaño exacto en mm** por ancho o por alto, **importación múltiple** con
+  popup (preview sobre A4 + cuadrícula 3×3 + escala/tamaño por lado mayor,
+  menor o círculo equivalente).
 - **Rotación** 0/90/180/270 o cualquier ángulo, elegida por el optimizador para
   cada pieza.
 - **Copias** por imagen, **minis** que rellenan huecos (con cuota proporcional y
@@ -68,10 +76,25 @@ las limpia, las escala y **las coloca de la forma más eficiente posible** en el
 - **Límites reales de la Cricut Maker 5** (polígono escalonado de 5 bandas,
   esquinas de las marcas de registro) y guías visuales solo en la vista previa.
 - **Limpieza de fondo** inteligente, **detección y limpieza de trozos sueltos
-  (blobs)**, y **borde/offset** (extender color, blanco o color personalizado).
+  (blobs)**, y **borde/offset** por elemento o global (extender, blanco o color
+  personalizado) para **unir trozos flotantes** en una sola pegatina. El borde
+  es un valor en **mm del resultado** (no se agranda al escalar).
 - **Estimación del tiempo de corte** para la Maker 5 (perímetro + recorridos).
-- **Perfiles de configuración** con nombre, temas pastel (12), Pikmin animado
-  con sonidos, todo en **español e inglés**.
+- **Impresión con las marcas de Cricut**: guarda primero y genera un PDF a
+  300 ppp con las **marcas negras reales** (4 esquinas en L de 25 mm y la
+  flecha en la superior izquierda) para imprimir sin pasar por Design Space.
+- **Guardado inteligente**: una página = PNG directo (sin carpeta ni JSON) y
+  **popup propio** con qué se guardó, dónde, abrir carpeta y los **pasos para
+  Cricut Design Space**.
+- **Color de impresión**: espacio sRGB/AdobeRGB (perfil ICC embebido),
+  **previsualización simulada** (recorte CMYK + saturación/contraste/brillo) y
+  **sangrado (bleed)** para evitar rebordes blancos.
+- **Historial local** (deshacer/rehacer con Ctrl+Z / Ctrl+Y) configurable: elige
+  qué se guarda (tamaño, copias, borde, minis) y cuántos pasos.
+- **6 presets de fábrica** (chapa, pegatina, hoja de pegatinas, imán, pegatina
+  grande, vinilo) y **perfiles** propios con nombre.
+- **Temas pastel** (12), **Pikmin** animado con sonidos (mínimo de minis 15 mm),
+  modo fiesta oculto (**5 clics en el gato**) y todo en **español e inglés**.
 - **Exportación que nunca sobrescribe** y que **jamás modifica los originales**.
 - **Aviso y actualización automática**: si hay Internet, al arrancar comprueba
   si hay versión nueva; puedes actualizar con un clic desde la propia app
@@ -224,9 +247,16 @@ scripts/            utilidades (iconos, descarga de recursos, benchmarks)
 ### Tests
 
 ```bash
-cd backend && .venv/bin/python -m pytest tests/   # 117 tests
-cd frontend && npm test                            # 56 tests
+cd backend && .venv/bin/python -m pytest tests/   # 129 tests
+cd frontend && npm test                            # 64 tests
 ```
+
+### Imagen de prueba
+
+En `assets/prueba_crycat.png` hay una imagen generada por CryCat con una estrella
+irregular, un anillo con agujero, un cuadrado con un trozo flotante y una forma
+casi transparente (1 % de alfa) para comprobar la segmentación, el borde y la
+detección/limpieza de blobs.
 
 ---
 
