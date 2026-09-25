@@ -213,7 +213,7 @@ export default function StatusBar({ job, backendOk, result, estimate,
             <img
               className="piensa"
               data-testid="piensa"
-              src="/piensa.png"
+              src="/piensa.gif"
               alt=""
               title={t("Pensando…")}
               onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
