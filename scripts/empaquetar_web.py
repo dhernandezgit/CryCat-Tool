@@ -44,6 +44,14 @@ def main() -> int:
         if puente.exists():
             z.write(puente, "crycat/webapi.py")
             n += 1
+        # recursos que usa el backend: marcas de Cricut e icono
+        for extra in sorted((BACKEND / "web" / "marcas").glob("*.png")):
+            z.write(extra, f"crycat/web/marcas/{extra.name}")
+            n += 1
+        icono = BACKEND / "web" / "icono.png"
+        if icono.exists():
+            z.write(icono, "crycat/web/icono.png")
+            n += 1
     print(f"{n} ficheros → {DESTINO.relative_to(RAIZ)} "
           f"({DESTINO.stat().st_size // 1024} KB)")
     return 0

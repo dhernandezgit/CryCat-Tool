@@ -677,3 +677,11 @@ button:active { transform: translateY(1px); }
 .statusbar .app-info.apoyar:hover {
   background: var(--accent3); color: var(--panel);
 }
+
+/* descarga del resultado en la versión web */
+.modal .btn-descarga {
+  display: inline-flex; align-items: center; gap: 6px; text-decoration: none;
+  font-weight: 700; padding: 9px 14px; border-radius: 10px;
+  background: var(--accent2); color: #fff; border: 2px solid var(--accent2);
+}
+.modal .btn-descarga:hover { filter: brightness(1.06); }

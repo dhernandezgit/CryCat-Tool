@@ -167,3 +167,101 @@ def _color(hexcol) -> tuple[int, int, int]:
         return (int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16))
     except Exception:
         return (255, 255, 255)
+
+# ===========================================================================
+#  Puente ASGI: ejecuta el MISMO servidor FastAPI dentro del navegador
+# ===========================================================================
+
+_app = None
+
+
+async def iniciar() -> str:
+    """Instala FastAPI (PyPI) y prepara el servidor real de CryCat.
+
+    Devuelve un JSON con el estado. Se llama una sola vez al abrir la web.
+    """
+    global _app
+    import micropip  # type: ignore
+
+    await micropip.install(["fastapi", "python-multipart"])
+
+    import os
+    from .config import settings
+    destino = "/tmp/crycat-exports"     # escribible en el sistema virtual
+    os.makedirs(destino, exist_ok=True)
+    # modo web: sin hilos reales, sin comprobar versiones y export a /tmp
+    settings.set({"web_inline_jobs": True, "comprobar_versiones": False,
+                  "carpeta_export": destino, "auto_recalcular": True})
+    from .server import create_app
+    _app = create_app()
+    from . import __version__
+    return json.dumps({"ok": True, "version": __version__, "web": True})
+
+
+async def peticion(method: str, path: str, headers: str = "{}",
+                   body: str = "") -> str:
+    """Ejecuta una petición HTTP contra el servidor FastAPI real.
+
+    `body` llega en base64 (puede ser binario: subidas de imágenes) y la
+    respuesta también. Todo ocurre en memoria, sin red.
+    """
+    if _app is None:
+        raise RuntimeError("el servidor no está iniciado")
+    datos = base64.b64decode(body) if body else b""
+    cabeceras = json.loads(headers or "{}")
+    ruta, _, query = path.partition("?")
+
+    scope = {
+        "type": "http", "asgi": {"version": "3.0"}, "http_version": "1.1",
+        "method": method.upper(), "scheme": "https", "path": ruta,
+        "raw_path": ruta.encode(), "query_string": query.encode(),
+        "root_path": "",
+        "headers": [(str(k).lower().encode(), str(v).encode())
+                    for k, v in cabeceras.items()],
+        "client": ("127.0.0.1", 12345), "server": ("crycat.local", 443),
+    }
+    estado = {"codigo": 500, "cabeceras": []}
+    cuerpo = bytearray()
+    enviado = False
+
+    async def receive():
+        nonlocal enviado
+        if enviado:
+            return {"type": "http.disconnect"}
+        enviado = True
+        return {"type": "http.request", "body": datos, "more_body": False}
+
+    async def send(msg):
+        if msg["type"] == "http.response.start":
+            estado["codigo"] = msg["status"]
+            estado["cabeceras"] = [
+                (k.decode(), v.decode()) for k, v in msg.get("headers", [])]
+        elif msg["type"] == "http.response.body":
+            cuerpo.extend(msg.get("body", b""))
+
+    await _app(scope, receive, send)
+
+    # En la web no hay carpetas: el resultado se entrega como descarga.
+    if ruta.startswith("/api/export") and estado["codigo"] == 200:
+        try:
+            datos_exp = json.loads(bytes(cuerpo).decode())
+            archivos = []
+            for f in datos_exp.get("files", []):
+                try:
+                    with open(f, "rb") as fh:
+                        crudo = fh.read()
+                    archivos.append("data:image/png;base64," +
+                                    base64.b64encode(crudo).decode())
+                except Exception:
+                    archivos.append(f)
+            datos_exp["files"] = archivos
+            datos_exp["folder"] = "web:descargas"
+            cuerpo = bytearray(json.dumps(datos_exp).encode())
+        except Exception:
+            pass
+
+    return json.dumps({
+        "status": estado["codigo"],
+        "headers": dict(estado["cabeceras"]),
+        "body": base64.b64encode(bytes(cuerpo)).decode(),
+    })

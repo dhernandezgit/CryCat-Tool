@@ -17,6 +17,7 @@ export default function SaveDialog({ open, files, folder, error, onOpenFolder,
   const [vista, setVista] = useState<"resumen" | "cricut">("resumen");
   if (!open) return null;
 
+  const esWeb = files.length > 0 && files.every((f) => f.startsWith("data:"));
   const pasos = [
     t("Abre Cricut Design Space."),
     t("Carga la imagen y elige «Imagen completa» (conserva la transparencia)."),
@@ -45,14 +46,29 @@ export default function SaveDialog({ open, files, folder, error, onOpenFolder,
                     <li key={f} title={f}>{f.split(/[\\/]/).pop()}</li>
                   ))}
                 </ul>
-                <p className="hint">{t("Carpeta")}: <code>{folder}</code></p>
+                {!esWeb && (
+                  <p className="hint">{t("Carpeta")}: <code>{folder}</code></p>
+                )}
+                {esWeb && (
+                  <p className="hint">
+                    {t("Descarga el resultado y ábrelo en Cricut Design Space.")}
+                  </p>
+                )}
               </>
             )}
             <div className="modal-botones">
-              <button data-testid="btn-abrir-carpeta"
-                onClick={() => onOpenFolder?.(folder)}>
-                <IconoCarpeta size={15} /> {t("Abrir carpeta")}
-              </button>
+              {esWeb ? files.map((f, i) => (
+                <a key={i} data-testid={`btn-descargar-${i}`} href={f}
+                   download={`crycat_pagina-${String(i + 1).padStart(2, "0")}.png`}
+                   className="btn-descarga">
+                  <IconoCarpeta size={15} /> {t("Descargar página {n}", { n: i + 1 })}
+                </a>
+              )) : (
+                <button data-testid="btn-abrir-carpeta"
+                  onClick={() => onOpenFolder?.(folder)}>
+                  <IconoCarpeta size={15} /> {t("Abrir carpeta")}
+                </button>
+              )}
               <button data-testid="btn-continuar" onClick={onClose}>
                 {t("Continuar")}
               </button>

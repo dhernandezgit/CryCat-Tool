@@ -190,7 +190,8 @@ export default function PikminPet({
           style={{ left: `${pet.left}%` }}
           onAnimationEnd={() => terminar(pet.key)}
         >
-          <img src={pet.src} alt="" aria-hidden="true" />
+          <img src={pet.src} alt="" aria-hidden="true"
+               onError={() => terminar(pet.key)} />
         </div>
       ))}
     </>

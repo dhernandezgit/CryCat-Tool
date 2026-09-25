@@ -42,3 +42,8 @@ Thumbs.db
 
 # artefactos de TypeScript
 *.tsbuildinfo
+
+# recursos grandes de la web (se generan al compilar; no se suben)
+docs/web/app/pikmin/
+docs/web/app/pikmin_bloom/
+docs/web/app/sonidos/

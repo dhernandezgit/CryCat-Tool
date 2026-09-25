@@ -14,7 +14,7 @@ APP_NAME = "CryCat"
 APP_W = 210.0
 APP_H = 297.0
 
-CONFIG_VERSION = 21  # subir para migrar configuraciones antiguas
+CONFIG_VERSION = 22  # subir para migrar configuraciones antiguas
 
 
 # En la nube se puede fijar una carpeta de datos con CRYCAT_DATA_DIR
@@ -116,6 +116,7 @@ DEFAULTS: dict = {
     # Idioma y versiones
     "idioma": "es",              # es | en
     "comprobar_versiones": True, # avisar si hay versión nueva (solo con Internet)
+    "web_inline_jobs": False,    # versión web: sin hilos, trabajos en línea
 }
 
 _lock = threading.Lock()

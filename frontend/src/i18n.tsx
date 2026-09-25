@@ -276,6 +276,9 @@ export const EN: Record<string, string> = {
   "Abrir la carpeta de guardado en el explorador":
     "Open the save folder in the file explorer",
   "Abrir carpeta de guardado": "Open save folder",
+  "Descargar página {n}": "Download page {n}",
+  "Descarga el resultado y ábrelo en Cricut Design Space.":
+    "Download the result and open it in Cricut Design Space.",
   "Guardar como…": "Save as…",
   "Imprimir": "Print",
   "Guardado en:\n{folder}": "Saved in:\n{folder}",

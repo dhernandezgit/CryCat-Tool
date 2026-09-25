@@ -162,7 +162,12 @@ def create_app(store: Session = session) -> FastAPI:
                     jobs[jid].update(status="error", done=True,
                                      message=tr("error: {e}", e=e))
 
-        threading.Thread(target=run, daemon=True).start()
+        if settings.get("web_inline_jobs"):
+            # En el navegador (Pyodide) no hay hilos reales: se ejecuta aquí
+            # mismo y el trabajo queda terminado al devolver la respuesta.
+            run()
+        else:
+            threading.Thread(target=run, daemon=True).start()
         return job
 
     # ----------------------------------------------------------------- api --
@@ -644,6 +649,10 @@ def create_app(store: Session = session) -> FastAPI:
     @app.post("/api/fs/open")
     def fs_open(payload: dict):
         """Abre una carpeta en el explorador de archivos del sistema."""
+        if settings.get("web_inline_jobs"):
+            # versión web: no hay explorador; se avisa y se sigue
+            return {"ok": False, "path": (payload or {}).get("path", ""),
+                    "web": True}
         raw = (payload or {}).get("path") or settings.get("carpeta_export") or \
             str(Path.home() / "Documents")
         p = Path(raw).expanduser()
