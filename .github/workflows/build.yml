@@ -42,8 +42,17 @@ jobs:
         shell: pwsh
         continue-on-error: true
         run: |
-          .\packaging\build_windows.ps1 -Log build-windows.log
-          exit $LASTEXITCODE
+          $ErrorActionPreference = "Continue"
+          $log = "build-windows.log"
+          "PS=$($PSVersionTable.PSVersion)  PWD=$PWD" | Tee-Object -FilePath $log
+          "script existe: $(Test-Path '.\packaging\build_windows.ps1')" | Tee-Object -FilePath $log -Append
+          try {
+            & ".\packaging\build_windows.ps1" *>&1 | Tee-Object -FilePath $log -Append
+          } catch {
+            "EXCEPCION: $($_.Exception.Message)" | Tee-Object -FilePath $log -Append
+            "EN LINEA: $($_.InvocationInfo.PositionMessage)" | Tee-Object -FilePath $log -Append
+          }
+          "EXITCODE=$LASTEXITCODE" | Tee-Object -FilePath $log -Append
       - name: Diagnóstico (publicar el error en un issue)
         if: steps.build.outcome == 'failure'
         shell: pwsh
