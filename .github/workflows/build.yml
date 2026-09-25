@@ -53,6 +53,7 @@ jobs:
             "EN LINEA: $($_.InvocationInfo.PositionMessage)" | Tee-Object -FilePath $log -Append
           }
           "EXITCODE=$LASTEXITCODE" | Tee-Object -FilePath $log -Append
+          if ($LASTEXITCODE -ne 0) { exit 1 }
       - name: Diagnóstico (publicar el error en un issue)
         if: steps.build.outcome == 'failure'
         shell: pwsh
