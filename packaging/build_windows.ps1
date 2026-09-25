@@ -9,11 +9,13 @@
 #
 #  Requisitos (solo la primera vez): Python 3.10+ y Node.js 18+.
 # =====================================================================
+# omite el instalador Inno Setup; omite los tests; ruta de Python 3.10+;
+# fichero de transcripción (depuración)
 param(
-  [switch]$SoloArchivoUnico,   # omite el instalador Inno Setup
-  [switch]$SinTests,           # omite los tests (más rápido)
-  [string]$PythonExe = "python",  # ruta o comando de Python 3.10+
-  [string]$Log = ""               # fichero de transcripción (para depurar)
+  [switch]$SoloArchivoUnico,
+  [switch]$SinTests,
+  [string]$PythonExe = "python",
+  [string]$Log = ""
 )
 
 $ErrorActionPreference = "Stop"
