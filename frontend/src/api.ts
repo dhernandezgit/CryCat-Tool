@@ -74,6 +74,7 @@ export interface AppSettings {
   pikmin_activo: boolean;
   pikmin_frecuencia_min: number;
   pikmin_sonido: boolean;
+  pikmin_fiesta: boolean;
   pikmin_sonido_morir: boolean;
   volumen: number;
   mute: boolean;
@@ -310,6 +311,12 @@ export const api = {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ path: path ?? null }),
+    }),
+  fsOpen: (path: string) =>
+    req<{ ok: boolean; path: string }>("/api/fs/open", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path }),
     }),
   assetsFolder: () =>
     req<{ path: string; exists: boolean }>("/api/assets-folder"),

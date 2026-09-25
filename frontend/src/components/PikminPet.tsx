@@ -7,6 +7,7 @@ export interface PikminConfig {
   sonidoMorir: boolean;
   volumen: number;         // 0..1
   mute: boolean;
+  fiesta: boolean;         // easter egg: se quedan y se ponen contentos
 }
 
 interface Props extends Partial<PikminConfig> {
@@ -34,6 +35,16 @@ const ALMA = "/pikmin/alma.png";                // alma (espíritu) del Pikmin
 const SONIDO = "/sonidos/pikmin.mp3";           // sonido real de Pikmin
 const SONIDO_MORIR = "/sonidos/pikmin_morir.mp3";
 
+type Estado = "paseando" | "quieto" | "festejando";
+
+interface Pet {
+  src: string;
+  left: number;
+  key: number;
+  morir: boolean;
+  estado: Estado;
+}
+
 /** Catálogo global de imágenes de Pikmin (base + muestra de Pikmin Bloom). */
 export function usePikminFuentes(extra?: string[]): string[] {
   const [bloom, setBloom] = useState<string[]>([]);
@@ -59,29 +70,58 @@ export function usePikminFuentes(extra?: string[]): string[] {
 }
 
 /**
- * De vez en cuando asoma un Pikmin aleatorio por el borde inferior, en una
- * posición X aleatoria, con animación (sube lento, se agita girando y vuelve
- * rápido) y sonido real. De vez en cuando "muere": aparece su alma y suena
- * el sonido de morir.
+ * De vez en cuando asoma un Pikmin por el borde inferior (sube lento, se agita
+ * girando y vuelve rápido) con sonido real; a veces "muere" y sale su alma.
+ *
+ * Easter egg (ajuste `fiesta`): si no estás mirando, los Pikmin se QUEDAN
+ * esperando; al volver, tras un segundo se ponen todos muy contentos (se
+ * agitan a la vez un par de segundos) y se marchan.
  */
 export default function PikminPet({
   activo = true,
-  frecuenciaMin = 1.0,
+  frecuenciaMin = 5.0,
   sonido = true,
   sonidoMorir = true,
   volumen = 0.5,
   mute = false,
+  fiesta = false,
   minDelay,
   maxDelay,
   fuentes,
 }: Props) {
   const catalogo = usePikminFuentes(fuentes);
-  const [pet, setPet] = useState<
-    { src: string; left: number; key: number; morir: boolean } | null
-  >(null);
+  const [pets, setPets] = useState<Pet[]>([]);
   const timer = useRef<number | undefined>(undefined);
+  const oculto = useRef(
+    typeof document !== "undefined" && document.visibilityState === "hidden"
+  );
+  const fiestaRef = useRef(fiesta);
+  fiestaRef.current = fiesta;
 
   const delayBase = Math.max(5000, frecuenciaMin * 60_000);
+
+  const suena = (morir: boolean) => {
+    if (!sonido || mute) return;
+    try {
+      const a = new Audio(morir ? SONIDO_MORIR : SONIDO);
+      a.volume = Math.min(1, Math.max(0, volumen));
+      void a.play().catch(() => undefined);
+    } catch {
+      /* audio no disponible */
+    }
+  };
+
+  const soltar = () => {
+    const muere = sonidoMorir && Math.random() < 0.25;
+    const src = muere
+      ? ALMA
+      : catalogo[Math.floor(Math.random() * catalogo.length)] ?? ALMA;
+    setPets((ps) => [...ps, {
+      src, left: 3 + Math.random() * 92, key: Date.now() + ps.length,
+      morir: muere, estado: "paseando",
+    }]);
+    suena(muere);
+  };
 
   const programar = () => {
     if (!activo) return;
@@ -90,31 +130,13 @@ export default function PikminPet({
     const min = minDelay ?? Math.round(delayBase * 0.5);
     const max = maxDelay ?? Math.round(delayBase * 1.5);
     const delay = min + Math.random() * Math.max(1, max - min);
-    timer.current = window.setTimeout(() => {
-      const muere = sonidoMorir && Math.random() < 0.25;
-      setPet({
-        src: muere ? ALMA
-                   : catalogo[Math.floor(Math.random() * catalogo.length)] ?? ALMA,
-        left: 3 + Math.random() * 92,
-        key: Date.now(),
-        morir: muere,
-      });
-      if (sonido && !mute) {
-        try {
-          const a = new Audio(muere ? SONIDO_MORIR : SONIDO);
-          a.volume = Math.min(1, Math.max(0, volumen));
-          void a.play().catch(() => undefined);
-        } catch {
-          /* audio no disponible */
-        }
-      }
-    }, delay);
+    timer.current = window.setTimeout(soltar, delay);
   };
 
   useEffect(() => {
     if (!activo) {
       window.clearTimeout(timer.current);
-      setPet(null);
+      setPets([]);
       return;
     }
     programar();
@@ -122,20 +144,55 @@ export default function PikminPet({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activo, frecuenciaMin, sonido, sonidoMorir, volumen, mute, catalogo]);
 
-  if (!pet) return null;
+  // visibilidad: en modo fiesta se quedan esperando y al volver celebran
+  useEffect(() => {
+    const alCambiar = () => {
+      oculto.current = document.visibilityState === "hidden";
+      if (!oculto.current && fiestaRef.current) {
+        window.setTimeout(() => {
+          setPets((ps) => {
+            if (!ps.length) return ps;
+            suena(false);
+            return ps.map((p) => ({ ...p, estado: "festejando" as Estado }));
+          });
+          window.setTimeout(() => {
+            setPets([]);
+            programar();
+          }, 2200);
+        }, 1000);
+      }
+    };
+    document.addEventListener("visibilitychange", alCambiar);
+    return () => document.removeEventListener("visibilitychange", alCambiar);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const terminar = (k: number) => {
+    if (fiestaRef.current && oculto.current) {
+      // se queda esperando (se acumulan mientras no miras)
+      setPets((ps) => ps.map((p) =>
+        p.key === k ? { ...p, estado: "quieto" as Estado } : p));
+      return;
+    }
+    setPets((ps) => ps.filter((p) => p.key !== k));
+    programar();
+  };
+
   return (
-    <div
-      key={pet.key}
-      className={`pikmin-pet${pet.morir ? " muriendo" : ""}`}
-      data-testid="pikmin-pet"
-      data-morir={pet.morir ? "1" : "0"}
-      style={{ left: `${pet.left}%` }}
-      onAnimationEnd={() => {
-        setPet(null);
-        programar();
-      }}
-    >
-      <img src={pet.src} alt="" aria-hidden="true" />
-    </div>
+    <>
+      {pets.map((pet) => (
+        <div
+          key={pet.key}
+          className={`pikmin-pet ${pet.estado}${pet.morir ? " muriendo" : ""}`}
+          data-testid="pikmin-pet"
+          data-estado={pet.estado}
+          data-morir={pet.morir ? "1" : "0"}
+          style={{ left: `${pet.left}%` }}
+          onAnimationEnd={() => terminar(pet.key)}
+        >
+          <img src={pet.src} alt="" aria-hidden="true" />
+        </div>
+      ))}
+    </>
   );
 }

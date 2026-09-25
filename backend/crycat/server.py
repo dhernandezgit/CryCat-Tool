@@ -568,7 +568,7 @@ def create_app(store: Session = session) -> FastAPI:
         data = compose.export_pdf(
             store.area, store.last.placements, store.images(),
             float(settings.get("dpi_salida", 300)),
-            full_page=settings.get("lienzo") == "pagina",
+            full_page=settings.get("lienzo") == "pagina", marcas=True,
             color=settings.get("color_formato", "rgba"))
         return Response(data, media_type="application/pdf",
                         headers={"Content-Disposition":

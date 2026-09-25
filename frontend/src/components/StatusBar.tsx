@@ -23,7 +23,8 @@ function formatoTiempo(s: number): string {
 
 export default function StatusBar({ job, backendOk, result, estimate,
                                     volumen = 0.5, mute = false,
-                                    onVolumen, onMute, onIdioma }: {
+                                    onVolumen, onMute, onIdioma,
+                                    onEasterEgg }: {
   job: Job | null;
   backendOk: boolean;
   result: Result | null;
@@ -33,6 +34,7 @@ export default function StatusBar({ job, backendOk, result, estimate,
   onVolumen?: (v: number) => void;
   onMute?: (m: boolean) => void;
   onIdioma?: (i: "es" | "en") => void;
+  onEasterEgg?: () => void;   // 5 clics seguidos en el gato
 }) {
   const t = useT();
   const idioma = useIdioma();
@@ -42,6 +44,7 @@ export default function StatusBar({ job, backendOk, result, estimate,
   const [comprobando, setComprobando] = useState(false);
   const [aviso, setAviso] = useState("");
   const comprobadoAuto = useRef(false);
+  const clicsGato = useRef<number[]>([]);
 
   useEffect(() => {
     fetch("/api/funmsgs")
@@ -166,7 +169,25 @@ export default function StatusBar({ job, backendOk, result, estimate,
   return (
     <div className="statusbar" data-testid="statusbar">
       <div className="brand">
-        <img src={api.iconUrl()} alt="CryCat" data-testid="brand-icon" />
+        <img
+          src={api.iconUrl()}
+          alt="CryCat"
+          data-testid="brand-icon"
+          title={t("CryCat")}
+          style={{ cursor: "pointer" }}
+          onClick={() => {
+            // easter egg: 5 clics seguidos en el gato
+            const ahora = Date.now();
+            clicsGato.current = [...clicsGato.current, ahora]
+              .filter((t0) => ahora - t0 < 2500);
+            if (clicsGato.current.length >= 5) {
+              clicsGato.current = [];
+              setAviso(t("¡Fiesta Pikmin! 🎉"));
+              window.setTimeout(() => setAviso(""), 4000);
+              onEasterEgg?.();
+            }
+          }}
+        />
         <span className="nombre">CryCat</span>
       </div>
       <div className="center" data-testid="status-center">

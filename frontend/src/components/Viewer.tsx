@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api, NAME_SUGGESTIONS, NAME_SUGGESTIONS_EN, type AppSettings, type Asset, type Job, type Placement, type Result, type UiState } from "../api";
 import FolderPicker from "./FolderPicker";
+import SaveDialog from "./SaveDialog";
 import { useT, useIdioma } from "../i18n";
 
 interface Props {
@@ -224,12 +225,42 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
     });
   };
 
+  const [guardado, setGuardado] = useState<
+    { files: string[]; folder: string; error?: string } | null>(null);
+
+  // Imprimir: primero ASEGURA que está guardado y luego imprime el PDF con
+  // las marcas negras de Cricut (misma calidad, tamaño real)
+  const imprimir = async () => {
+    try {
+      const r = await api.export(ui.saveName || "crycat",
+                                 settings.carpeta_export || undefined);
+      setGuardado({ files: r.files, folder: r.folder });
+    } catch (e) {
+      setGuardado({ files: [], folder: "", error: (e as Error).message });
+      return;
+    }
+    const iframe = document.createElement("iframe");
+    iframe.setAttribute("aria-hidden", "true");
+    iframe.style.cssText =
+      "position:fixed;right:0;bottom:0;width:0;height:0;border:0";
+    iframe.src = "/api/print.pdf";
+    iframe.onload = () => {
+      try {
+        iframe.contentWindow?.focus();
+        iframe.contentWindow?.print();
+      } finally {
+        window.setTimeout(() => iframe.remove(), 60000);
+      }
+    };
+    document.body.appendChild(iframe);
+  };
+
   const save = async () => {
     try {
       const r = await api.export(nombreGuardar);
-      alert(t("Guardado en:\n{folder}", { folder: r.folder }));
+      setGuardado({ files: r.files, folder: r.folder });
     } catch (e) {
-      alert(t("No se pudo guardar: {e}", { e: (e as Error).message }));
+      setGuardado({ files: [], folder: "", error: (e as Error).message });
     }
   };
 
@@ -241,9 +272,9 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
   const exportarEn = async (folder: string) => {
     try {
       const r = await api.export(nombreGuardar, folder);
-      alert(t("Guardado en:\n{folder}", { folder: r.folder }));
+      setGuardado({ files: r.files, folder: r.folder });
     } catch (e) {
-      alert(t("No se pudo guardar: {e}", { e: (e as Error).message }));
+      setGuardado({ files: [], folder: "", error: (e as Error).message });
     }
   };
 
@@ -478,6 +509,8 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
           </button>
           <button data-testid="btn-guardar" onClick={save}>{t("Guardar")}</button>
           <button data-testid="btn-guardar-como" onClick={saveAs}>{t("Guardar como…")}</button>
+          <button data-testid="btn-imprimir" onClick={imprimir}
+                  disabled={pages === 0}>{t("Imprimir")}</button>
         </div>
       </div>
       )}
@@ -487,6 +520,15 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
         initial={settings.carpeta_export}
         onClose={() => setPickerOpen(false)}
         onPick={exportarEn}
+      />
+      <SaveDialog
+        open={!!guardado}
+        files={guardado?.files ?? []}
+        folder={guardado?.folder ?? ""}
+        error={guardado?.error}
+        onOpenFolder={(ruta) =>
+          void api.fsOpen(ruta).catch(() => undefined)}
+        onClose={() => setGuardado(null)}
       />
     </div>
   );

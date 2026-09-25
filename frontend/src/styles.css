@@ -419,3 +419,38 @@ input::placeholder { color: #cbbfc8; opacity: 1; font-style: italic; }
 .vol-control input[type="range"] {
   width: 110px; accent-color: var(--accent2); cursor: pointer;
 }
+
+/* Pikmin: en modo fiesta se quedan esperando y celebran al volver */
+.pikmin-pet.quieto {
+  animation: none;
+  transform: translateY(-6px);
+  opacity: 1;
+}
+.pikmin-pet.quieto img { animation: pikmin-respira 2.4s ease-in-out infinite; }
+.pikmin-pet.festejando { animation: none; opacity: 1; transform: translateY(-8px); }
+.pikmin-pet.festejando img { animation: pikmin-festeja 0.45s ease-in-out infinite; }
+@keyframes pikmin-respira {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.04); }
+}
+@keyframes pikmin-festeja {
+  0%, 100% { transform: rotate(-9deg) translateY(0); }
+  25% { transform: rotate(9deg) translateY(-6px); }
+  50% { transform: rotate(-9deg) translateY(-2px); }
+  75% { transform: rotate(9deg) translateY(-7px); }
+}
+
+/* popup de guardado: archivos, carpeta y pasos de Cricut */
+.modal .lista-archivos {
+  margin: 0; padding-left: 18px; max-height: 140px; overflow-y: auto;
+  font-size: 13px; color: var(--textSoft);
+}
+.modal .lista-pasos {
+  margin: 0; padding-left: 20px; display: flex; flex-direction: column;
+  gap: 7px; font-size: 14px; max-height: 46vh; overflow-y: auto;
+}
+.modal .modal-botones {
+  display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end;
+  margin-top: 6px;
+}
+.modal .error { color: var(--danger); font-weight: 700; }

@@ -136,3 +136,17 @@ jobs:
             artefactos/**/crycat-setup.exe
             artefactos/**/crycat-linux-*.tar.gz
             artefactos/**/crycat-onefile
+      - name: Borrar releases anteriores (solo se guarda la última)
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const tag = context.ref.replace('refs/tags/', '');
+            const rels = await github.rest.repos.listReleases({
+              owner: context.repo.owner, repo: context.repo.repo, per_page: 100 });
+            for (const r of rels.data) {
+              if (r.tag_name !== tag) {
+                await github.rest.repos.deleteRelease({
+                  owner: context.repo.owner, repo: context.repo.repo,
+                  release_id: r.id });
+              }
+            }

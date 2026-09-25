@@ -24,7 +24,7 @@ const settings = {
   espacio_mm: 2, margen_mm: 1, rotacion: "no", dpi_salida: 300, pagina: "A4",
   pagina_w: 297, pagina_h: 210, maquina: "estandar", usar_minis: false,
   mini_min_mm: 5, mini_rotacion: "no",
-  opt_metodo: "greedy", opt_calidad: "normal", opt_tiempo_max_s: 8, mini_usar_lista: false, mini_tamanos_lista: [50], auto_recalcular: true, corte_velocidad_mm_s: 50, corte_viaje_mm_s: 120, corte_extra_forma_s: 0.4, corte_factor: 1, pikmin_activo: true, pikmin_frecuencia_min: 1, pikmin_sonido: true, pikmin_sonido_morir: true, volumen: 0.5, mute: false, offset_activo: false, offset_mm: 2, offset_modo: "extender", offset_color: "#ffffff",
+  opt_metodo: "greedy", opt_calidad: "normal", opt_tiempo_max_s: 8, mini_usar_lista: false, mini_tamanos_lista: [50], auto_recalcular: true, corte_velocidad_mm_s: 50, corte_viaje_mm_s: 120, corte_extra_forma_s: 0.4, corte_factor: 1, pikmin_activo: true, pikmin_frecuencia_min: 1, pikmin_sonido: true, pikmin_sonido_morir: true, pikmin_fiesta: false, volumen: 0.5, mute: false, offset_activo: false, offset_mm: 2, offset_modo: "extender", offset_color: "#ffffff",
   color_formato: "rgba", chequear_lineas: true, carpeta_export: "",
   dpi_importacion: 300, lienzo: "recortable", tema: "wiwi",
   ver_guias: true, fondo_transparente: false,
@@ -148,8 +148,8 @@ describe("App completa", () => {
     render(<App />);
     await waitFor(() => expect(screen.getByTestId("btn-guardar")).toBeInTheDocument());
     expect(screen.getByTestId("btn-guardar-como")).toBeInTheDocument();
-    // el botón de imprimir ya no existe (se guarda el PNG)
-    expect(screen.queryByTestId("btn-imprimir")).toBeNull();
+    // el botón de imprimir existe y guarda antes de imprimir
+    expect(screen.getByTestId("btn-imprimir")).toBeInTheDocument();
     const nombre = screen.getByTestId("save-name") as HTMLInputElement;
     expect(nombre).toHaveValue("");                       // vacío por defecto
     expect(nombre.placeholder.length).toBeGreaterThan(3);  // sugerencia en gris

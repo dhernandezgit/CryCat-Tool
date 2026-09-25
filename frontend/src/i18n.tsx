@@ -291,6 +291,29 @@ export const EN: Record<string, string> = {
     "Exact size in millimetres (keeps the proportion)",
   "icono": "icon",
   "→ {n} minis": "→ {n} minis",
+  "Imagen guardada ✓": "Image saved ✓",
+  "Archivos:": "Files:",
+  "Carpeta": "Folder",
+  "Abrir carpeta": "Open folder",
+  "Continuar": "Continue",
+  "Pasos en Cricut Design Space": "Steps in Cricut Design Space",
+  "Cómo usar tu PNG en Cricut Design Space":
+    "How to use your PNG in Cricut Design Space",
+  "Volver": "Back",
+  "Entendido": "Got it",
+  "Abre Cricut Design Space.": "Open Cricut Design Space.",
+  "Carga la imagen y elige «Imagen completa» (conserva la transparencia).":
+    "Upload the image and choose “Full image” (keeps transparency).",
+  "Redimensiónala al tamaño real (el que se muestra en CryCat).":
+    "Resize it to the real size (the one shown in CryCat).",
+  "Pulsa «Crear» para preparar el lienzo.": "Press “Create” to set the canvas.",
+  "Comprueba que las dimensiones coinciden con las del archivo.":
+    "Check that the dimensions match the file.",
+  "Imprime en papel mate blanco y colócalo en la esterilla.":
+    "Print on matte white paper and place it on the mat.",
+  "¡Listo! La máquina leerá las marcas y cortará tus pegatinas.":
+    "Done! The machine will read the marks and cut your stickers.",
+  "🎉 ¡Fiesta Pikmin! 🎉": "🎉 Pikmin party! 🎉",
 };
 
 const IdiomaCtx = createContext<Idioma>("es");

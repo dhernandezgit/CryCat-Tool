@@ -13,6 +13,9 @@ from PIL import Image
 from .geometry import CutArea, mm_to_px
 from .packer import Placement
 
+MARCAS_DIR = Path(__file__).parent / "web" / "marcas"
+MARCAS_PPP = 6.239   # resolución de los recortes (px/mm)
+
 
 @lru_cache(maxsize=1)
 def _srgb_bytes() -> bytes | None:
@@ -162,9 +165,42 @@ def export_layout(area: CutArea, placements: list[Placement], out_dir: Path,
     return fp
 
 
+def con_marcas_cricut(img: Image.Image, area: CutArea,
+                      dpi: float) -> Image.Image:
+    """Superpone SOLO las marcas negras de Cricut (4 esquinas + flecha).
+
+    Las marcas salen de la hoja oficial (recortadas en negro puro, con alfa) y
+    se anclan a las esquinas del área recortable al tamaño real en mm.
+    """
+    px = dpi / 25.4
+    bx, by, bw, bh = area.bbox
+    esc = px / MARCAS_PPP
+    # cada soporte se ancla a su esquina del área recortable
+    esquinas = [
+        ("esquina_flecha", False, False),   # superior izquierda (con flecha)
+        ("esquina_sd", True, False),        # superior derecha
+        ("esquina_ii", False, True),        # inferior izquierda
+        ("esquina_id", True, True),         # inferior derecha
+    ]
+    base = img.convert("RGBA")
+    for nombre, derecha, abajo in esquinas:
+        try:
+            marca = Image.open(MARCAS_DIR / f"{nombre}.png").convert("RGBA")
+        except Exception:
+            continue
+        w = max(1, int(round(marca.width * esc)))
+        h = max(1, int(round(marca.height * esc)))
+        marca = marca.resize((w, h), Image.Resampling.LANCZOS)
+        x = int(round((bx + (bw if derecha else 0.0)) * px)) - (w if derecha else 0)
+        y = int(round((by + (bh if abajo else 0.0)) * px)) - (h if abajo else 0)
+        base.alpha_composite(marca, (x, y))
+    return base
+
+
 def export_pdf(area: CutArea, placements: list[Placement],
                images: dict[str, Image.Image], dpi: float,
-               full_page: bool = False, color: str = "rgba") -> bytes:
+               full_page: bool = False, color: str = "rgba",
+               marcas: bool = False) -> bytes:
     """PDF a tamaño real para imprimir (una página por hoja, sin márgenes).
 
     El PDF se genera con el tamaño físico exacto de la hoja (A4/A3/…) y la
@@ -175,7 +211,9 @@ def export_pdf(area: CutArea, placements: list[Placement],
     imgs = []
     for i in pages:
         img = render_page(area, [p for p in placements if p.page == i], images,
-                          dpi, full_page, color)
+                          dpi, True if marcas else full_page, color)
+        if marcas:
+            img = con_marcas_cricut(img, area, dpi)
         if img.mode == "RGBA":
             bg = Image.new("RGBA", img.size, (255, 255, 255, 255))
             bg.alpha_composite(img)

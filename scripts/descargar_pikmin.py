@@ -28,7 +28,11 @@ H = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
      "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
      "Referer": "https://pikmin.fandom.com/"}
 
-# (nombre_destino, título del archivo en la wiki)
+API_FANDOM = "https://pikmin.fandom.com/api.php"
+API_PIKMINWIKI = "https://www.pikminwiki.com/api.php"
+
+# (nombre_destino, título del archivo en la wiki [, api])
+#   por defecto la wiki de Pikmin en Fandom; el alma viene de Pikmin Wiki
 FICHEROS = [
     ("01_red_hd.png", "File:RedPikminHD.png"),
     ("02_yellow_hd.png", "File:YellowPikminHD.png"),
@@ -48,14 +52,15 @@ FICHEROS = [
     ("16_red.png", "File:Red_Pikmin.png"),
     ("17_blue.png", "File:Blue_Pikmin.png"),
     ("18_rock.png", "File:Rock_Pikmin.png"),
-    # el alma (espíritu) del Pikmin, sprite transparente
-    ("alma.png", "File:Spirits in SSBB.png"),
+    # el alma (espíritu) del Pikmin: textura real, un solo espíritu y con
+    # bordes transparentes (Pikmin Wiki)
+    ("alma.png", "File:Pikmin spirit texture.png", API_PIKMINWIKI),
 ]
 
 
-def url_de(titulo: str) -> str | None:
-    api = ("https://pikmin.fandom.com/api.php?action=query&format=json"
-           "&prop=imageinfo&iiprop=url&titles=" + urllib.parse.quote(titulo))
+def url_de(titulo: str, api_base: str = API_FANDOM) -> str | None:
+    api = (api_base + "?action=query&format=json&prop=imageinfo&iiprop=url"
+           "&titles=" + urllib.parse.quote(titulo))
     try:
         d = json.loads(urllib.request.urlopen(
             urllib.request.Request(api, headers=H), timeout=25).read())
@@ -71,8 +76,10 @@ def main() -> int:
     for d in DESTINO:
         d.mkdir(parents=True, exist_ok=True)
     ok = 0
-    for nombre, titulo in FICHEROS:
-        url = url_de(titulo)
+    for entrada in FICHEROS:
+        nombre, titulo = entrada[0], entrada[1]
+        api = entrada[2] if len(entrada) > 2 else API_FANDOM
+        url = url_de(titulo, api)
         if not url:
             print("sin URL:", titulo)
             continue

@@ -245,7 +245,9 @@ export default function App() {
                  mute={settings.mute ?? false}
                  onVolumen={(v) => saveSettings({ volumen: v })}
                  onMute={(m) => saveSettings({ mute: m })}
-                 onIdioma={(i) => saveSettings({ idioma: i })} />
+                 onIdioma={(i) => saveSettings({ idioma: i })}
+                 onEasterEgg={() => saveSettings({
+                   pikmin_fiesta: !settings.pikmin_fiesta })} />
       <PikminPet
         activo={settings.pikmin_activo !== false}
         frecuenciaMin={settings.pikmin_frecuencia_min ?? 1}
@@ -253,6 +255,7 @@ export default function App() {
         sonidoMorir={settings.pikmin_sonido_morir !== false}
         volumen={settings.volumen ?? 0.5}
         mute={settings.mute ?? false}
+        fiesta={settings.pikmin_fiesta === true}
       />
       </div>
     </IdiomaProvider>
