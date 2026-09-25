@@ -83,7 +83,20 @@ versiones** en GitHub (se puede desactivar en Ajustes → Extras).
 
 ## 📥 Instalación
 
-### Windows — instalador automático (recomendado)
+### Windows — sin instalar nada (doble clic)
+
+1. Descarga **`CryCat-para-Windows.zip`** (o clona el repositorio) y descomprímelo.
+2. Doble clic en **`construir_windows.bat`**.
+   - Si te falta **Python, lo instala solo** (en tu usuario, sin administrador).
+   - **No necesitas Node.js**: el frontend ya viene compilado.
+   - Verás el proceso por pasos con colores y, al final, un resumen.
+3. Resultado: **`dist\CryCat.exe`** (un solo archivo) y, si hay Inno Setup,
+   también **`packaging\Output\crycat-setup.exe`** (instalador con accesos
+   directos). El propio lanzador te ofrece abrir la carpeta al terminar.
+
+> Atajo: `construir_windows.bat -SinTests` salta los tests (más rápido).
+
+### Windows — instalador automático (recomendado si hay release)
 
 1. Pulsa el botón **DESCARGAR** de arriba (o abre
    [Releases](https://github.com/dhernandezgit/CryCat-Tool/releases/latest)).
