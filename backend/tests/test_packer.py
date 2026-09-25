@@ -267,3 +267,31 @@ def test_primero_una_hoja_luego_dos():
     assert r6.pages == 2 and not r6.unplaced
     r7 = optimize([asset("a", 100, 80, copies=7)], area_a4v(), st)
     assert r7.pages == 3 and not r7.unplaced
+
+def _mascara(forma: str, n: int = 200):
+    """Máscara de prueba: círculo (ocupa ~78,5 % de su caja) o cuadrado."""
+    from PIL import Image, ImageDraw
+    im = Image.new("RGBA", (n, n), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    if forma == "circulo":
+        d.ellipse((2, 2, n - 2, n - 2), fill=(255, 0, 0, 255))
+    else:
+        d.rectangle((2, 2, n - 2, n - 2), fill=(255, 0, 0, 255))
+    return im
+
+
+def test_eficiencia_mide_siluetas_reales():
+    """La eficiencia de las cajas debe medir la silueta de verdad."""
+    a = asset("a", 40, 40, copies=4)
+    st = dict(SETTINGS_BASE, opt_metodo="maxrects")
+    cir = optimize([a], area_a4(), st, masks={"a": _mascara("circulo")})
+    cua = optimize([a], area_a4(), st, masks={"a": _mascara("cuadrado")})
+    assert 0 < cir.efficiency < cua.efficiency <= 1.0
+    # un círculo ocupa ~π/4 ≈ 0,785 de su caja
+    assert abs(cir.efficiency / cua.efficiency - 0.785) < 0.25, \
+        f"ratio {cir.efficiency / cua.efficiency:.3f}"
+
+
+def test_metodo_por_defecto_es_silueta_rapido():
+    from crycat.config import DEFAULTS
+    assert DEFAULTS["opt_metodo"] == "silueta_rapido"

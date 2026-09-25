@@ -9,7 +9,7 @@ echo "── 1/5 Entorno Python ────────────────
 cd "$ROOT/backend"
 if [ ! -x .venv/bin/python ]; then python3 -m venv .venv; fi
 .venv/bin/pip install --quiet --upgrade pip
-.venv/bin/pip install --quiet -r requirements.txt pyinstaller
+.venv/bin/pip install --quiet -r requirements-dev.txt
 
 echo "── 2/6 Iconos ────────────────────────────────────"
 .venv/bin/python "$ROOT/scripts/gen_icono.py"

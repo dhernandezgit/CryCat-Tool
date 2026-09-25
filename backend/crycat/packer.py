@@ -24,6 +24,9 @@ import random
 import time
 from dataclasses import dataclass, field
 
+import numpy as np
+from PIL import Image
+
 from .geometry import CutArea, rect_inside_polygon, rotated_size
 from .i18n import tr
 
@@ -370,10 +373,39 @@ def _try_place_scaled(bins: list[Bin], w0: float, h0: float, s: float,
     return None
 
 
+def sil_fracs(masks: dict | None) -> dict[str, float]:
+    """Fracción de silueta real (píxeles no transparentes / caja) de cada imagen.
+
+    Se usa para medir la eficiencia de verdad: lo que ocupan las siluetas, no
+    las cajas. La rotación no altera el área, así que vale un único valor por
+    imagen. Se submuestrea en imágenes grandes para que sea barato.
+    """
+    out: dict[str, float] = {}
+    for aid, img in (masks or {}).items():
+        try:
+            try:
+                a = img.getchannel("A")
+            except Exception:
+                a = img.convert("RGBA").getchannel("A")
+            w, h = a.size
+            largo = max(w, h) or 1
+            if largo > 1024:
+                esc = 1024.0 / largo
+                a = a.resize((max(1, int(w * esc)), max(1, int(h * esc))),
+                             Image.NEAREST)
+            alpha = np.asarray(a)
+            total = alpha.size or 1
+            out[aid] = float(np.count_nonzero(alpha > 8)) / total
+        except Exception:
+            continue
+    return out
+
+
 def _run_pack(assets: list[dict], area: CutArea, settings: dict,
               pinned: list[Placement], ordered: list[Instance],
               heuristic: str, method_label: str,
-              deadline: float | None = None) -> PackResult:
+              deadline: float | None = None,
+              fracs: dict[str, float] | None = None) -> PackResult:
     spacing = max(0.0, float(settings.get("espacio_mm", 2.0)))
     rot_mode = settings.get("rotacion", "no")
     _, mini_requests = _expand_items(assets, settings)
@@ -411,7 +443,12 @@ def _run_pack(assets: list[dict], area: CutArea, settings: dict,
     result.pages = len(bins)
     result.placements = [p for b in bins for p in b.placed]
     used = sum(b.area.area_mm2 for b in bins)
-    item_area = sum(p.w * p.h for p in result.placements)
+    # eficiencia REAL: área de las siluetas (no de las cajas) sobre lo usado
+    if fracs:
+        item_area = sum(p.w * p.h * fracs.get(p.asset_id, 1.0)
+                        for p in result.placements)
+    else:
+        item_area = sum(p.w * p.h for p in result.placements)
     result.efficiency = item_area / used if used > 0 else 0.0
     if result.unplaced:
         result.warnings.append(
@@ -438,12 +475,15 @@ def optimize(assets: list[dict], area: CutArea, settings: dict,
         area = inset_area(area, margen)
 
     # Empaquetado por SILUETA REAL (usa la forma no transparente, no la caja)
+    fallback_silueta = False
     if method in ("silueta", "silueta_rapido", "silueta_optimo") and masks:
         try:
             from .silhouette import pack as sil_pack
             return sil_pack(assets, masks, area, settings, pinned, progress)
         except Exception:
-            pass  # ante cualquier problema, cae al empaquetado por caja
+            fallback_silueta = True  # se avisa; se sigue por cajas
+    # solo se necesita al colocar por cajas (para medir siluetas de verdad)
+    fracs = sil_fracs(masks) if masks else None
 
     pinned = [p for p in (pinned or []) if p.pinned]
     t_max = max(0.5, float(settings.get("opt_tiempo_max_s", 8.0)))
@@ -474,7 +514,7 @@ def optimize(assets: list[dict], area: CutArea, settings: dict,
             ordered = shuffled
             label = f"{heur}/random{i}"
         res = _run_pack(assets, area, settings, pinned, ordered, heur, label,
-                        deadline)
+                        deadline, fracs=fracs)
         key = (len(res.unplaced), res.pages, -res.efficiency)
         if best is None or key < (len(best.unplaced), best.pages, -best.efficiency):
             best = res
@@ -490,6 +530,9 @@ def optimize(assets: list[dict], area: CutArea, settings: dict,
         elif time.time() > deadline or i >= 120:
             break
     assert best is not None
+    if fallback_silueta:
+        best.warnings.append(
+            tr("no se pudo usar la silueta; se colocó por cajas"))
     best.elapsed_s = time.time() - t0
     return best
 

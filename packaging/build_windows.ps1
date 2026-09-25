@@ -55,7 +55,7 @@ if (-not (Test-Path ".venv\Scripts\python.exe")) {
 }
 & .\.venv\Scripts\python.exe -m pip install --quiet --upgrade pip
 Info "instalando dependencias (puede tardar la primera vez)…"
-& .\.venv\Scripts\python.exe -m pip install --quiet -r requirements.txt pyinstaller
+& .\.venv\Scripts\python.exe -m pip install --quiet -r requirements-dev.txt
 Ok "Entorno listo"
 
 # ---------- iconos ----------

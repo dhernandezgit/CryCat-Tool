@@ -17,6 +17,8 @@ _T: dict[str, dict[str, str]] = {
             "Some copies don't fit in the cut area",
         "¡Listo, ni un Diglett fuera de sitio!":
             "Done — not a single Diglett out of place!",
+        "no se pudo usar la silueta; se colocó por cajas":
+            "silhouette packing was unavailable; placed by boxes",
         "error: {e}": "error: {e}",
         # --- avisos de imagen ---------------------------------------------
         "{n} trozos sueltos (blobs) — usa «limpiar contorno»":

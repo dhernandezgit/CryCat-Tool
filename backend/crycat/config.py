@@ -14,7 +14,7 @@ APP_NAME = "CryCat"
 APP_W = 210.0
 APP_H = 297.0
 
-CONFIG_VERSION = 11  # subir para migrar configuraciones antiguas
+CONFIG_VERSION = 12  # subir para migrar configuraciones antiguas
 
 
 def app_config_dir() -> Path:
@@ -61,7 +61,7 @@ DEFAULTS: dict = {
     "mini_usar_lista": False,    # usar la lista de tamaños en vez de automáticos
     "mini_tamanos_lista": [50.0],  # tamaños deseados (% del original)
     # Optimización
-    "opt_metodo": "silueta",     # silueta | silueta_rapido | auto | maxrects | skyline
+    "opt_metodo": "silueta_rapido",  # silueta_rapido | silueta | silueta_optimo | auto | maxrects | skyline
     "opt_tiempo_max_s": 8.0,
     "auto_recalcular": True,     # recalcular con cada cambio (si no, con el botón)
     # Estimación de corte (Cricut Maker 5)
