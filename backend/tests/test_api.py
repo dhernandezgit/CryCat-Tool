@@ -352,6 +352,7 @@ def test_defaults_extras_pikmin(client):
     s = c.get("/api/settings").json()["settings"]
     assert s["pikmin_activo"] is True
     assert s["pikmin_frecuencia_min"] == 5.0  # 5 minutos de media
+    assert s["mini_min_mm"] == 15.0  # los minis no bajan de 15 mm
     assert s["pikmin_sonido"] is True
     assert s["pikmin_sonido_morir"] is True
     assert s["volumen"] == 0.5
@@ -636,3 +637,29 @@ def test_presets_de_fabrica(client):
     r = c.put("/api/settings", json=d["pegatina"])
     assert r.status_code == 200
     assert r.json()["settings"]["offset_activo"] is True
+
+def test_borde_no_se_hace_mas_grande_con_la_escala(client):
+    """El borde es un valor en mm del resultado: al escalar NO se multiplica."""
+    c, st, _ = client
+    d = upload(c, "a.png").json()
+    base = d["w_mm_base"]
+    c.patch(f"/api/assets/{d['id']}", json={"offset_mm": 2.0})
+    a1 = next(x for x in c.get("/api/assets").json() if x["id"] == d["id"])
+    c.patch(f"/api/assets/{d['id']}", json={"scale_pct": 200})
+    a2 = next(x for x in c.get("/api/assets").json() if x["id"] == d["id"])
+    # crece 2 mm por lado en AMBOS casos (no 4 al 200 %)
+    assert abs((a1["w_mm"] - base) - 4.0) < 0.2
+    assert abs((a2["w_mm"] - 2 * base) - 4.0) < 0.2
+
+
+def test_historial_configurable(client):
+    """El historial se puede ajustar (activar, tamaño y qué se guarda)."""
+    c, st, _ = client
+    s = c.get("/api/settings").json()["settings"]
+    assert s["historial"] is True and s["historial_max"] == 40
+    r = c.put("/api/settings", json={"historial": False, "historial_max": 10,
+                                     "hist_copias": False})
+    s2 = r.json()["settings"]
+    assert s2["historial"] is False
+    assert s2["historial_max"] == 10
+    assert s2["hist_copias"] is False

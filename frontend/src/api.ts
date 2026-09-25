@@ -14,6 +14,8 @@ export interface Asset {
   mini_enabled: boolean;
   mini_quota: number;
   offset_mm: number;
+  offset_modo?: "" | "extender" | "blanco" | "color";
+  offset_color?: string;
   scale_pct: number;
   bg_removed: boolean;
   warnings: string[];
@@ -86,6 +88,12 @@ export interface AppSettings {
   color_formato: "rgba" | "rgb";
   espacio_color: "srgb" | "adobergb";
   bleed_mm: number;
+  historial: boolean;
+  historial_max: number;
+  hist_tamano: boolean;
+  hist_copias: boolean;
+  hist_borde: boolean;
+  hist_minis: boolean;
   simular_impresion: boolean;
   sim_cmyk: boolean;
   sim_saturacion: number;
@@ -175,6 +183,8 @@ export function normalizeAsset(a: Asset): Asset {
     copies: Number.isFinite(a.copies) ? a.copies : 1,
     mini_quota: Number.isFinite(a.mini_quota) ? a.mini_quota : 1,
     offset_mm: Number.isFinite(a.offset_mm) ? a.offset_mm : 0,
+    offset_modo: a.offset_modo ?? "",
+    offset_color: a.offset_color ?? "",
     scale_pct: Number.isFinite(a.scale_pct) ? a.scale_pct : 100,
     w_mm: w,
     h_mm: h,

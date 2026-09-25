@@ -158,6 +158,74 @@ export default function App() {
     [pollJob]
   );
 
+  // ---- historial local (deshacer/rehacer) ----
+  const undoRef = useRef<Asset[][]>([]);
+  const redoRef = useRef<Asset[][]>([]);
+  const [hist, setHist] = useState({ puedeDeshacer: false, puedeRehacer: false });
+  const historialOn = settings?.historial !== false;
+  const histMax = settings?.historial_max ?? 40;
+
+  const sincHist = () => setHist({
+    puedeDeshacer: undoRef.current.length > 0,
+    puedeRehacer: redoRef.current.length > 0,
+  });
+
+  /** Guarda el estado actual para poder deshacer. */
+  const recordar = useCallback(() => {
+    if (!historialOn) return;
+    undoRef.current = [...undoRef.current, assets].slice(-histMax);
+    redoRef.current = [];
+    sincHist();
+  }, [assets, historialOn, histMax]);
+
+  const deshacer = useCallback(async () => {
+    const prev = undoRef.current.pop();
+    if (!prev) return;
+    redoRef.current = [...redoRef.current, assets];
+    setAssets(prev);
+    sincHist();
+    // se aplica en el servidor (tamaños, copias, borde y minis)
+    for (const a of prev) {
+      await api.patchAsset(a.id, {
+        scale_pct: a.scale_pct, copies: a.copies, mini_enabled: a.mini_enabled,
+        mini_quota: a.mini_quota, offset_mm: a.offset_mm,
+        offset_modo: a.offset_modo ?? "", offset_color: a.offset_color ?? "",
+      }).catch(() => undefined);
+    }
+    await refresh();
+  }, [assets, refresh]);
+
+  const rehacer = useCallback(async () => {
+    const sig = redoRef.current.pop();
+    if (!sig) return;
+    undoRef.current = [...undoRef.current, assets];
+    setAssets(sig);
+    sincHist();
+    for (const a of sig) {
+      await api.patchAsset(a.id, {
+        scale_pct: a.scale_pct, copies: a.copies, mini_enabled: a.mini_enabled,
+        mini_quota: a.mini_quota, offset_mm: a.offset_mm,
+        offset_modo: a.offset_modo ?? "", offset_color: a.offset_color ?? "",
+      }).catch(() => undefined);
+    }
+    await refresh();
+  }, [assets, refresh]);
+
+  // atajos habituales: Ctrl+Z deshacer, Ctrl+Y / Ctrl+Shift+Z rehacer
+  useEffect(() => {
+    const alPulsar = (e: KeyboardEvent) => {
+      const ctrl = e.ctrlKey || e.metaKey;
+      if (!ctrl) return;
+      const k = e.key.toLowerCase();
+      if (k === "z" && !e.shiftKey) { e.preventDefault(); void deshacer(); }
+      else if (k === "y" || (k === "z" && e.shiftKey)) {
+        e.preventDefault(); void rehacer();
+      }
+    };
+    window.addEventListener("keydown", alPulsar);
+    return () => window.removeEventListener("keydown", alPulsar);
+  }, [deshacer, rehacer]);
+
   // arrastradores de los separadores
   const startDrag = useCallback(
     (which: "left" | "center") => {
@@ -204,6 +272,7 @@ export default function App() {
             }}
             saveSettings={saveSettings}
             onEditarContorno={(a) => setEditando(a)}
+            onAntesDeCambiar={recordar}
           />
         </div>
         <div className="splitter" data-testid="splitter-left" onMouseDown={() => startDrag("left")} />
@@ -221,6 +290,10 @@ export default function App() {
             onRecalc={recalc}
             editando={editando}
             onFinEdicion={async () => { setEditando(null); await refresh(); }}
+            onDeshacer={deshacer}
+            onRehacer={rehacer}
+            puedeDeshacer={hist.puedeDeshacer}
+            puedeRehacer={hist.puedeRehacer}
           />
         </div>
         <div className="splitter" data-testid="splitter-center" onMouseDown={() => startDrag("center")} />

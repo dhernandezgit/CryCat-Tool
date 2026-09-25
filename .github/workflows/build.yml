@@ -24,8 +24,22 @@ jobs:
             dist/crycat-linux-*.tar.gz
             dist/crycat-onefile
 
+  version:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Comprobar versión
+        run: |
+          etiqueta="${GITHUB_REF_NAME#v}"
+          codigo=$(grep -oP '__version__ = "\K[^"]+' backend/crycat/__init__.py)
+          echo "etiqueta=$etiqueta  código=$codigo"
+          test "$etiqueta" = "$codigo" || {
+            echo "::error::La etiqueta ($etiqueta) no coincide con __version__ ($codigo)";
+            exit 1; }
+
   windows:
     runs-on: windows-latest
+    needs: [version]
     permissions:
       contents: read
       issues: write

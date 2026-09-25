@@ -198,12 +198,6 @@ export default function StatusBar({ job, backendOk, result, estimate,
             ⚠ {t("No cabe en una página: {n} páginas", { n: result.pages })}
           </span>
         )}
-        {avisoVersion && (
-          <button className="btn-actualizar-aviso" data-testid="aviso-version"
-                  onClick={actualizarVersion}>
-            {avisoVersion} · {t("Actualizar")}
-          </button>
-        )}
         {running && (
           <>
             <div className="progress" data-testid="progress">
@@ -241,7 +235,22 @@ export default function StatusBar({ job, backendOk, result, estimate,
         </button>
         <span className="version-chip" data-testid="version-chip"
               title={t("Versión actual")}>
+          {ver?.hay_nueva && !actualizando && (
+            <button
+              className="alerta-version"
+              data-testid="aviso-version"
+              title={avisoVersion || t("Hay una versión nueva")}
+              onClick={actualizarVersion}
+            >
+              ❗
+            </button>
+          )}
           v{ver?.actual ?? "—"}
+          {ver?.hay_nueva && ver?.ultima && (
+            <span className="version-nueva" data-testid="version-nueva">
+              → v{ver.ultima}
+            </span>
+          )}
           <button
             className="btn-mini"
             data-testid="btn-comprobar"

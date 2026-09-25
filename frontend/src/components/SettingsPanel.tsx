@@ -44,6 +44,7 @@ export default function SettingsPanel({ settings, saveSettings, applySettings }:
   const t = useT();
   const [open, setOpen] = useState<Record<string, boolean>>({
     minis: false, optimizacion: false, imagen: false, visualizacion: false,
+    historial: false,
     perfiles: false, corte: false, extras: false, offset: false,
   });
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -488,6 +489,49 @@ export default function SettingsPanel({ settings, saveSettings, applySettings }:
           {t("Ajusta el factor para corregir con tu máquina y material reales; se " +
              "guarda para la próxima vez.")}
         </div>
+      </Section>
+
+      {/* -------- Historial -------- */}
+      <Section id="historial" title={t("Historial (deshacer/rehacer)")}
+               open={open.historial} toggle={toggle}>
+        <div className="hint">
+          {t("Guarda los cambios en tu equipo para poder deshacer y rehacer (Ctrl+Z / Ctrl+Y). Elige qué se guarda.")}
+        </div>
+        <label className="row">
+          <input type="checkbox" className="switch" data-testid="set-historial"
+            checked={settings.historial !== false}
+            onChange={(e) => set({ historial: e.target.checked })} />
+          <span className="switch-text">{t("Activar historial")}</span>
+        </label>
+        {settings.historial !== false && (
+          <>
+            {num("Cambios que se guardan", "historial_max", 5, 200, 5)}
+            <label className="row">
+              <input type="checkbox" className="switch" data-testid="set-hist-tamano"
+                checked={settings.hist_tamano !== false}
+                onChange={(e) => set({ hist_tamano: e.target.checked })} />
+              <span className="switch-text">{t("Tamaño y escala")}</span>
+            </label>
+            <label className="row">
+              <input type="checkbox" className="switch" data-testid="set-hist-copias"
+                checked={settings.hist_copias !== false}
+                onChange={(e) => set({ hist_copias: e.target.checked })} />
+              <span className="switch-text">{t("Copias")}</span>
+            </label>
+            <label className="row">
+              <input type="checkbox" className="switch" data-testid="set-hist-borde"
+                checked={settings.hist_borde !== false}
+                onChange={(e) => set({ hist_borde: e.target.checked })} />
+              <span className="switch-text">{t("Borde por elemento")}</span>
+            </label>
+            <label className="row">
+              <input type="checkbox" className="switch" data-testid="set-hist-minis"
+                checked={settings.hist_minis !== false}
+                onChange={(e) => set({ hist_minis: e.target.checked })} />
+              <span className="switch-text">{t("Minis")}</span>
+            </label>
+          </>
+        )}
       </Section>
 
       {/* -------- Visualización -------- */}

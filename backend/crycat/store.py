@@ -35,6 +35,8 @@ class Asset:
         # borde SOLO de este elemento (0 = usar el ajuste global). Sirve para
         # unir trozos flotantes del dibujo en una sola pegatina.
         self.offset_mm = 0.0
+        self.offset_modo = ""      # "" = usar el global
+        self.offset_color = ""     # "" = usar el global
         self.bg_removed = False
 
     @property
@@ -58,6 +60,8 @@ class Asset:
             "copies": self.copies, "mini_enabled": self.mini_enabled,
             "mini_quota": self.mini_quota, "scale_pct": self.scale_pct,
             "offset_mm": self.offset_mm,
+            "offset_modo": self.offset_modo,
+            "offset_color": self.offset_color,
             "bg_removed": self.bg_removed,
             "warnings": self.warnings,
         }
@@ -109,6 +113,7 @@ class Session:
                 mm = off[0]
                 d["w_mm"] = round(d["w_mm"] + 2 * mm, 2)
                 d["h_mm"] = round(d["h_mm"] + 2 * mm, 2)
+                d["offset_mm"] = mm
         return out
 
     def images(self) -> dict[str, Image.Image]:
@@ -120,10 +125,13 @@ class Session:
                 out[a.id] = a.img
                 continue
             mm, modo, color = off
-            clave = (round(mm, 3), modo, color)
+            # el borde es un valor en mm del RESULTADO: se aplica a la escala
+            # final (si no, un elemento al 200 % vería el borde al doble)
+            escala = max(0.05, a.scale_pct / 100.0)
+            clave = (round(mm, 3), modo, color, round(escala, 4))
             cache = getattr(a, "_cache_offset", None)
             if cache is None or cache[0] != clave:
-                radio_px = mm / 25.4 * a.dpi_origen
+                radio_px = (mm * escala) / 25.4 * a.dpi_origen
                 from .imaging import aplicar_offset
                 img = aplicar_offset(a.img, radio_px, modo, color)
                 a._cache_offset = (clave, img)  # type: ignore[attr-defined]
@@ -200,6 +208,8 @@ class Session:
                 # sesiones antiguas: la cuota empieza en 1 (reparto equitativo)
                 a.mini_quota = float(meta.get("mini_quota", 1.0))
                 a.offset_mm = float(meta.get("offset_mm", 0.0) or 0.0)
+                a.offset_modo = str(meta.get("offset_modo", "") or "")
+                a.offset_color = str(meta.get("offset_color", "") or "")
                 a.scale_pct = float(meta.get("scale_pct", 100.0))
                 a.bg_removed = bool(meta.get("bg_removed", False))
                 self.assets[a.id] = a
@@ -222,8 +232,18 @@ def _offset_de(a) -> tuple[float, str, tuple[int, int, int]] | None:
     propio = float(getattr(a, "offset_mm", 0.0) or 0.0)
     if propio > 0:
         base = _offset_actual()
-        modo = base[1] if base else str(settings.get("offset_modo", "extender"))
-        color = base[2] if base else (255, 255, 255)
+        modo = (getattr(a, "offset_modo", "") or
+                (base[1] if base else str(settings.get("offset_modo", "extender"))))
+        hexcol = getattr(a, "offset_color", "") or ""
+        if hexcol:
+            hexcol = hexcol.lstrip("#")
+            try:
+                color = (int(hexcol[0:2], 16), int(hexcol[2:4], 16),
+                         int(hexcol[4:6], 16))
+            except Exception:
+                color = (255, 255, 255)
+        else:
+            color = base[2] if base else (255, 255, 255)
         return propio, modo, color
     return _offset_actual()
 

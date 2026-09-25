@@ -10,11 +10,14 @@ interface Props {
   onChange: () => Promise<void>;
   saveSettings: (p: Partial<AppSettings>) => Promise<void>;
   onEditarContorno?: (a: Asset) => void;
+  onAntesDeCambiar?: () => void;
 }
 
-function AssetCard({ a, result, onChange, onEditarContorno }: {
+function AssetCard({ a, result, onChange, onEditarContorno,
+                     onAntesDeCambiar }: {
   a: Asset; result: Result | null; onChange: () => Promise<void>;
   onEditarContorno?: (a: Asset) => void;
+  onAntesDeCambiar?: () => void;
 }) {
   const t = useT();
   const [local, setLocal] = useState<Asset>(() => normalizeAsset(a));
@@ -56,6 +59,7 @@ function AssetCard({ a, result, onChange, onEditarContorno }: {
     result?.placements.filter((p) => p.asset_id === a.id && !p.mini).length ?? 0;
 
   const patch = async (p: Partial<Asset>) => {
+    onAntesDeCambiar?.();          // punto para deshacer
     if ("copies" in p) p.copies = Math.max(0, p.copies ?? 0);
     setLocal((l) => ({ ...l, ...p })); // optimista: respuesta inmediata
     try {
@@ -143,10 +147,14 @@ function AssetCard({ a, result, onChange, onEditarContorno }: {
           <button data-testid={`resta-${a.id}`} onClick={() => patch({ copies: local.copies - 1 })}>−</button>
           <span className="n" data-testid={`copias-${a.id}`}>{local.copies}</span>
           <button data-testid={`suma-${a.id}`} onClick={() => patch({ copies: local.copies + 1 })}>+</button>
-          <span className="size-mm" data-testid={`tamano-${a.id}`}>
-            {size.w.toFixed(1)}×{size.h.toFixed(1)} mm
-          </span>
         </div>
+        <div className="card-group">
+          <div className="group-title">
+            {t("Tamaño")}
+            <span className="group-val" data-testid={`tamano-${a.id}`}>
+              {size.w.toFixed(1)}×{size.h.toFixed(1)} mm
+            </span>
+          </div>
         <div className="scale-row">
           <span title={t("Escala del elemento (100% = tamaño natural)")}>{t("Escala")}</span>
           <input
@@ -202,31 +210,53 @@ function AssetCard({ a, result, onChange, onEditarContorno }: {
           />
           <span>mm</span>
         </div>
-        <div className="exact-row">
-          <span title={t("Borde solo de este elemento para unir trozos flotantes (0 = ajuste global)")}>
-            {t("Borde")}
-          </span>
-          <button
-            className="quota-btn"
-            data-testid={`offset-menos-${a.id}`}
-            onClick={() => patch({
-              offset_mm: Math.max(0, Math.round((local.offset_mm - 0.5) * 2) / 2),
-            })}
-          >
-            −
-          </button>
-          <span className="quota-val" data-testid={`offset-${a.id}`}>
-            {local.offset_mm.toFixed(1)} mm
-          </span>
-          <button
-            className="quota-btn"
-            data-testid={`offset-mas-${a.id}`}
-            onClick={() => patch({
-              offset_mm: Math.min(20, Math.round((local.offset_mm + 0.5) * 2) / 2),
-            })}
-          >
-            +
-          </button>
+        </div>
+        <div className="card-group">
+          <div className="group-title">
+            <span title={t("Borde solo de este elemento para unir trozos flotantes (0 = usar el ajuste global)")}>
+              {t("Borde de este elemento")}
+            </span>
+            <span className="group-val" data-testid={`offset-${a.id}`}>
+              {local.offset_mm.toFixed(1)} mm
+            </span>
+          </div>
+          <div className="seg-row">
+            <button className="quota-btn" data-testid={`offset-menos-${a.id}`}
+              onClick={() => patch({
+                offset_mm: Math.max(0, Math.round((local.offset_mm - 0.5) * 2) / 2),
+              })}>−</button>
+            <input
+              type="range" min={0} max={10} step={0.5}
+              data-testid={`offset-range-${a.id}`}
+              value={local.offset_mm}
+              onChange={(e) => patch({ offset_mm: Number(e.target.value) })}
+            />
+            <button className="quota-btn" data-testid={`offset-mas-${a.id}`}
+              onClick={() => patch({
+                offset_mm: Math.min(20, Math.round((local.offset_mm + 0.5) * 2) / 2),
+              })}>+</button>
+          </div>
+          <div className="seg-row">
+            {([["extender", t("Extender")], ["blanco", t("Blanco")],
+               ["color", t("Color")]] as const).map(([modo, etiqueta]) => (
+              <button key={modo}
+                className={`seg ${(local.offset_modo || "") === modo ? "on" : ""}`}
+                data-testid={`offset-modo-${modo}-${a.id}`}
+                onClick={() => patch({ offset_modo: modo })}
+              >
+                {etiqueta}
+              </button>
+            ))}
+            <input
+              type="color"
+              className="color-pick"
+              data-testid={`offset-color-${a.id}`}
+              value={local.offset_color || "#ffffff"}
+              title={t("Color del borde")}
+              onChange={(e) => patch({ offset_color: e.target.value,
+                                       offset_modo: "color" })}
+            />
+          </div>
         </div>
         {normalesColocados > 0 && (
           <div className="size-mm">{t("Colocadas: {n}", { n: normalesColocados })}</div>
@@ -245,14 +275,15 @@ function AssetCard({ a, result, onChange, onEditarContorno }: {
             )}
           </div>
         )}
-        <label className="mini-row">
+        <label className="mini-row switch-row">
           <input
             type="checkbox"
+            className="switch"
             data-testid={`mini-${a.id}`}
             checked={local.mini_enabled}
             onChange={(e) => patch({ mini_enabled: e.target.checked })}
           />
-          {t("Incluir como mini")}
+          <span className="switch-text">{t("Incluir como mini")}</span>
           {local.mini_enabled && (
             <>
               <span title={t("Cuántos minis quieres de este elemento respecto a los demás (1 = reparto equitativo; 3 = el triple)")}>
@@ -290,7 +321,9 @@ function AssetCard({ a, result, onChange, onEditarContorno }: {
   );
 }
 
-export default function FilePanel({ assets, result, settings, onChange, saveSettings, onEditarContorno }: Props) {
+export default function FilePanel({ assets, result, settings, onChange,
+                                    saveSettings, onEditarContorno,
+                                    onAntesDeCambiar }: Props) {
   const t = useT();
   const inputRef = useRef<HTMLInputElement>(null);
   const [over, setOver] = useState(false);
@@ -355,7 +388,8 @@ export default function FilePanel({ assets, result, settings, onChange, saveSett
       <div className="asset-list" data-testid="asset-list">
         {assets.map((a) => (
           <AssetCard key={a.id} a={a} result={result} onChange={onChange}
-                     onEditarContorno={onEditarContorno} />
+                     onEditarContorno={onEditarContorno}
+                     onAntesDeCambiar={onAntesDeCambiar} />
         ))}
       </div>
 

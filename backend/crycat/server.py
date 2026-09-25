@@ -75,7 +75,9 @@ def _persist_asset(a: Asset) -> None:
                     "warnings": a.warnings, "bg_removed": a.bg_removed,
                     "copies": a.copies, "mini_enabled": a.mini_enabled,
                     "mini_quota": a.mini_quota, "scale_pct": a.scale_pct,
-                    "offset_mm": a.offset_mm},
+                    "offset_mm": a.offset_mm,
+                    "offset_modo": a.offset_modo,
+                    "offset_color": a.offset_color},
                    ensure_ascii=False), "utf-8")
 
 
@@ -129,12 +131,16 @@ def create_app(store: Session = session) -> FastAPI:
                     j["progress"] = frac
                     j["pages"] = pages
                     elapsed = time.time() - t0
-                    # ETA suavizada y acotada (evita valores absurdos)
-                    eta = elapsed / frac * (1.0 - frac) if frac > 0.03 else None
+                    # ETA honesta: extrapolación suavizada, acotada por el
+                    # presupuesto pedido (no puede tardar más que eso)
+                    tope = float(st.get("opt_tiempo_max_s", 8.0))
+                    eta = elapsed / frac * (1.0 - frac) if frac > 0.05 else None
                     if eta is not None:
                         prev = j.get("eta_s")
-                        eta = eta if prev is None else (0.7 * eta + 0.3 * prev)
-                        j["eta_s"] = min(600.0, max(0.0, eta))
+                        eta = eta if prev is None else (0.6 * eta + 0.4 * prev)
+                        j["eta_s"] = min(tope, max(0.0, eta))
+                    else:
+                        j["eta_s"] = min(tope, max(0.0, tope - elapsed))
                     j["message"] = mensajes_funny()[
                         int(elapsed * 3) % len(mensajes_funny())]
 
@@ -293,6 +299,15 @@ def create_app(store: Session = session) -> FastAPI:
         if "offset_mm" in payload:
             # borde SOLO de este elemento (0 = usar el ajuste global)
             a.offset_mm = min(20.0, max(0.0, float(payload["offset_mm"])))
+            if hasattr(a, "_cache_offset"):
+                del a._cache_offset
+        if "offset_modo" in payload:
+            valor = str(payload["offset_modo"] or "")
+            a.offset_modo = valor if valor in ("extender", "blanco", "color") else ""
+            if hasattr(a, "_cache_offset"):
+                del a._cache_offset
+        if "offset_color" in payload:
+            a.offset_color = str(payload["offset_color"] or "")[:9]
             if hasattr(a, "_cache_offset"):
                 del a._cache_offset
         if "scale_pct" in payload:

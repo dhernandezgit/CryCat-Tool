@@ -14,7 +14,7 @@ APP_NAME = "CryCat"
 APP_W = 210.0
 APP_H = 297.0
 
-CONFIG_VERSION = 19  # subir para migrar configuraciones antiguas
+CONFIG_VERSION = 21  # subir para migrar configuraciones antiguas
 
 
 def app_config_dir() -> Path:
@@ -54,7 +54,7 @@ DEFAULTS: dict = {
     "maquina": "maker5",         # maker5 | estandar | joy
     "usar_minis": False,
     # Minis
-    "mini_min_mm": 5.0,
+    "mini_min_mm": 15.0,
     "mini_max_rescale": 100.0,   # tamaño máximo del mini (% del original, < 100)
     "mini_rotacion": "90",       # no | 90 (0/90/180/270) | libre
     "mini_tamanos": "grandes",   # iguales | grandes
@@ -89,6 +89,13 @@ DEFAULTS: dict = {
     # pantalla para que el cambio de espacio no apague los colores
     "espacio_color": "srgb",     # srgb | adobergb
     "bleed_mm": 0.0,             # sangrado de impresión (mm de borde extra)
+    # Historial local (deshacer/rehacer) y qué cambios se guardan
+    "historial": True,
+    "historial_max": 40,
+    "hist_tamano": True,         # guardar cambios de escala/tamaño
+    "hist_copias": True,
+    "hist_borde": True,
+    "hist_minis": True,
     "simular_impresion": False,  # ver en pantalla cómo quedará al imprimir
     "sim_cmyk": False,           # simular recorte de CMYK
     "sim_saturacion": 1.0,       # ajustes para compensar la pérdida de color

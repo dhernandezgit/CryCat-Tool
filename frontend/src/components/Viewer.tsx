@@ -17,6 +17,10 @@ interface Props {
   onRecalc: (modo: "rapido" | "optimo") => void;
   editando?: Asset | null;
   onFinEdicion?: () => Promise<void>;
+  onDeshacer: () => void;
+  onRehacer: () => void;
+  puedeDeshacer: boolean;
+  puedeRehacer: boolean;
 }
 
 interface DragState {
@@ -28,7 +32,7 @@ interface DragState {
   mmPerPx: number;
 }
 
-export default function Viewer({ assets, result, settings, ui, setUi, saveSettings, onRefresh, onJob, onRecalc, editando, onFinEdicion }: Props) {
+export default function Viewer({ assets, result, settings, ui, setUi, saveSettings, onRefresh, onJob, onRecalc, editando, onFinEdicion, onDeshacer, onRehacer, puedeDeshacer, puedeRehacer }: Props) {
   const t = useT();
   const idioma = useIdioma();
   const [zoom, setZoom] = useState(1);
@@ -354,6 +358,24 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
   return (
     <div className="viewer" data-testid="viewer">
       <div className="viewer-top">
+        <div className="group hist">
+          <button
+            data-testid="btn-deshacer"
+            title={t("Deshacer (Ctrl+Z)")}
+            onClick={() => onDeshacer()}
+            disabled={!puedeDeshacer}
+          >
+            ↶ {t("Deshacer")}
+          </button>
+          <button
+            data-testid="btn-rehacer"
+            title={t("Rehacer (Ctrl+Y / Ctrl+Shift+Z)")}
+            onClick={() => onRehacer()}
+            disabled={!puedeRehacer}
+          >
+            ↷ {t("Rehacer")}
+          </button>
+        </div>
         <div className="group">
           <button
             data-testid="btn-guias"

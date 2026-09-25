@@ -180,3 +180,38 @@ def test_funmsgs_endpoint_respeta_idioma(client):
     assert msgs[0].startswith("Scrambling")
     cfg.settings._data["idioma"] = "es"
     assert c.get("/api/funmsgs").json()["msgs"][0].startswith("Tortilleando")
+
+def test_version_de_codigo_coincide_con_la_release_publicada(client, monkeypatch):
+    """La versión del código se usa como 'actual' en la comprobación."""
+    from crycat import version
+    monkeypatch.setattr(version, "_get_json", lambda url, timeout: dict(RELEASE))
+    e = version.comprobar(force=True)
+    assert e["actual"] == version.__version__
+    assert e["hay_nueva"] is True      # 9.9.9 es más nueva que la actual
+
+
+def test_eta_no_supera_el_presupuesto(client):
+    """La estimación restante nunca promete más que el tiempo máximo."""
+    import time
+    c, _cfg = client
+    d = c.post("/api/assets",
+               files={"file": ("a.png", __import__("io").BytesIO(
+                   __import__("PIL.Image").Image.new("RGB", (80, 80),
+                                                     (200, 60, 60)).tobytes()),
+                   "image/png")})
+    # 60 copias para que la optimización dure lo suficiente
+    aid = d.json().get("asset", d.json()).get("id")
+    c.patch(f"/api/assets/{aid}", json={"copies": 60})
+    r = c.post("/api/optimize", json={"force": True})
+    jid = r.json().get("job", {}).get("id") or r.json().get("id")
+    tope = float(c.get("/api/settings").json()["settings"]["opt_tiempo_max_s"])
+    visto = False
+    for _ in range(200):
+        time.sleep(0.05)
+        j = c.get(f"/api/job/{jid}").json()
+        if j.get("eta_s") is not None:
+            visto = True
+            assert j["eta_s"] <= tope + 1e-6, j["eta_s"]
+        if j.get("done"):
+            break
+    assert visto
