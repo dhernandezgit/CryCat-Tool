@@ -3,7 +3,7 @@ import { api, type Job, type Result, type VersionInfo } from "../api";
 import { useIdioma, useT } from "../i18n";
 import { IconoMute, IconoVolumen, IconoInfo, IconoAlerta,
          IconoCheck, IconoDescargar, IconoComprobar, IconoAyuda,
-         IconoCarpeta } from "./iconos";
+         IconoCarpeta, IconoCorazon } from "./iconos";
 
 export interface EstimateInfo {
   maquina: string;
@@ -226,6 +226,15 @@ export default function StatusBar({ job, backendOk, result, estimate,
           onClick={() => onAyuda?.()}
         >
           <IconoAyuda size={15} /> {t("Cómo usar")}
+        </button>
+        <button
+          className="app-info apoyar"
+          data-testid="btn-apoyar"
+          title={t("Apoyar el proyecto (PayPal)")}
+          onClick={() => window.open("https://paypal.me/Darkniel42",
+                                     "_blank", "noopener")}
+        >
+          <IconoCorazon size={15} /> {t("Apoyar")}
         </button>
         <button
           className="app-info"

@@ -669,3 +669,11 @@ button:active { transform: translateY(1px); }
 /* popup de ayuda / cómo usar */
 .modal.ayuda-modal { max-width: 620px; }
 .ayuda-modal h3 { margin: 0 0 4px; color: var(--accent); }
+
+/* botón de apoyo (PayPal) en la barra inferior */
+.statusbar .app-info.apoyar {
+  border-color: var(--accent3); color: var(--accent3);
+}
+.statusbar .app-info.apoyar:hover {
+  background: var(--accent3); color: var(--panel);
+}

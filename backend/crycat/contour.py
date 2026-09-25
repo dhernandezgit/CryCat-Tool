@@ -44,12 +44,9 @@ def contornos_mm(img: Image.Image, w_mm: float, h_mm: float,
     sx = w_mm / max(1, ancho)
     sy = h_mm / max(1, alto)
     if not _CV2:
-        # sin OpenCV: rectángulo del contenido (sigue usando solo lo opaco)
-        ys, xs = np.where(m)
-        return [[(float(xs.min()) * sx, float(ys.min()) * sy),
-                 (float(xs.max() + 1) * sx, float(ys.min()) * sy),
-                 (float(xs.max() + 1) * sx, float(ys.max() + 1) * sy),
-                 (float(xs.min()) * sx, float(ys.max() + 1) * sy)]]
+        # Sin OpenCV no se simplifica el contorno: se devuelve vacío para que
+        # quien lo use caiga a la máscara alfa (que ya es la silueta real).
+        return []
     cs, _ = cv2.findContours(m.astype(np.uint8), cv2.RETR_EXTERNAL,
                              cv2.CHAIN_APPROX_NONE)
     eps_px = max(1.0, eps_mm / max(1e-6, min(sx, sy)))

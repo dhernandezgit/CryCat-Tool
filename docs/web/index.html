@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>CryCat web — coloca tus imágenes para Cricut</title>
+<meta name="description" content="CryCat en tu navegador: coloca tus pegatinas para Cricut sin instalar nada. Tus imágenes no salen de tu equipo (todo se calcula en la web)." />
+<link rel="icon" href="../icono.png" />
+<style>
+  :root{
+    --bg:#fdf7f9; --panel:#fff; --panel2:#fbeff4; --text:#43303a; --soft:#8a7480;
+    --accent:#e08bb0; --accent2:#d94f6a; --accent3:#c98cc0; --border:#f1d9e4;
+    --radius:16px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+       font:15px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  header{display:flex;align-items:center;gap:14px;padding:16px 22px;
+         background:var(--panel);border-bottom:2px solid var(--border);
+         position:sticky;top:0;z-index:5}
+  header img{width:44px;height:44px;border-radius:12px}
+  header h1{margin:0;font-size:1.25rem}
+  header .sub{color:var(--soft);font-size:.86rem;margin:0}
+  header a.volver{margin-left:auto;text-decoration:none;color:var(--accent2);
+                  font-weight:700;border:2px solid var(--accent2);
+                  border-radius:10px;padding:8px 12px}
+  main{display:grid;grid-template-columns:340px 1fr;gap:16px;padding:16px 22px 40px;
+       max-width:1400px;margin:0 auto}
+  @media (max-width:900px){main{grid-template-columns:1fr}}
+  .panel{background:var(--panel);border:2px solid var(--border);
+         border-radius:var(--radius);padding:16px}
+  .panel h2{margin:0 0 10px;font-size:1rem;color:var(--accent2)}
+  #drop{border:3px dashed var(--border);border-radius:var(--radius);
+        padding:26px 14px;text-align:center;color:var(--soft);cursor:pointer;
+        background:var(--panel2)}
+  #drop.over{border-color:var(--accent2);color:var(--accent2)}
+  button{cursor:pointer;font:inherit;font-weight:700;border-radius:10px;
+         border:2px solid var(--border);background:var(--panel2);color:var(--text);
+         padding:9px 12px;transition:.15s}
+  button:hover{border-color:var(--accent)}
+  button.primary{background:var(--accent2);border-color:var(--accent2);color:#fff}
+  button.primary:disabled{opacity:.5;cursor:default}
+  .campo{display:flex;align-items:center;gap:8px;margin:7px 0;font-size:14px}
+  .campo label{flex:1;color:var(--soft)}
+  input[type=number],select{border:2px solid var(--border);border-radius:9px;
+     padding:6px 8px;background:var(--panel2);color:var(--text);width:92px}
+  .lista{display:flex;flex-direction:column;gap:8px;max-height:280px;overflow:auto}
+  .item{display:flex;align-items:center;gap:10px;border:2px solid var(--border);
+        border-radius:12px;padding:8px}
+  .item img{width:44px;height:44px;object-fit:contain;background:
+     repeating-conic-gradient(#eee 0% 25%,#fff 0% 50%) 50%/10px 10px;border-radius:8px}
+  .item .nom{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
+  .item .mm{color:var(--accent2);font-weight:700;font-size:12.5px;white-space:nowrap}
+  #estado{margin-top:10px;color:var(--soft);font-size:13px;min-height:20px}
+  #lienzo{display:flex;flex-direction:column;gap:14px;align-items:center}
+  #lienzo canvas{border:2px solid var(--border);border-radius:12px;max-width:100%;
+     background:#fff;box-shadow:0 6px 20px rgba(120,70,90,.08)}
+  .metricas{display:flex;gap:16px;flex-wrap:wrap;color:var(--soft);font-size:13.5px}
+  .metricas b{color:var(--accent2)}
+  .aviso{border-left:4px solid var(--accent3);background:var(--panel2);
+         border-radius:10px;padding:10px 14px;color:var(--soft);font-size:13px}
+  .acciones{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+</style>
+</head>
+<body>
+<header>
+  <img src="../icono.png" alt="CryCat" />
+  <div>
+    <h1>CryCat web</h1>
+    <p class="sub">Coloca tus pegatinas para Cricut — todo se calcula en tu equipo</p>
+  </div>
+  <a class="volver" href="../">← Presentación y descargas</a>
+</header>
+
+<main>
+  <section class="panel">
+    <h2>1 · Tus imágenes</h2>
+    <div id="drop">Arrastra tus imágenes aquí<br /><small>(o haz clic: PNG, JPG, WEBP, GIF)</small></div>
+    <input id="file" type="file" hidden multiple accept="image/*" />
+    <div class="lista" id="lista" style="margin-top:12px"></div>
+
+    <h2 style="margin-top:18px">2 · Ajustes</h2>
+    <div class="campo"><label>Papel</label>
+      <select id="papel">
+        <option value="A4">A4 (210×297)</option>
+        <option value="A5">A5 (148×210)</option>
+        <option value="A3">A3 (297×420)</option>
+        <option value="Letter">Letter (216×279)</option>
+      </select></div>
+    <div class="campo"><label>Separación (mm)</label>
+      <input id="space" type="number" value="2" min="0" max="20" step="0.5" /></div>
+    <div class="campo"><label>Margen (mm)</label>
+      <input id="margin" type="number" value="1" min="0" max="20" step="0.5" /></div>
+    <div class="campo"><label>Calidad</label>
+      <select id="cell">
+        <option value="0.75">Rápida</option>
+        <option value="0.5" selected>Normal</option>
+        <option value="0.35">Exacta</option>
+      </select></div>
+    <div class="campo"><label>Admitir giros 90°</label>
+      <input id="rot" type="checkbox" checked /></div>
+    <div class="campo"><label>Rellenar con minis</label>
+      <input id="minis" type="checkbox" /></div>
+
+    <button class="primary" id="opt" style="width:100%;margin-top:12px">
+      Colocar de forma óptima
+    </button>
+    <div id="estado">Cargando el motor…</div>
+  </section>
+
+  <section id="lienzo">
+    <div class="panel aviso" id="intro">
+      Sube tus imágenes y pulsa <b>Colocar de forma óptima</b>. CryCat calcula la
+      silueta real de cada dibujo (no la caja), las encaja en el área recortable
+      de la Cricut y te da un PNG a 300 ppp listo para imprimir.
+      <b>Tus imágenes no salen de tu equipo:</b> el motor se ejecuta en el
+      navegador con el mismo código que la aplicación de escritorio.
+      <br /><small>En el navegador el cálculo es más lento que en el
+      ejecutable: para muchas piezas usa calidad <b>Rápida</b> o menos copias
+      (el resultado puede quedar parcial si se agota el tiempo).</small>
+    </div>
+  </section>
+</main>
+
+<script type="module">
+import { cargarCryCat } from "./pyodide-crycat.js";
+import { cutArea, PAPER_SIZES } from "./motor.js";
+
+const $ = (id) => document.getElementById(id);
+const estado = (t) => { $("estado").innerHTML = t; };
+
+let py = null;
+const imagenes = [];   // {id, name, img, w, h}
+
+// ---------- motor ----------
+(async () => {
+  try {
+    py = await cargarCryCat(estado);
+    estado("Motor listo. Sube tus imágenes.");
+  } catch (e) {
+    estado("No se pudo cargar el motor: " + e.message);
+  }
+})();
+
+// ---------- entrada de imágenes ----------
+$("drop").addEventListener("click", () => $("file").click());
+$("file").addEventListener("change", (e) => añadir(e.target.files));
+["dragover", "dragenter"].forEach((ev) => $("drop").addEventListener(ev,
+  (e) => { e.preventDefault(); $("drop").classList.add("over"); }));
+["dragleave", "drop"].forEach((ev) => $("drop").addEventListener(ev,
+  (e) => { e.preventDefault(); $("drop").classList.remove("over"); }));
+$("drop").addEventListener("drop", (e) => añadir(e.dataTransfer.files));
+
+async function añadir(files) {
+  for (const f of files) {
+    if (!f.type.startsWith("image/")) continue;
+    const img = await cargarImagen(f);
+    imagenes.push({
+      id: "a" + imagenes.length + "_" + Date.now(),
+      name: f.name, img, w: img.width, h: img.height,
+      wmm: 49, hmm: 49,
+    });
+  }
+  pintarLista();
+}
+
+function cargarImagen(file) {
+  return new Promise((res, rej) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => { URL.revokeObjectURL(url); res(img); };
+    img.onerror = rej;
+    img.src = url;
+  });
+}
+
+const MMM = 25.4 / 300;   // a 300 ppp por defecto en la web
+function pintarLista() {
+  $("lista").innerHTML = "";
+  imagenes.forEach((im, i) => {
+    const wmm = im.img.width * MMM, hmm = im.img.height * MMM;
+    im.wmm = wmm; im.hmm = hmm;
+    const d = document.createElement("div");
+    d.className = "item";
+    d.innerHTML = `<img src="${im.img.src}" alt="" />
+      <span class="nom" title="${im.name}">${im.name}</span>
+      <span class="mm">${wmm.toFixed(1)}×${hmm.toFixed(1)} mm</span>
+      <button data-i="${i}" class="quitar">✕</button>`;
+    $("lista").appendChild(d);
+  });
+  $("lista").querySelectorAll(".quitar").forEach((b) =>
+    b.addEventListener("click", () => {
+      imagenes.splice(Number(b.dataset.i), 1);
+      pintarLista();
+    }));
+}
+
+// ---------- optimizar ----------
+$("opt").addEventListener("click", async () => {
+  if (!py) { estado("El motor aún se está cargando…"); return; }
+  if (!imagenes.length) { estado("Sube al menos una imagen."); return; }
+  $("opt").disabled = true;
+  estado("Preparando…");
+  try {
+    const [pw, ph] = PAPER_SIZES[$("papel").value] || PAPER_SIZES.A4;
+    const assets = await Promise.all(imagenes.map(async (im) => ({
+      id: im.id, name: im.name,
+      w_mm: im.wmm, h_mm: im.hmm,
+      copies: 1,
+      mini_enabled: $("minis").checked,
+      mini_quota: 1,
+      offset_mm: 0,
+      dpi: 300,
+      img: await aB64(im.img),
+    })));
+    const payload = {
+      assets,
+      settings: {
+        espacio_mm: Number($("space").value),
+        margen_mm: Number($("margin").value),
+        cell_mm: Number($("cell").value),
+        rotations: $("rot").checked,
+        usar_minis: $("minis").checked,
+        dpi_salida: 300,
+      },
+      page_w: pw, page_h: ph, machine: "maker5",
+    };
+    estado("Optimizando por silueta…");
+    const t0 = performance.now();
+    const res = JSON.parse(await py.runPythonAsync(
+      `from crycat import webapi\nwebapi.optimizar(${JSON.stringify(JSON.stringify(payload))})`));
+    const ms = Math.round(performance.now() - t0);
+    pintar(res, ms);
+    estado(`Listo: ${res.pages} página(s) en ${ms} ms.`);
+  } catch (e) {
+    estado("Error al optimizar: " + e.message);
+  } finally {
+    $("opt").disabled = false;
+  }
+});
+
+async function aB64(img) {
+  const cv = document.createElement("canvas");
+  cv.width = img.width; cv.height = img.height;
+  cv.getContext("2d").drawImage(img, 0, 0);
+  return cv.toDataURL("image/png");
+}
+
+function pintar(res, ms) {
+  const cont = $("lienzo");
+  cont.innerHTML = "";
+  const info = document.createElement("div");
+  info.className = "metricas";
+  info.innerHTML = `<span>Páginas: <b>${res.pages}</b></span>
+    <span>Colocadas: <b>${res.placements.length}</b></span>
+    <span>Sin colocar: <b>${res.unplaced.length}</b></span>
+    <span>Eficiencia: <b>${(res.efficiency * 100).toFixed(0)}%</b></span>
+    <span>Tiempo: <b>${ms} ms</b></span>`;
+  cont.appendChild(info);
+  if (res.unplaced.length) {
+    const av = document.createElement("div");
+    av.className = "panel aviso";
+    av.textContent = `No caben ${res.unplaced.length} pieza(s): reduce el tamaño, `
+      + "usa otra hoja o quita alguna imagen.";
+    cont.appendChild(av);
+  }
+  res.pngs.forEach((src, i) => {
+    const cv = document.createElement("canvas");
+    const img = new Image();
+    img.onload = () => {
+      cv.width = img.width; cv.height = img.height;
+      const ctx = cv.getContext("2d");
+      ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, cv.width, cv.height);
+      ctx.drawImage(img, 0, 0);
+      // marca suave del área recortable (solo en pantalla, no en el PNG)
+      cv.style.maxWidth = "min(560px, 100%)";
+    };
+    img.src = src;
+    cont.appendChild(cv);
+  });
+  const acc = document.createElement("div");
+  acc.className = "acciones";
+  res.pngs.forEach((src, i) => {
+    const a = document.createElement("a");
+    a.href = src;
+    a.download = `crycat_pagina-${String(i + 1).padStart(2, "0")}.png`;
+    a.innerHTML = `<button class="primary">Descargar página ${i + 1}</button>`;
+    acc.appendChild(a);
+  });
+  cont.appendChild(acc);
+}
+</script>
+</body>
+</html>

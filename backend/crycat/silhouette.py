@@ -800,7 +800,10 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
     deadline = t0 + t_max
     rnd = _random.Random(20260925)
     n_total = sum(int(a.get("copies", 1)) for a in assets) + len(pinned or [])
-    deadline_1 = None if n_total <= 40 else deadline
+    # en el navegador (o si se pide) la primera pasada TAMBIÉN respeta el
+    # presupuesto: mejor un resultado parcial en segundos que esperar minutos
+    forzar = bool(settings.get("opt_forzar_limite"))
+    deadline_1 = None if (n_total <= 40 and not forzar) else deadline
 
     if metodo == "largest":
         best = _one_pass(assets, masks, area, settings, pinned, "area", rnd,

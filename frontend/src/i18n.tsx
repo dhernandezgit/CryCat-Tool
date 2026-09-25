@@ -356,6 +356,8 @@ export const EN: Record<string, string> = {
   "Volver": "Back",
   "Entendido": "Got it",
   "Cómo usar": "How to use",
+  "Apoyar": "Support us",
+  "Apoyar el proyecto (PayPal)": "Support the project (PayPal)",
   "Cómo usar CryCat": "How to use CryCat",
   "Cómo usar CryCat (vuelve a mostrar la ayuda)":
     "How to use CryCat (shows the help again)",

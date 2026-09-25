@@ -15,6 +15,8 @@ La hizo **Daniel Hernández Ferrándiz**.
 
 **¿Prefieres verlo antes?** → **[Web del proyecto](https://dhernandezgit.github.io/CryCat-Tool/)**
 (guía rápida y descargas).
+**¿Sin instalar nada?** → **[Usar CryCat en el navegador](https://dhernandezgit.github.io/CryCat-Tool/web/)**
+(misma lógica, ejecutándose en tu equipo).
 
 **Instalación universal con un solo comando:**
 
@@ -102,6 +104,21 @@ las limpia, las escala y **las coloca de la forma más eficiente posible** en el
 - **Aviso y actualización automática**: si hay Internet, al arrancar comprueba
   si hay versión nueva; puedes actualizar con un clic desde la propia app
   (descarga, instala y reinicia **sin perder ajustes, perfiles ni imágenes**).
+
+### Versión web (sin instalar nada)
+
+En **https://dhernandezgit.github.io/CryCat-Tool/web/** puedes usar CryCat
+directamente en el navegador:
+
+- Ejecuta **el mismo motor que la aplicación** (el paquete Python real,
+  compilado a WebAssembly con Pyodide): misma geometría, mismas siluetas,
+  mismos límites y misma exportación a 300 ppp.
+- **Tus imágenes no se suben a ningún servidor**: todo el cálculo ocurre en tu
+  equipo (por eso también funciona sin cuenta y sin coste).
+- En el navegador el cálculo es más lento que el ejecutable: para muchas piezas
+  usa calidad *Rápida* o menos copias (el resultado puede quedar parcial si se
+  agota el tiempo).
+- Formatos: PNG, JPG, WEBP y GIF (PSD/AI/PDF solo en la versión de escritorio).
 
 ### Privacidad y uso local
 

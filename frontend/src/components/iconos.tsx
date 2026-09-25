@@ -267,3 +267,11 @@ export function IconoAyuda({ size }: P) {
     </Svg>
   );
 }
+
+export function IconoCorazon({ size }: P) {
+  return (
+    <Svg size={size}>
+      <path d="M12 20s-7.5-4.6-7.5-9.4A4.1 4.1 0 0 1 12 8a4.1 4.1 0 0 1 7.5 2.6C19.5 15.4 12 20 12 20z" />
+    </Svg>
+  );
+}

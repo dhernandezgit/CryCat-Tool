@@ -119,13 +119,19 @@ def main() -> None:
     ap = argparse.ArgumentParser(
         prog=APP_NAME.lower(),
         description=tb("CryCat: coloca imágenes de forma óptima para Cricut"))
-    ap.add_argument("--port", type=int, default=8712)
+    # en la nube el puerto llega por la variable PORT y el host debe ser 0.0.0.0
+    env_port = int(os.environ.get("PORT", "0") or 0)
+    en_servidor = bool(os.environ.get("PORT")) or bool(
+        os.environ.get("CRYCAT_WEB"))
+    ap.add_argument("--port", type=int, default=env_port or 8712)
+    ap.add_argument("--host", default="0.0.0.0" if en_servidor else "127.0.0.1")
     ap.add_argument("--no-browser", action="store_true",
+                    default=en_servidor,
                     help=tb("no abrir el navegador automáticamente"))
     args = ap.parse_args()
 
-    port = free_port(args.port)
-    url = f"http://127.0.0.1:{port}/"
+    port = args.port if en_servidor else free_port(args.port)
+    url = f"http://{args.host if not en_servidor else '127.0.0.1'}:{port}/"
 
     from .config import DATA_DIR
     _banner(port, url, str(DATA_DIR))
@@ -175,7 +181,7 @@ def main() -> None:
             pass
 
     try:
-        uvicorn.run(create_app(), host="127.0.0.1", port=port,
+        uvicorn.run(create_app(), host=args.host, port=port,
                     log_level="info", access_log=False)
     except KeyboardInterrupt:
         pass

@@ -17,6 +17,10 @@ APP_H = 297.0
 CONFIG_VERSION = 21  # subir para migrar configuraciones antiguas
 
 
+# En la nube se puede fijar una carpeta de datos con CRYCAT_DATA_DIR
+_ENV_DATA = os.environ.get("CRYCAT_DATA_DIR")
+
+
 def app_config_dir() -> Path:
     if sys.platform == "win32":
         base = os.environ.get("APPDATA", str(Path.home()))
@@ -33,8 +37,8 @@ def app_data_dir() -> Path:
     return Path(base) / APP_NAME.lower()
 
 
-CONFIG_DIR = app_config_dir()
-DATA_DIR = app_data_dir()
+CONFIG_DIR = Path(_ENV_DATA) if _ENV_DATA else app_config_dir()
+DATA_DIR = Path(_ENV_DATA) if _ENV_DATA else app_data_dir()
 CONFIG_FILE = CONFIG_DIR / "config.json"
 ASSETS_DIR = DATA_DIR / "assets"
 ICON_FILE = DATA_DIR / "icono.png"

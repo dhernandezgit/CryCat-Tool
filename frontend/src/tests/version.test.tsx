@@ -111,4 +111,12 @@ describe("Versión y actualización en la barra inferior", () => {
     expect(openSpy).toHaveBeenCalledWith(
       "https://github.com/dhernandezgit/CryCat-Tool", "_blank", "noopener");
   });
+
+  it("el botón Apoyar abre PayPal en otra pestaña", async () => {
+    const openSpy = vi.spyOn(window, "open").mockImplementation(() => null);
+    render(<StatusBar job={null} backendOk result={null} />);
+    fireEvent.click(screen.getByTestId("btn-apoyar"));
+    expect(openSpy).toHaveBeenCalledWith("https://paypal.me/Darkniel42",
+                                        "_blank", "noopener");
+  });
 });
