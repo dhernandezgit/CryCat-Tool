@@ -13,6 +13,9 @@ La hizo **Daniel Hernández Ferrándiz**.
 <sub>El **instalador automático** instala CryCat con accesos directos en el menú de inicio
 (y opcionalmente en el escritorio) y desinstalador. Funciona en Windows 10/11.</sub>
 
+**¿Prefieres verlo antes?** → **[Web del proyecto](https://dhernandezgit.github.io/CryCat-Tool/)**
+(guía rápida y descargas).
+
 **Instalación universal con un solo comando:**
 
 ```powershell
@@ -179,7 +182,8 @@ Necesitas Python 3.10+ y Node.js 18+.
 
 | Elemento | Para qué sirve |
 |---|---|
-| `ⓘ App info` | Abre este repositorio en una pestaña nueva |
+| `Cómo usar` | Vuelve a mostrar la guía de uso (también sale sola la primera vez) |
+| `ⓘ` | Abre este repositorio en una pestaña nueva |
 | `ES` / `EN` | Cambia el idioma de toda la interfaz |
 | `v1.0.0 ⟳ ⬇` | Versión actual, comprobar versiones y actualizar |
 | 🔊 + volumen | Sonido de Pikmin y volumen (silenciado por defecto) |

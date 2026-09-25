@@ -665,3 +665,7 @@ button:active { transform: translateY(1px); }
   border-bottom-left-radius: 0; border-bottom-right-radius: 0;
   color: var(--accent);
 }
+
+/* popup de ayuda / cómo usar */
+.modal.ayuda-modal { max-width: 620px; }
+.ayuda-modal h3 { margin: 0 0 4px; color: var(--accent); }

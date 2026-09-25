@@ -258,3 +258,12 @@ export function IconoFiesta({ size }: P) {
     </Svg>
   );
 }
+
+export function IconoAyuda({ size }: P) {
+  return (
+    <Svg size={size}>
+      <path d="M12 6.5C10.5 5 8.3 4.5 4 4.5v13c4.3 0 6.5.5 8 2 1.5-1.5 3.7-2 8-2v-13c-4.3 0-6.5.5-8 2z" />
+      <path d="M12 6.5v13" />
+    </Svg>
+  );
+}

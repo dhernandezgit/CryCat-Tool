@@ -7,6 +7,7 @@ import Viewer from "./components/Viewer";
 import SettingsPanel from "./components/SettingsPanel";
 import StatusBar from "./components/StatusBar";
 import PikminPet from "./components/PikminPet";
+import AyudaDialog, { useBienvenida } from "./components/AyudaDialog";
 
 export interface Estimate {
   maquina: string;
@@ -33,6 +34,7 @@ export default function App() {
   });
   const [leftW, setLeftW] = useState(33.3);     // %  (por defecto 1/3)
   const [centerW, setCenterW] = useState(33.3); // %  (por defecto 1/3; el resto, derecha)
+  const ayuda = useBienvenida();
   const optTimer = useRef<number | null>(null);
   const pollRef = useRef<number | null>(null);
 
@@ -338,7 +340,8 @@ export default function App() {
                  onMute={(m) => saveSettings({ mute: m })}
                  onIdioma={(i) => saveSettings({ idioma: i })}
                  onEasterEgg={() => saveSettings({
-                   pikmin_fiesta: !settings.pikmin_fiesta })} />
+                   pikmin_fiesta: !settings.pikmin_fiesta })}
+                 onAyuda={ayuda.abrir} />
       <PikminPet
         activo={settings.pikmin_activo !== false}
         frecuenciaMin={settings.pikmin_frecuencia_min ?? 1}
@@ -348,6 +351,9 @@ export default function App() {
         mute={settings.mute ?? false}
         fiesta={settings.pikmin_fiesta === true}
       />
+      <AyudaDialog open={ayuda.visible} onClose={ayuda.cerrar}
+                   onAbrirCarpeta={() => void api.fsOpen(
+                     settings.carpeta_export || "").catch(() => undefined)} />
       </div>
     </IdiomaProvider>
   );

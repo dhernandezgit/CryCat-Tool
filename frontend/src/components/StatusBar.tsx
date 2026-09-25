@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { api, type Job, type Result, type VersionInfo } from "../api";
 import { useIdioma, useT } from "../i18n";
 import { IconoMute, IconoVolumen, IconoInfo, IconoAlerta,
-         IconoCheck, IconoDescargar, IconoComprobar } from "./iconos";
+         IconoCheck, IconoDescargar, IconoComprobar, IconoAyuda,
+         IconoCarpeta } from "./iconos";
 
 export interface EstimateInfo {
   maquina: string;
@@ -25,7 +26,7 @@ function formatoTiempo(s: number): string {
 export default function StatusBar({ job, backendOk, result, estimate,
                                     volumen = 0.5, mute = false,
                                     onVolumen, onMute, onIdioma,
-                                    onEasterEgg }: {
+                                    onEasterEgg, onAyuda }: {
   job: Job | null;
   backendOk: boolean;
   result: Result | null;
@@ -36,6 +37,7 @@ export default function StatusBar({ job, backendOk, result, estimate,
   onMute?: (m: boolean) => void;
   onIdioma?: (i: "es" | "en") => void;
   onEasterEgg?: () => void;   // 5 clics seguidos en el gato
+  onAyuda?: () => void;       // abrir la ayuda / cómo usar
 }) {
   const t = useT();
   const idioma = useIdioma();
@@ -220,11 +222,19 @@ export default function StatusBar({ job, backendOk, result, estimate,
         <button
           className="app-info"
           data-testid="btn-info"
+          title={t("Cómo usar CryCat (vuelve a mostrar la ayuda)")}
+          onClick={() => onAyuda?.()}
+        >
+          <IconoAyuda size={15} /> {t("Cómo usar")}
+        </button>
+        <button
+          className="app-info"
+          data-testid="btn-repo"
           title={t("Abrir el repositorio del proyecto en una pestaña nueva")}
           onClick={() => window.open(ver?.repo ??
             "https://github.com/dhernandezgit/CryCat-Tool", "_blank", "noopener")}
         >
-          <IconoInfo size={15} /> {t("App info")}
+          <IconoInfo size={15} />
         </button>
         <button
           className="idioma"

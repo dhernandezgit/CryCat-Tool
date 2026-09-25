@@ -355,7 +355,30 @@ export const EN: Record<string, string> = {
     "How to use your PNG in Cricut Design Space",
   "Volver": "Back",
   "Entendido": "Got it",
-  "Abre Cricut Design Space.": "Open Cricut Design Space.",
+  "Cómo usar": "How to use",
+  "Cómo usar CryCat": "How to use CryCat",
+  "Cómo usar CryCat (vuelve a mostrar la ayuda)":
+    "How to use CryCat (shows the help again)",
+  "Arrastra tus imágenes al panel de la izquierda (PNG, JPG, PSD, AI, SVG…).":
+    "Drag your images into the left panel (PNG, JPG, PSD, AI, SVG…).",
+  "Ajusta el tamaño: usa la escala o escribe el ancho/alto exacto en mm.":
+    "Set the size: use the scale or type the exact width/height in mm.",
+  "Activa «Mini» en las imágenes que quieras repetir rellenando huecos.":
+    "Turn on “Mini” on the images you want repeated to fill gaps.",
+  "Pulsa «Recalcular» si quieres recolocarlo a fondo (o déjalo en automático).":
+    "Press “Recalculate” for a deep re-layout (or leave it automatic).",
+  "Guarda: un PNG a 300 ppp listo para imprimir. Nunca sobrescribe nada.":
+    "Save: a 300 dpi PNG ready to print. It never overwrites anything.",
+  "Sube el PNG y elige «Imagen completa» (conserva la transparencia).":
+    "Upload the PNG and choose “Full image” (keeps transparency).",
+  "Redimensiónala al tamaño real que ves en CryCat.":
+    "Resize it to the real size you see in CryCat.",
+  "Pulsa «Crear» y comprueba que las medidas coinciden.":
+    "Press “Create” and check the measurements match.",
+  "Imprime en papel mate blanco (o usa las marcas de Cricut) y colócalo en la esterilla.":
+    "Print on matte white paper (or use the Cricut marks) and place it on the mat.",
+  "Los archivos originales nunca se modifican y la exportación nunca sobrescribe.":
+    "Your original files are never modified and exports never overwrite.",
   "Carga la imagen y elige «Imagen completa» (conserva la transparencia).":
     "Upload the image and choose “Full image” (keeps transparency).",
   "Redimensiónala al tamaño real (el que se muestra en CryCat).":
@@ -365,8 +388,6 @@ export const EN: Record<string, string> = {
     "Check that the dimensions match the file.",
   "Imprime en papel mate blanco y colócalo en la esterilla.":
     "Print on matte white paper and place it on the mat.",
-  "¡Listo! La máquina leerá las marcas y cortará tus pegatinas.":
-    "Done! The machine will read the marks and cut your stickers.",
   "¡Fiesta Pikmin!": "Pikmin party!",
 };
 

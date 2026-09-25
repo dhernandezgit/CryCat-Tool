@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>CryCat — coloca tus imágenes para Cricut</title>
+<meta name="description" content="CryCat coloca tus pegatinas de forma óptima para Cricut. Todo local, sin conexión, y nunca modifica tus originales." />
+<link rel="icon" href="icono.png" />
+<style>
+  :root{
+    --bg:#fdf7f9; --panel:#ffffff; --panel2:#fbeff4; --text:#43303a;
+    --soft:#8a7480; --accent:#e08bb0; --accent2:#d94f6a; --accent3:#c98cc0;
+    --border:#f1d9e4; --radius:18px;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font:16px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  }
+  .wrap{max-width:1000px;margin:0 auto;padding:32px 20px 80px}
+  header{display:flex;align-items:center;gap:16px;margin-bottom:8px}
+  header img.icono{width:72px;height:72px;border-radius:20px}
+  h1{font-size:2.1rem;margin:0;letter-spacing:.3px}
+  .sub{color:var(--soft);margin:2px 0 0}
+  .descargas{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin:10px 0 34px}
+  .card{
+    background:var(--panel);border:2px solid var(--border);border-radius:var(--radius);
+    padding:20px;display:flex;flex-direction:column;gap:10px;
+    box-shadow:0 6px 20px rgba(120,70,90,.06);
+  }
+  .card h3{margin:0;font-size:1.05rem}
+  .card p{margin:0;color:var(--soft);font-size:.92rem}
+  .card a.btn{
+    margin-top:auto;text-decoration:none;text-align:center;font-weight:700;
+    padding:11px 14px;border-radius:12px;background:var(--accent2);color:#fff;
+    border:2px solid var(--accent2);transition:.15s;
+  }
+  .card a.btn.alt{background:transparent;color:var(--accent2)}
+  .card a.btn:hover{filter:brightness(1.06)}
+  section{background:var(--panel);border:2px solid var(--border);
+    border-radius:var(--radius);padding:22px 24px;margin:14px 0}
+  section h2{margin:0 0 12px;color:var(--accent2);font-size:1.25rem}
+  ol,ul{padding-left:22px}
+  li{margin:6px 0}
+  .prompt{
+    background:var(--panel2);border-left:4px solid var(--accent3);
+    border-radius:10px;padding:12px 16px;margin:10px 0;color:var(--soft);
+  }
+  code{background:var(--panel2);padding:2px 7px;border-radius:6px;font-size:.92em}
+  footer{text-align:center;color:var(--soft);margin-top:40px;font-size:.9rem}
+  .aviso{font-size:.86rem;color:var(--soft)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <img class="icono" src="icono.png" alt="CryCat" />
+    <div>
+      <h1>CryCat</h1>
+      <p class="sub">Coloca tus imágenes de forma óptima para Cricut —
+        todo local, sin conexión a Internet y sin tocar tus originales.</p>
+    </div>
+  </header>
+
+
+  <div class="descargas">
+    <div class="card">
+      <h3>Windows — instalador</h3>
+      <p>Descarga, doble clic y listo: accesos directos y desinstalador.</p>
+      <a class="btn" id="dl-setup" href="https://github.com/dhernandezgit/CryCat-Tool/releases/latest/download/crycat-setup.exe">Descargar instalador</a>
+    </div>
+    <div class="card">
+      <h3>Windows — un archivo</h3>
+      <p>Sin instalación: un único <code>CryCat.exe</code> portable.</p>
+      <a class="btn alt" id="dl-exe" href="https://github.com/dhernandezgit/CryCat-Tool/releases/latest/download/CryCat.exe">Descargar CryCat.exe</a>
+    </div>
+    <div class="card">
+      <h3>Linux — un archivo</h3>
+      <p>Ejecutable único; también hay paquete con <code>install.sh</code>.</p>
+      <a class="btn alt" id="dl-lin" href="https://github.com/dhernandezgit/CryCat-Tool/releases/latest/download/crycat-onefile">Descargar para Linux</a>
+    </div>
+  </div>
+
+  <section>
+    <h2>Cómo usar CryCat</h2>
+    <ol>
+      <li>Arrastra tus imágenes al panel de la izquierda (PNG, JPG, WEBP, PSD, AI, SVG…).</li>
+      <li>Ajusta el tamaño con la escala o escribiendo el <strong>ancho/alto exacto en mm</strong>.</li>
+      <li>Activa <strong>Mini</strong> en las que quieras repetir rellenando huecos (mínimo 15 mm).</li>
+      <li>Pulsa <strong>Recalcular</strong> si quieres recolocarlo a fondo (o déjalo en automático).</li>
+      <li>Guarda: obtienes un <strong>PNG a 300 ppp</strong>. Nunca sobrescribe nada.</li>
+    </ol>
+    <div class="prompt">
+      Al abrir la aplicación verás este mismo resumen en un aviso; puedes
+      volver a verlo cuando quieras con el botón <strong>«Cómo usar»</strong> de la barra inferior.
+    </div>
+  </section>
+
+  <section>
+    <h2>Consejos rápidos</h2>
+    <ul>
+      <li><strong>Espacio y borde:</strong> usa los perfiles listos — <em>chapa</em> (casi sin espacio),
+        <em>pegatina</em> (espacio + borde), <em>hoja de pegatinas</em> (sin espacio ni borde), <em>imán</em> o <em>vinilo</em>.</li>
+      <li><strong>Trozos flotantes:</strong> sube el <em>Borde</em> de ese elemento para unirlos en una sola pieza.</li>
+      <li><strong>Muchas imágenes a la vez:</strong> aparece un cuadro para adaptar los tamaños en bloque.</li>
+      <li><strong>Imprimir:</strong> CryCat guarda primero y genera un PDF con las marcas negras de Cricut.</li>
+      <li><strong>Deshacer/Rehacer:</strong> <code>Ctrl+Z</code> y <code>Ctrl+Y</code> (configurable en Ajustes).</li>
+      <li><strong>Sorpresa:</strong> haz clic 5 veces seguidas en el gatito de la barra.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>¿Y la versión web?</h2>
+    <p class="aviso">
+      Esta página es solo la presentación: CryCat necesita ejecutarse en tu
+      ordenador porque el recorte de siluetas, la optimización y la exportación
+      a 300 ppp se hacen <strong>localmente</strong> (nada sale de tu equipo).
+      Descarga el ejecutable de tu sistema en los botones de arriba.
+    </p>
+  </section>
+
+  <footer>
+    CryCat · hecha por <strong>Daniel Hernández Ferrándiz</strong> y
+    <strong>Wivi.eve</strong>, para los artistas.<br />
+    <a href="https://github.com/dhernandezgit/CryCat-Tool">Repositorio</a> ·
+    <a href="https://github.com/dhernandezgit/CryCat-Tool/releases/latest">Última versión</a>
+  </footer>
+</div>
+
+<script>
+  // Enlaces de descarga: siempre la última release
+  const repo = "https://github.com/dhernandezgit/CryCat-Tool";
+  const vers = "latest/download";
+  document.getElementById("dl-setup").href = `${repo}/releases/${vers}/crycat-setup.exe`;
+  document.getElementById("dl-exe").href = `${repo}/releases/${vers}/CryCat.exe`;
+  document.getElementById("dl-lin").href = `${repo}/releases/${vers}/crycat-onefile`;
+
+</script>
+</body>
+</html>

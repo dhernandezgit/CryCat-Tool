@@ -98,10 +98,16 @@ describe("Versión y actualización en la barra inferior", () => {
     expect(screen.getByTestId("btn-idioma")).toHaveTextContent("EN");
   });
 
-  it("el botón App info abre el repositorio en una pestaña nueva", async () => {
+  it("el botón de info abre ayuda y el del repo la página del proyecto", async () => {
     const openSpy = vi.spyOn(window, "open").mockImplementation(() => null);
-    render(<StatusBar job={null} backendOk result={null} />);
+    const onAyuda = vi.fn();
+    render(<StatusBar job={null} backendOk result={null}
+                      onAyuda={onAyuda} />);
+    // "Cómo usar" abre la ayuda de la app
     fireEvent.click(screen.getByTestId("btn-info"));
+    expect(onAyuda).toHaveBeenCalled();
+    // el botón del repo abre GitHub en otra pestaña
+    fireEvent.click(screen.getByTestId("btn-repo"));
     expect(openSpy).toHaveBeenCalledWith(
       "https://github.com/dhernandezgit/CryCat-Tool", "_blank", "noopener");
   });
