@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { api, assetSizeMm, normalizeAsset, prepareFile, type AppSettings, type Asset, type Result } from "../api";
 import { useT } from "../i18n";
+import { IconoCarpeta, IconoReemplazar, IconoLimpiar, IconoFondo,
+         IconoDeshacerFondo, IconoBorrar, IconoMini, IconoAviso } from "./iconos";
 import ImportDialog from "./ImportDialog";
 
 interface Props {
@@ -30,6 +32,7 @@ function AssetCard({ a, result, onChange, onEditarContorno,
   const editandoMm = useRef(false);
   const [altoTexto, setAltoTexto] = useState("");
   const editandoAlto = useRef(false);
+  const [abierto, setAbierto] = useState({ tamano: false, borde: false, mini: false });
   useEffect(() => {
     if (!editandoMm.current) {
       setMmTexto(size.w > 0 ? size.w.toFixed(1) : "");
@@ -87,7 +90,7 @@ function AssetCard({ a, result, onChange, onEditarContorno,
                 .catch(() => api.abrirCarpeta().catch(() => undefined))
             }
           >
-            📂
+            <IconoCarpeta size={16} />
           </button>
           <button
             className="icon-btn"
@@ -95,7 +98,7 @@ function AssetCard({ a, result, onChange, onEditarContorno,
             title={t("Reemplazar por otro archivo de la carpeta")}
             onClick={() => reemplazarRef.current?.click()}
           >
-            ⟳
+            <IconoReemplazar size={16} />
           </button>
           <input
             ref={reemplazarRef}
@@ -121,7 +124,7 @@ function AssetCard({ a, result, onChange, onEditarContorno,
             title={t("Limpiar contorno (quitar trozos sueltos) sin tocar el original")}
             onClick={() => onEditarContorno?.(a)}
           >
-            ✧
+            <IconoLimpiar size={16} />
           </button>
           <button
             className="icon-btn"
@@ -133,189 +136,165 @@ function AssetCard({ a, result, onChange, onEditarContorno,
               ).then(onChange)
             }
           >
-            {local.bg_removed ? "↺" : "✂"}
+            {local.bg_removed
+              ? <IconoDeshacerFondo size={16} />
+              : <IconoFondo size={16} />}
           </button>
           <button
             className="icon-btn danger"
             title={t("Eliminar imagen")}
             onClick={() => api.deleteAsset(a.id).then(onChange)}
           >
-            ✕
+            <IconoBorrar size={16} />
           </button>
         </div>
-        <div className="copies-row">
-          <button data-testid={`resta-${a.id}`} onClick={() => patch({ copies: local.copies - 1 })}>−</button>
-          <span className="n" data-testid={`copias-${a.id}`}>{local.copies}</span>
-          <button data-testid={`suma-${a.id}`} onClick={() => patch({ copies: local.copies + 1 })}>+</button>
+        <div className="card-actions">
+          <div className="copies-row" title={t("Copias")}>
+            <button data-testid={`resta-${a.id}`} onClick={() => patch({ copies: local.copies - 1 })}>−</button>
+            <span className="n" data-testid={`copias-${a.id}`}>{local.copies}</span>
+            <button data-testid={`suma-${a.id}`} onClick={() => patch({ copies: local.copies + 1 })}>+</button>
+          </div>
+          <button
+            className={`mini-toggle ${local.mini_enabled ? "on" : ""}`}
+            data-testid={`mini-${a.id}`}
+            title={t("Incluir como mini (rellena huecos)")}
+            onClick={() => patch({ mini_enabled: !local.mini_enabled })}
+          >
+            <IconoMini size={15} /> {t("Mini")}
+          </button>
         </div>
-        <div className="card-group">
-          <div className="group-title">
+
+        {/* ---- Tamaño (plegable) ---- */}
+        <div className="fold">
+          <button className="fold-head" data-testid={`fold-tamano-${a.id}`}
+                  onClick={() => setAbierto((o) => ({ ...o, tamano: !o.tamano }))}>
+            <span className={`chev ${abierto.tamano ? "open" : ""}`}>›</span>
             {t("Tamaño")}
-            <span className="group-val" data-testid={`tamano-${a.id}`}>
-              {size.w.toFixed(1)}×{size.h.toFixed(1)} mm
+            <span className="fold-val" data-testid={`tamano-${a.id}`}>
+              {size.w.toFixed(1)}×{size.h.toFixed(1)} mm · {Math.round(local.scale_pct)}%
             </span>
-          </div>
-        <div className="scale-row">
-          <span title={t("Escala del elemento (100% = tamaño natural)")}>{t("Escala")}</span>
-          <input
-            type="range"
-            min={10}
-            max={400}
-            step={5}
-            value={local.scale_pct}
-            data-testid={`escala-${a.id}`}
-            onChange={(e) => {
-              const v = Number(e.target.value);
-              if (Number.isFinite(v)) patch({ scale_pct: v });
-            }}
-          />
-          <span className="scale-val">{Math.round(local.scale_pct)}%</span>
+          </button>
+          {abierto.tamano && (
+            <div className="fold-body">
+              <div className="scale-row">
+                <span title={t("Escala del elemento (100% = tamaño natural)")}>{t("Escala")}</span>
+                <input type="range" min={10} max={400} step={5}
+                  value={local.scale_pct} data-testid={`escala-${a.id}`}
+                  onChange={(e) => patch({ scale_pct: Number(e.target.value) })} />
+                <span className="scale-val">{Math.round(local.scale_pct)}%</span>
+              </div>
+              <div className="exact-row">
+                <span title={t("Tamaño exacto en milímetros (mantiene la proporción)")}>{t("Ancho")}</span>
+                <input type="number" min={0.5} max={2000} step={0.5} value={mmTexto}
+                  data-testid={`ancho-mm-${a.id}`}
+                  onFocus={() => { editandoMm.current = true; editandoAlto.current = false; }}
+                  onBlur={() => { editandoMm.current = false;
+                                  setMmTexto(size.w > 0 ? size.w.toFixed(1) : ""); }}
+                  onChange={(e) => anchoExacto(e.target.value)} />
+                <span>mm</span>
+                <span className="por">×</span>
+                <span title={t("Tamaño exacto en milímetros (mantiene la proporción)")}>{t("Alto")}</span>
+                <input type="number" min={0.5} max={2000} step={0.5} value={altoTexto}
+                  data-testid={`alto-mm-${a.id}`}
+                  onFocus={() => { editandoAlto.current = true; editandoMm.current = false; }}
+                  onBlur={() => { editandoAlto.current = false;
+                                  setAltoTexto(size.h > 0 ? size.h.toFixed(1) : ""); }}
+                  onChange={(e) => altoExacto(e.target.value)} />
+                <span>mm</span>
+              </div>
+            </div>
+          )}
         </div>
-        <div className="exact-row">
-          <span title={t("Tamaño exacto en milímetros (mantiene la proporción)")}>
-            {t("Ancho")}
-          </span>
-          <input
-            type="number"
-            min={0.5}
-            max={2000}
-            step={0.5}
-            value={mmTexto}
-            data-testid={`ancho-mm-${a.id}`}
-            onFocus={() => { editandoMm.current = true; editandoAlto.current = false; }}
-            onBlur={() => {
-              editandoMm.current = false;
-              setMmTexto(size.w > 0 ? size.w.toFixed(1) : "");
-            }}
-            onChange={(e) => anchoExacto(e.target.value)}
-          />
-          <span>mm</span>
-          <span className="por">×</span>
-          <span title={t("Tamaño exacto en milímetros (mantiene la proporción)")}>
-            {t("Alto")}
-          </span>
-          <input
-            type="number"
-            min={0.5}
-            max={2000}
-            step={0.5}
-            value={altoTexto}
-            data-testid={`alto-mm-${a.id}`}
-            onFocus={() => { editandoAlto.current = true; editandoMm.current = false; }}
-            onBlur={() => {
-              editandoAlto.current = false;
-              setAltoTexto(size.h > 0 ? size.h.toFixed(1) : "");
-            }}
-            onChange={(e) => altoExacto(e.target.value)}
-          />
-          <span>mm</span>
-        </div>
-        </div>
-        <div className="card-group">
-          <div className="group-title">
-            <span title={t("Borde solo de este elemento para unir trozos flotantes (0 = usar el ajuste global)")}>
-              {t("Borde de este elemento")}
+
+        {/* ---- Borde (plegable) ---- */}
+        <div className="fold">
+          <button className="fold-head" data-testid={`fold-borde-${a.id}`}
+                  onClick={() => setAbierto((o) => ({ ...o, borde: !o.borde }))}>
+            <span className={`chev ${abierto.borde ? "open" : ""}`}>›</span>
+            {t("Borde")}
+            <span className="fold-val" data-testid={`offset-${a.id}`}>
+              {local.offset_mm.toFixed(1)} mm{local.offset_mm <= 0 ? ` · ${t("global")}` : ""}
             </span>
-            <span className="group-val" data-testid={`offset-${a.id}`}>
-              {local.offset_mm.toFixed(1)} mm
-            </span>
-          </div>
-          <div className="seg-row">
-            <button className="quota-btn" data-testid={`offset-menos-${a.id}`}
-              onClick={() => patch({
-                offset_mm: Math.max(0, Math.round((local.offset_mm - 0.5) * 2) / 2),
-              })}>−</button>
-            <input
-              type="range" min={0} max={10} step={0.5}
-              data-testid={`offset-range-${a.id}`}
-              value={local.offset_mm}
-              onChange={(e) => patch({ offset_mm: Number(e.target.value) })}
-            />
-            <button className="quota-btn" data-testid={`offset-mas-${a.id}`}
-              onClick={() => patch({
-                offset_mm: Math.min(20, Math.round((local.offset_mm + 0.5) * 2) / 2),
-              })}>+</button>
-          </div>
-          <div className="seg-row">
-            {([["extender", t("Extender")], ["blanco", t("Blanco")],
-               ["color", t("Color")]] as const).map(([modo, etiqueta]) => (
-              <button key={modo}
-                className={`seg ${(local.offset_modo || "") === modo ? "on" : ""}`}
-                data-testid={`offset-modo-${modo}-${a.id}`}
-                onClick={() => patch({ offset_modo: modo })}
-              >
-                {etiqueta}
-              </button>
-            ))}
-            <input
-              type="color"
-              className="color-pick"
-              data-testid={`offset-color-${a.id}`}
-              value={local.offset_color || "#ffffff"}
-              title={t("Color del borde")}
-              onChange={(e) => patch({ offset_color: e.target.value,
-                                       offset_modo: "color" })}
-            />
-          </div>
+          </button>
+          {abierto.borde && (
+            <div className="fold-body">
+              <div className="seg-row">
+                <button className="quota-btn" data-testid={`offset-menos-${a.id}`}
+                  onClick={() => patch({ offset_mm: Math.max(0,
+                    Math.round((local.offset_mm - 0.5) * 2) / 2) })}>−</button>
+                <input type="range" min={0} max={10} step={0.5}
+                  data-testid={`offset-range-${a.id}`} value={local.offset_mm}
+                  onChange={(e) => patch({ offset_mm: Number(e.target.value) })} />
+                <button className="quota-btn" data-testid={`offset-mas-${a.id}`}
+                  onClick={() => patch({ offset_mm: Math.min(20,
+                    Math.round((local.offset_mm + 0.5) * 2) / 2) })}>+</button>
+              </div>
+              <div className="seg-row">
+                {([["extender", t("Extender")], ["blanco", t("Blanco")],
+                   ["color", t("Color")]] as const).map(([modo, etiqueta]) => (
+                  <button key={modo}
+                    className={`seg ${(local.offset_modo || "") === modo ? "on" : ""}`}
+                    data-testid={`offset-modo-${modo}-${a.id}`}
+                    onClick={() => patch({ offset_modo: modo })}>
+                    {etiqueta}
+                  </button>
+                ))}
+                <input type="color" className="color-pick"
+                  data-testid={`offset-color-${a.id}`}
+                  value={local.offset_color || "#ffffff"}
+                  title={t("Color del borde")}
+                  onChange={(e) => patch({ offset_color: e.target.value,
+                                           offset_modo: "color" })} />
+              </div>
+            </div>
+          )}
         </div>
+
+        {/* ---- Mini (plegable, solo si está activo) ---- */}
+        {local.mini_enabled && (
+          <div className="fold">
+            <button className="fold-head" data-testid={`fold-mini-${a.id}`}
+                    onClick={() => setAbierto((o) => ({ ...o, mini: !o.mini }))}>
+              <span className={`chev ${abierto.mini ? "open" : ""}`}>›</span>
+              {t("Opciones de mini")}
+              <span className="fold-val" data-testid={`minis-${a.id}`}>
+                ×{local.mini_quota} · {minisColocados}
+              </span>
+            </button>
+            {abierto.mini && (
+              <div className="fold-body">
+                <div className="seg-row">
+                  <span title={t("Cuántos minis quieres de este elemento respecto a los demás (1 = reparto equitativo; 3 = el triple)")}>
+                    {t("Cuota")}
+                  </span>
+                  <button className="quota-btn" data-testid={`cuota-menos-${a.id}`}
+                    onClick={() => patch({ mini_quota: Math.max(1,
+                      Math.round((local.mini_quota - 0.5) * 2) / 2) })}>−</button>
+                  <span className="quota-val" data-testid={`cuota-${a.id}`}>×{local.mini_quota}</span>
+                  <button className="quota-btn" data-testid={`cuota-mas-${a.id}`}
+                    onClick={() => patch({ mini_quota: Math.min(100,
+                      Math.round((local.mini_quota + 0.5) * 2) / 2) })}>+</button>
+                  <span className="mini-count">{t(" {n} minis", { n: minisColocados })}</span>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {normalesColocados > 0 && (
           <div className="size-mm">{t("Colocadas: {n}", { n: normalesColocados })}</div>
         )}
         {local.warnings.length > 0 && (
           <div className="warn">
-            ⚠ {local.warnings[0]}{" "}
+            <IconoAviso size={14} /> {local.warnings[0]}{" "}
             {/blob|trozos sueltos/i.test(local.warnings[0]) && (
-              <button
-                className="warn-link"
-                data-testid={`limpiar-aviso-${a.id}`}
-                onClick={() => onEditarContorno?.(a)}
-              >
+              <button className="warn-link" data-testid={`limpiar-aviso-${a.id}`}
+                      onClick={() => onEditarContorno?.(a)}>
                 {t("limpiar contorno")}
               </button>
             )}
           </div>
         )}
-        <label className="mini-row switch-row">
-          <input
-            type="checkbox"
-            className="switch"
-            data-testid={`mini-${a.id}`}
-            checked={local.mini_enabled}
-            onChange={(e) => patch({ mini_enabled: e.target.checked })}
-          />
-          <span className="switch-text">{t("Incluir como mini")}</span>
-          {local.mini_enabled && (
-            <>
-              <span title={t("Cuántos minis quieres de este elemento respecto a los demás (1 = reparto equitativo; 3 = el triple)")}>
-                {t("Cuota")}
-              </span>
-              <button
-                className="quota-btn"
-                data-testid={`cuota-menos-${a.id}`}
-                onClick={() => patch({
-                  mini_quota: Math.max(1, Math.round((local.mini_quota - 0.5) * 2) / 2),
-                })}
-              >
-                −
-              </button>
-              <span className="quota-val" data-testid={`cuota-${a.id}`}>
-                ×{local.mini_quota}
-              </span>
-              <button
-                className="quota-btn"
-                data-testid={`cuota-mas-${a.id}`}
-                onClick={() => patch({
-                  mini_quota: Math.min(100, Math.round((local.mini_quota + 0.5) * 2) / 2),
-                })}
-              >
-                +
-              </button>
-              <span className="mini-count" data-testid={`minis-${a.id}`}>
-                {t("→ {n} minis", { n: minisColocados })}
-              </span>
-            </>
-          )}
-        </label>
       </div>
     </div>
   );
@@ -341,7 +320,7 @@ export default function FilePanel({ assets, result, settings, onChange,
       }
     }
     await onChange();
-    // varias a la vez → popup para adaptar los tamaños en bloque
+    // varias a la vez  popup para adaptar los tamaños en bloque
     if (subidos.length > 1) setImportados(subidos);
   };
 

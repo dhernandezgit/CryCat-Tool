@@ -197,4 +197,17 @@ describe("Panel de ajustes", () => {
     await u.click(screen.getByTestId("btn-guardar-ajustes"));
     await waitFor(() => expect(saveSettings).toHaveBeenCalledWith({}));
   });
+
+  it("la sección Historial permite elegir qué se guarda", async () => {
+    const u = userEvent.setup();
+    render(<SettingsPanel settings={settings} saveSettings={saveSettings} />);
+    await u.click(screen.getByText("Historial (deshacer/rehacer)"));
+    expect(screen.getByTestId("set-historial")).toBeChecked();
+    expect(screen.getByTestId("set-hist-tamano")).toBeInTheDocument();
+    expect(screen.getByTestId("set-hist-copias")).toBeInTheDocument();
+    expect(screen.getByTestId("set-hist-borde")).toBeInTheDocument();
+    expect(screen.getByTestId("set-hist-minis")).toBeInTheDocument();
+    await u.click(screen.getByTestId("set-hist-copias"));
+    expect(saveSettings).toHaveBeenCalledWith({ hist_copias: false });
+  });
 });

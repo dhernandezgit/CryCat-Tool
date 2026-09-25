@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api, type Job, type Result, type VersionInfo } from "../api";
 import { useIdioma, useT } from "../i18n";
-import { IconoMute, IconoVolumen } from "./iconos";
+import { IconoMute, IconoVolumen, IconoInfo, IconoAlerta,
+         IconoCheck, IconoDescargar, IconoComprobar } from "./iconos";
 
 export interface EstimateInfo {
   maquina: string;
@@ -182,7 +183,7 @@ export default function StatusBar({ job, backendOk, result, estimate,
               .filter((t0) => ahora - t0 < 2500);
             if (clicsGato.current.length >= 5) {
               clicsGato.current = [];
-              setAviso(t("¡Fiesta Pikmin! 🎉"));
+              setAviso(t("¡Fiesta Pikmin!"));
               window.setTimeout(() => setAviso(""), 4000);
               onEasterEgg?.();
             }
@@ -195,7 +196,7 @@ export default function StatusBar({ job, backendOk, result, estimate,
         {!!result && result.pages > 1 && (
           <span className="aviso-paginas" data-testid="aviso-paginas"
                 title={t("No cabe todo en una página: se usarán varias")}>
-            ⚠ {t("No cabe en una página: {n} páginas", { n: result.pages })}
+             {t("No cabe en una página: {n} páginas", { n: result.pages })}
           </span>
         )}
         {running && (
@@ -223,7 +224,7 @@ export default function StatusBar({ job, backendOk, result, estimate,
           onClick={() => window.open(ver?.repo ??
             "https://github.com/dhernandezgit/CryCat-Tool", "_blank", "noopener")}
         >
-          ⓘ {t("App info")}
+          <IconoInfo size={15} /> {t("App info")}
         </button>
         <button
           className="idioma"
@@ -242,13 +243,13 @@ export default function StatusBar({ job, backendOk, result, estimate,
               title={avisoVersion || t("Hay una versión nueva")}
               onClick={actualizarVersion}
             >
-              ❗
+              <IconoAlerta size={14} />
             </button>
           )}
           v{ver?.actual ?? "—"}
           {ver?.hay_nueva && ver?.ultima && (
             <span className="version-nueva" data-testid="version-nueva">
-              → v{ver.ultima}
+               v{ver.ultima}
             </span>
           )}
           <button
@@ -258,7 +259,7 @@ export default function StatusBar({ job, backendOk, result, estimate,
             onClick={comprobarVersion}
             disabled={comprobando}
           >
-            {comprobando ? "…" : "⟳"}
+            {comprobando ? "…" : <IconoComprobar size={14} />}
           </button>
           {ver?.hay_nueva && (
             <button
@@ -267,7 +268,7 @@ export default function StatusBar({ job, backendOk, result, estimate,
               title={t("Descargar e instalar la nueva versión")}
               onClick={actualizarVersion}
             >
-              ⬇
+              <IconoDescargar size={14} />
             </button>
           )}
         </span>
@@ -305,7 +306,7 @@ export default function StatusBar({ job, backendOk, result, estimate,
           data-testid="corte-estimado"
           title={t("Tiempo estimado de corte (Cricut Maker 5)")}
         >
-          ✂ {corteTxt || "—"}
+          {t("Corte")} {corteTxt || "—"}
         </span>
       </div>
     </div>

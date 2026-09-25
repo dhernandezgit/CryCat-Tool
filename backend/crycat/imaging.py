@@ -332,23 +332,32 @@ def aplicar_offset(img: Image.Image, radio_px: float,
     """
     from scipy import ndimage
 
-    r = int(round(radio_px))
-    if r <= 0:
+    if radio_px <= 0:
         return trim(img.convert("RGBA"))
 
-    # lienzo AMPLIADO para que el borde no se recorte (el contenido se centra)
+    # grosor en píxeles EXACTOS (subpíxel incluido) y margen de seguridad
+    r = max(1, int(np.ceil(radio_px)))
     rgba = trim(img.convert("RGBA"))
+
+    # lienzo ampliado: el contenido se centra con margen suficiente
     lienzo = Image.new("RGBA", (rgba.width + 2 * r, rgba.height + 2 * r),
                        (0, 0, 0, 0))
     lienzo.paste(rgba, (r, r))
     arr = np.asarray(lienzo).copy()
-    alpha = arr[..., 3]
-    mask = alpha > 20
+    alpha = arr[..., 3].astype(np.float32)
+
+    # el borde es la distancia exacta al contenido (uniforme en todas direcciones)
+    dentro = alpha > 2                       # 1 % de alfa ya es contenido
+    dist = ndimage.distance_transform_edt(~dentro)
+    borde = dist <= radio_px                 # grosor uniforme, sin escalones
+    # suavizado del filo (1 píxel) para que no se vea dentado
+    filo = np.clip(radio_px - dist + 0.5, 0.0, 1.0)
+    alfa_borde = np.where(borde, np.maximum(filo, 0.55) * 255.0, 0.0)
 
     if modo == "extender":
-        # color del píxel opaco más cercano para "extender" el contorno
-        _dist, (iy, ix) = ndimage.distance_transform_edt(
-            ~mask, return_indices=True)
+        # color del contenido más cercano, propagado hacia fuera
+        _d, (iy, ix) = ndimage.distance_transform_edt(~dentro,
+                                                      return_indices=True)
         colores = arr[..., :3][iy, ix]
     elif modo == "blanco":
         colores = np.full_like(arr[..., :3], 255)
@@ -356,15 +365,10 @@ def aplicar_offset(img: Image.Image, radio_px: float,
         colores = np.zeros_like(arr[..., :3])
         colores[..., 0], colores[..., 1], colores[..., 2] = color
 
-    # alfa del borde: dilatación euclídea de radio r
-    yy, xx = np.mgrid[-r:r + 1, -r:r + 1]
-    struct = (xx * xx + yy * yy) <= (r * r + r)
-    borde = ndimage.binary_dilation(mask, structure=struct)
-
     nuevo = np.zeros_like(arr)
     nuevo[..., :3] = colores
-    nuevo[..., 3] = (borde * 255).astype(np.uint8)
-    # pega encima la imagen original (conserva sus píxeles exactos)
-    sobre = arr[..., 3] > 0
+    nuevo[..., 3] = np.clip(alfa_borde, 0, 255).astype(np.uint8)
+    # el contenido original manda (píxeles exactos)
+    sobre = alpha > 2
     nuevo[sobre] = arr[sobre]
     return trim(Image.fromarray(nuevo, "RGBA"))

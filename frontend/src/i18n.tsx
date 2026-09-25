@@ -112,7 +112,7 @@ export const EN: Record<string, string> = {
     "Use a size list (instead of automatic)",
   "Tamaños deseados (mayor a menor)": "Desired sizes (largest to smallest)",
   "Quitar tamaño": "Remove size",
-  "+ Añadir tamaño": "+ Add size",
+  "Añadir tamaño": "Add size",
   ["Cada valor es el tamaño del mini respecto al original; se prueban de " +
    "mayor a menor hasta que quepan."]:
     "Each value is the mini's size relative to the original; they are tried " +
@@ -214,10 +214,10 @@ export const EN: Record<string, string> = {
     "Profile name (e.g. “Pikmin A4”)",
   "Guardar": "Save",
   "Guardar ajustes para la próxima vez": "Save settings for next time",
-  "Ajustes guardados ✓": "Settings saved ✓",
-  "Perfil guardado ✓": "Profile saved ✓",
+  "Ajustes guardados": "Settings saved",
+  "Perfil guardado": "Profile saved",
   "No se pudo guardar el perfil": "Could not save the profile",
-  "Perfil «{n}» cargado ✓": "Profile “{n}” loaded ✓",
+  "Perfil «{n}» cargado": "Profile “{n}” loaded",
   "No se pudo cargar el perfil": "Could not load the profile",
   "No se pudo borrar el perfil": "Could not delete the profile",
   "Perfiles guardados": "Saved profiles",
@@ -237,24 +237,22 @@ export const EN: Record<string, string> = {
     "Images rotate between the project's own and Pikmin Bloom ones.",
   "Comprobar si hay versiones nuevas al iniciar":
     "Check for new versions on startup",
-  ["😿 CryCat · hecha por Daniel Hernández Ferrándiz y Wivi.eve, " +
-   "para los artistas."]:
-    "😿 CryCat · made by Daniel Hernández Ferrándiz and Wivi.eve, " +
-    "for the artists.",
+  "CryCat · hecha por Daniel Hernández Ferrándiz y Wivi.eve, para los artistas.":
+    "CryCat · made by Daniel Hernández Ferrándiz and Wivi.eve, for the artists.",
 
   // -------------------------------------------------------------- visor --
   ["Mostrar/ocultar guías de límites Cricut (tecla G) — solo en la vista " +
    "previa, nunca en el archivo final"]:
     "Show/hide Cricut limit guides (key G) — preview only, never in the " +
     "final file",
-  "▦ Guías": "▦ Guides",
-  "▢ Guías": "▢ Guides",
+  "Guías": "Guides",
+  "Sin guías": "No guides",
   "Forzar la recolocación de todo (ignora los elementos fijados)":
     "Force re-placement of everything (ignores pinned items)",
-  "⚡ Recalcular rápido": "⚡ Recalculate fast",
-  "✨ Recalcular óptimo": "✨ Recalculate optimal",
+  "Recalcular rápido": "Recalculate fast",
+  "Recalcular óptimo": "Recalculate optimal",
   "Volver a la cuadrícula (Esc)": "Back to grid (Esc)",
-  "✕ Ver todo": "✕ View all",
+  "Ver todo": "View all",
   "Fondo: blanco → transparente → verde fosforito (tecla T)":
     "Background: white → transparent → neon green (key T)",
   "Acercar (+)": "Zoom in (+)",
@@ -369,7 +367,7 @@ export const EN: Record<string, string> = {
     "Print on matte white paper and place it on the mat.",
   "¡Listo! La máquina leerá las marcas y cortará tus pegatinas.":
     "Done! The machine will read the marks and cut your stickers.",
-  "🎉 ¡Fiesta Pikmin! 🎉": "🎉 Pikmin party! 🎉",
+  "¡Fiesta Pikmin!": "Pikmin party!",
 };
 
 const IdiomaCtx = createContext<Idioma>("es");

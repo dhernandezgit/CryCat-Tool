@@ -247,8 +247,8 @@ scripts/            utilidades (iconos, descarga de recursos, benchmarks)
 ### Tests
 
 ```bash
-cd backend && .venv/bin/python -m pytest tests/   # 129 tests
-cd frontend && npm test                            # 64 tests
+cd backend && .venv/bin/python -m pytest tests/   # 131 tests
+cd frontend && npm test                            # 66 tests
 ```
 
 ### Imagen de prueba

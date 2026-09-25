@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useT } from "../i18n";
+import { IconoCarpeta, IconoCheck } from "./iconos";
 
 /** Popup propio (no el del navegador) al guardar: qué se guardó, dónde y los
  *  pasos para Cricut Design Space. */
@@ -32,7 +33,7 @@ export default function SaveDialog({ open, files, folder, error, onOpenFolder,
         {vista === "resumen" ? (
           <>
             <h3 data-testid="save-titulo">
-              {error ? t("No se pudo guardar") : t("Imagen guardada ✓")}
+              {error ? t("No se pudo guardar") : t("Imagen guardada")}
             </h3>
             {error ? (
               <p className="error">{error}</p>
@@ -50,7 +51,7 @@ export default function SaveDialog({ open, files, folder, error, onOpenFolder,
             <div className="modal-botones">
               <button data-testid="btn-abrir-carpeta"
                 onClick={() => onOpenFolder?.(folder)}>
-                📂 {t("Abrir carpeta")}
+                <IconoCarpeta size={15} /> {t("Abrir carpeta")}
               </button>
               <button data-testid="btn-continuar" onClick={onClose}>
                 {t("Continuar")}
@@ -70,7 +71,7 @@ export default function SaveDialog({ open, files, folder, error, onOpenFolder,
             <div className="modal-botones">
               <button data-testid="btn-volver"
                 onClick={() => setVista("resumen")}>
-                ← {t("Volver")}
+                {t("Volver")}
               </button>
               <button onClick={onClose}>{t("Entendido")}</button>
             </div>

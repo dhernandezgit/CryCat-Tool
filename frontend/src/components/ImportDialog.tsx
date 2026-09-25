@@ -71,7 +71,7 @@ export default function ImportDialog({ open, assets, onClose, onDone }: {
       n += 1;
     }
     await onDone();
-    setAviso(t("{n} elementos ajustados ✓", { n }));
+    setAviso(t("{n} elementos ajustados ", { n }));
   };
 
   if (!open || !assets.length) return null;
@@ -174,7 +174,7 @@ export default function ImportDialog({ open, assets, onClose, onDone }: {
             {t("Importar con tamaño original")}
           </button>
           <button data-testid="import-conservar" onClick={aplicar}>
-            ✓ {t("Conservar cambios")}
+             {t("Conservar cambios")}
           </button>
         </div>
       </div>

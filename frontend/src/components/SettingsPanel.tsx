@@ -42,6 +42,7 @@ const nombrePreset: Record<string, string> = {
 
 export default function SettingsPanel({ settings, saveSettings, applySettings }: Props) {
   const t = useT();
+  const [panelAbierto, setPanelAbierto] = useState(true);
   const [open, setOpen] = useState<Record<string, boolean>>({
     minis: false, optimizacion: false, imagen: false, visualizacion: false,
     historial: false,
@@ -88,7 +89,7 @@ export default function SettingsPanel({ settings, saveSettings, applySettings }:
       const r = await api.savePreset(n);
       setPerfiles(r.names);
       setNombrePerfil("");
-      aviso(t("Perfil guardado ✓"));
+      aviso(t("Perfil guardado "));
     } catch {
       aviso(t("No se pudo guardar el perfil"));
     }
@@ -97,7 +98,7 @@ export default function SettingsPanel({ settings, saveSettings, applySettings }:
     try {
       const r = await api.loadPreset(n);
       applySettings?.(r.settings, r.job);
-      aviso(t("Perfil «{n}» cargado ✓", { n }));
+      aviso(t("Perfil «{n}» cargado ", { n }));
     } catch {
       aviso(t("No se pudo cargar el perfil"));
     }
@@ -146,9 +147,16 @@ export default function SettingsPanel({ settings, saveSettings, applySettings }:
 
   return (
     <div className="file-panel settings-panel">
-      <h2>{t("Ajustes")}</h2>
-
-      {/* -------- General (siempre desplegado) -------- */}
+      <button className="panel-head" data-testid="panel-ajustes"
+              onClick={() => setPanelAbierto((v) => !v)}>
+        <span className={`chev ${panelAbierto ? "open" : ""}`}>›</span>
+        <h2>{t("Ajustes")}</h2>
+        <span className="fold-val">{settings.tema}</span>
+      </button>
+      {!panelAbierto && <div className="hint">{t("Pulsa para desplegar los ajustes")}</div>}
+      {panelAbierto && (
+      <>
+      {/* -------- General -------- */}
       <Section id="general" title={t("General")} open toggle={() => undefined}>
         {num("Espacio entre elementos", "espacio_mm", 0, 20, 0.5, "mm")}
         {num("Margen de seguridad a los límites", "margen_mm", 0, 20, 0.5, "mm")}
@@ -275,7 +283,7 @@ export default function SettingsPanel({ settings, saveSettings, applySettings }:
                       })
                     }
                   >
-                    ✕
+                    
                   </button>
                 </div>
               ))}
@@ -289,7 +297,7 @@ export default function SettingsPanel({ settings, saveSettings, applySettings }:
                   })
                 }
               >
-                {t("+ Añadir tamaño")}
+                {t("Añadir tamaño")}
               </button>
             </div>
             <div className="hint">
@@ -603,7 +611,7 @@ export default function SettingsPanel({ settings, saveSettings, applySettings }:
               data-testid="btn-guardar-ajustes"
               onClick={async () => {
                 await saveSettings({});
-                aviso(t("Ajustes guardados ✓"));
+                aviso(t("Ajustes guardados "));
               }}
             >
               {t("Guardar ajustes para la próxima vez")}
@@ -628,7 +636,7 @@ export default function SettingsPanel({ settings, saveSettings, applySettings }:
                   title={t("Borrar perfil")}
                   onClick={() => borrarPerfil(n)}
                 >
-                  ✕
+                  
                 </button>
               </div>
             ))}
@@ -682,12 +690,14 @@ export default function SettingsPanel({ settings, saveSettings, applySettings }:
 
       <div className="creditos" data-testid="creditos">
         {destacar(
-          t("😿 CryCat · hecha por Daniel Hernández Ferrándiz y Wivi.eve, " +
+          t("CryCat · hecha por Daniel Hernández Ferrándiz y Wivi.eve, " +
             "para los artistas."),
           ["CryCat", "Daniel Hernández Ferrándiz", "Wivi.eve"],
         )}
       </div>
 
+      </>
+      )}
       <FolderPicker
         open={pickerOpen}
         initial={settings.carpeta_export}

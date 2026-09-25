@@ -93,10 +93,10 @@ describe("App completa", () => {
     render(<App />);
     await waitFor(() => expect(screen.getByTestId("viewer")).toBeInTheDocument());
     await screen.findByTestId("page-0");
-    expect(screen.getByTestId("btn-guias")).toHaveTextContent("▦");
+    expect(screen.getByTestId("btn-guias")).toHaveTextContent(/guías/i);
     const u = userEvent.setup();
     await u.click(screen.getByTestId("btn-guias"));
-    expect(screen.getByTestId("btn-guias")).toHaveTextContent("▢");
+    expect(screen.getByTestId("btn-guias")).toHaveTextContent(/sin guías/i);
     expect(screen.queryByTestId("page-0")?.querySelector(".overlay-svg")).toBeNull();
   });
 
@@ -153,5 +153,27 @@ describe("App completa", () => {
     const nombre = screen.getByTestId("save-name") as HTMLInputElement;
     expect(nombre).toHaveValue("");                       // vacío por defecto
     expect(nombre.placeholder.length).toBeGreaterThan(3);  // sugerencia en gris
+  });
+
+  it("el historial permite deshacer y rehacer los cambios", async () => {
+    const u = userEvent.setup();
+    render(<App />);
+    await waitFor(() => expect(screen.getByTestId("viewer")).toBeInTheDocument());
+    await screen.findByAltText("gato.png");
+    // al principio no hay nada que deshacer ni rehacer
+    expect(screen.getByTestId("btn-deshacer")).toBeDisabled();
+    expect(screen.getByTestId("btn-rehacer")).toBeDisabled();
+    // cambio: +1 copia
+    await u.click(screen.getByTestId("suma-a1"));
+    await waitFor(() => expect(screen.getByTestId("btn-deshacer")).toBeEnabled());
+    // deshacer y rehacer
+    await u.click(screen.getByTestId("btn-deshacer"));
+    await waitFor(() => expect(screen.getByTestId("btn-rehacer")).toBeEnabled());
+    await u.click(screen.getByTestId("btn-rehacer"));
+    const llamadas = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls;
+    const parches = llamadas.filter((c) =>
+      String(c[0]).includes("/api/assets/a1") &&
+      String((c[1] as RequestInit)?.method) === "PATCH");
+    expect(parches.length).toBeGreaterThanOrEqual(2);
   });
 });

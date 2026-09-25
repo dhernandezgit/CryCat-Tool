@@ -70,9 +70,11 @@ describe("Panel de archivos", () => {
     const u = userEvent.setup();
     render(<FilePanel assets={[asset()]} result={result} settings={settings} onChange={onChange} saveSettings={saveSettings} />);
     await u.click(screen.getByTestId("mini-a1"));
-    // la cuota empieza en 1 (reparto equitativo)
+    // el mini activa su menú plegable; se abre para la cuota
+    expect(screen.getByTestId("minis-a1")).toHaveTextContent("×1");
+    await u.click(screen.getByTestId("fold-mini-a1"));
     expect(screen.getByTestId("cuota-a1")).toHaveTextContent("×1");
-    expect(screen.getByTestId("minis-a1")).toHaveTextContent("→ 1 minis");
+    expect(screen.getByTestId("minis-a1")).toHaveTextContent("1");
     // sube de 0.5 en 0.5 (admite decimales)
     await u.click(screen.getByTestId("cuota-mas-a1"));
     expect(screen.getByTestId("cuota-a1")).toHaveTextContent("×1.5");
@@ -110,7 +112,9 @@ describe("Panel de archivos", () => {
   it("muestra el tamaño en mm y permite cambiar la escala", async () => {
     const u = userEvent.setup();
     render(<FilePanel assets={[asset()]} result={result} settings={settings} onChange={onChange} saveSettings={saveSettings} />);
+    // el dato se ve plegado; para el control hay que abrir «Tamaño»
     expect(screen.getByTestId("tamano-a1")).toHaveTextContent("8.5×6.8 mm");
+    await u.click(screen.getByTestId("fold-tamano-a1"));
     const slider = screen.getByTestId("escala-a1") as HTMLInputElement;
     fireEvent.change(slider, { target: { value: "200" } });
     // el tamaño se recalcula en vivo (200%)
@@ -140,6 +144,7 @@ describe("Panel de archivos", () => {
   it("permite fijar el tamaño exacto en mm por ancho o por alto", async () => {
     render(<FilePanel assets={[asset()]} result={result} settings={settings}
                        onChange={onChange} saveSettings={saveSettings} />);
+    await userEvent.setup().click(screen.getByTestId("fold-tamano-a1"));
     const ancho = screen.getByTestId("ancho-mm-a1") as HTMLInputElement;
     const alto = screen.getByTestId("alto-mm-a1") as HTMLInputElement;
     expect(ancho.value).toBe("8.5");
@@ -164,7 +169,7 @@ describe("Panel de archivos", () => {
     );
   });
 
-  it("no muestra NaN aunque falten campos (sesiones antiguas)", () => {
+  it("no muestra NaN aunque falten campos (sesiones antiguas)", async () => {
     const viejo = {
       id: "v1", name: "viejo.png", w_px: 60, h_px: 40, w_mm: 5, h_mm: 3.3,
       dpi_origen: 300, copies: 1, mini_enabled: false, mini_quota: 1, offset_mm: 0,
@@ -172,6 +177,7 @@ describe("Panel de archivos", () => {
     } as unknown as Asset;   // sin scale_pct ni w_mm_base
     render(<FilePanel assets={[viejo]} result={null} settings={settings} onChange={onChange} saveSettings={saveSettings} />);
     expect(screen.getByTestId("tamano-v1")).toHaveTextContent("5.0×3.3 mm");
+    await userEvent.setup().click(screen.getByTestId("fold-tamano-v1"));
     expect(screen.getByText("100%")).toBeInTheDocument();
     expect(screen.queryByText(/NaN/)).toBeNull();
   });
@@ -180,6 +186,7 @@ describe("Panel de archivos", () => {
     render(<FilePanel assets={[asset()]} result={result} settings={settings}
                        onChange={onChange} saveSettings={saveSettings} />);
     expect(screen.getByTestId("offset-a1")).toHaveTextContent("0.0 mm");
+    fireEvent.click(screen.getByTestId("fold-borde-a1"));
     fireEvent.click(screen.getByTestId("offset-mas-a1"));
     expect(screen.getByTestId("offset-a1")).toHaveTextContent("0.5 mm");
     fireEvent.click(screen.getByTestId("offset-menos-a1"));

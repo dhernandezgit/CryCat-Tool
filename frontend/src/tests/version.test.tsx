@@ -57,8 +57,8 @@ describe("Versión y actualización en la barra inferior", () => {
   it("avisa cuando hay versión nueva y permite actualizar", async () => {
     render(<StatusBar job={null} backendOk result={null} />);
     const aviso = await screen.findByTestId("aviso-version");
-    // alerta compacta junto a la versión (❗) y la nueva versión al lado
-    expect(aviso).toHaveTextContent("❗");
+    // alerta compacta junto a la versión (icono) y la nueva versión al lado
+    expect(aviso.querySelector("svg")).toBeTruthy();
     expect(screen.getByTestId("version-nueva")).toHaveTextContent("v1.2.0");
     expect(screen.getByTestId("btn-actualizar")).toBeInTheDocument();
     fireEvent.click(aviso);

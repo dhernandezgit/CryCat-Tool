@@ -170,6 +170,27 @@ export default function App() {
     puedeRehacer: redoRef.current.length > 0,
   });
 
+  /** Campos que entran en el historial según los ajustes. */
+  const camposHist = useCallback(() => {
+    const campos: string[] = [];
+    if (settings?.hist_tamano !== false) campos.push("scale_pct");
+    if (settings?.hist_copias !== false) campos.push("copies");
+    if (settings?.hist_borde !== false) {
+      campos.push("offset_mm", "offset_modo", "offset_color");
+    }
+    if (settings?.hist_minis !== false) {
+      campos.push("mini_enabled", "mini_quota");
+    }
+    return campos;
+  }, [settings?.hist_tamano, settings?.hist_copias, settings?.hist_borde,
+      settings?.hist_minis]);
+
+  const parcheHist = useCallback((a: Asset) => {
+    const patch: Record<string, unknown> = {};
+    for (const c of camposHist()) patch[c] = (a as never)[c as never];
+    return patch;
+  }, [camposHist]);
+
   /** Guarda el estado actual para poder deshacer. */
   const recordar = useCallback(() => {
     if (!historialOn) return;
@@ -184,16 +205,12 @@ export default function App() {
     redoRef.current = [...redoRef.current, assets];
     setAssets(prev);
     sincHist();
-    // se aplica en el servidor (tamaños, copias, borde y minis)
+    // se aplica en el servidor solo lo que el historial tenga activado
     for (const a of prev) {
-      await api.patchAsset(a.id, {
-        scale_pct: a.scale_pct, copies: a.copies, mini_enabled: a.mini_enabled,
-        mini_quota: a.mini_quota, offset_mm: a.offset_mm,
-        offset_modo: a.offset_modo ?? "", offset_color: a.offset_color ?? "",
-      }).catch(() => undefined);
+      await api.patchAsset(a.id, parcheHist(a) as never).catch(() => undefined);
     }
     await refresh();
-  }, [assets, refresh]);
+  }, [assets, refresh, parcheHist]);
 
   const rehacer = useCallback(async () => {
     const sig = redoRef.current.pop();
@@ -202,20 +219,21 @@ export default function App() {
     setAssets(sig);
     sincHist();
     for (const a of sig) {
-      await api.patchAsset(a.id, {
-        scale_pct: a.scale_pct, copies: a.copies, mini_enabled: a.mini_enabled,
-        mini_quota: a.mini_quota, offset_mm: a.offset_mm,
-        offset_modo: a.offset_modo ?? "", offset_color: a.offset_color ?? "",
-      }).catch(() => undefined);
+      await api.patchAsset(a.id, parcheHist(a) as never).catch(() => undefined);
     }
     await refresh();
-  }, [assets, refresh]);
+  }, [assets, refresh, parcheHist]);
 
   // atajos habituales: Ctrl+Z deshacer, Ctrl+Y / Ctrl+Shift+Z rehacer
   useEffect(() => {
     const alPulsar = (e: KeyboardEvent) => {
       const ctrl = e.ctrlKey || e.metaKey;
       if (!ctrl) return;
+      const destino = e.target as HTMLElement | null;
+      const escribiendo = destino && (
+        destino.tagName === "INPUT" || destino.tagName === "TEXTAREA" ||
+        destino.tagName === "SELECT" || destino.isContentEditable);
+      if (escribiendo) return;   // no pisar lo que se está escribiendo
       const k = e.key.toLowerCase();
       if (k === "z" && !e.shiftKey) { e.preventDefault(); void deshacer(); }
       else if (k === "y" || (k === "z" && e.shiftKey)) {

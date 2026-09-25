@@ -46,17 +46,17 @@ export default function FolderPicker({ open, onClose, onPick, initial }: Props) 
       <div className="modal" onClick={(e) => e.stopPropagation()} data-testid="folder-picker">
         <strong>{t("Elegir carpeta de guardado")}</strong>
         <div className="hint">{state?.path ?? "…"}</div>
-        {error && <div className="warn">⚠ {error}</div>}
+        {error && <div className="warn"> {error}</div>}
         <div className="dir-list">
           {state && state.parent !== state.path && (
-            <button onClick={() => browse(state.parent)}>📁 ..</button>
+            <button onClick={() => browse(state.parent)}>..</button>
           )}
           {state?.dirs.map((d) => (
             <button
               key={d}
               onClick={() => browse(`${state.path}/${d}`.replace("//", "/"))}
             >
-              📁 {d}
+              {d}
             </button>
           ))}
         </div>

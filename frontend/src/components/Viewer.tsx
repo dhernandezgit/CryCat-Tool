@@ -2,6 +2,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { api, NAME_SUGGESTIONS, NAME_SUGGESTIONS_EN, type AppSettings, type Asset, type Job, type Placement, type Result, type UiState } from "../api";
 import FolderPicker from "./FolderPicker";
 import SaveDialog from "./SaveDialog";
+import { IconoGuias, IconoZoomMas, IconoZoomMenos, IconoAjustar,
+         IconoGuardar, IconoImprimir, IconoCarpeta, IconoDeshacer,
+         IconoRehacer } from "./iconos";
 import { useT, useIdioma } from "../i18n";
 
 interface Props {
@@ -345,7 +348,7 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
               }}
               data-testid={`item-${p.uid}`}
             >
-              {p.pinned && <span className="pin">📌</span>}
+              {p.pinned && <span className="pin"></span>}
             </div>
           );
         })}
@@ -365,7 +368,7 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
             onClick={() => onDeshacer()}
             disabled={!puedeDeshacer}
           >
-            ↶ {t("Deshacer")}
+            <IconoDeshacer size={15} /> {t("Deshacer")}
           </button>
           <button
             data-testid="btn-rehacer"
@@ -373,7 +376,7 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
             onClick={() => onRehacer()}
             disabled={!puedeRehacer}
           >
-            ↷ {t("Rehacer")}
+            <IconoRehacer size={15} /> {t("Rehacer")}
           </button>
         </div>
         <div className="group">
@@ -382,7 +385,7 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
             title={t("Mostrar/ocultar guías de límites Cricut (tecla G) — solo en la vista previa, nunca en el archivo final")}
             onClick={() => setUi((u) => ({ ...u, guidesVisible: !u.guidesVisible }))}
           >
-            {ui.guidesVisible ? t("▦ Guías") : t("▢ Guías")}
+            <IconoGuias size={15} /> {ui.guidesVisible ? t("Guías") : t("Sin guías")}
           </button>
         </div>
         <button
@@ -391,7 +394,7 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
           title={t("Forzar la recolocación de todo (ignora los elementos fijados)")}
           onClick={() => onRecalc(sobraEspacio ? "rapido" : "optimo")}
         >
-          {sobraEspacio ? t("⚡ Recalcular rápido") : t("✨ Recalcular óptimo")}
+          {sobraEspacio ? t(" Recalcular rápido") : t(" Recalcular óptimo")}
         </button>
         <div className="group">
           {pages > 1 && largePage === null && (
@@ -402,11 +405,11 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
             </>
           )}
           {largePage !== null && (
-            <button onClick={() => setLargePage(null)} title={t("Volver a la cuadrícula (Esc)")}>{t("✕ Ver todo")}</button>
+            <button onClick={() => setLargePage(null)} title={t("Volver a la cuadrícula (Esc)")}>{t(" Ver todo")}</button>
           )}
           <button
             data-testid="btn-ojo"
-            title={t("Fondo: blanco → transparente → verde fosforito (tecla T)")}
+            title={t("Fondo: blanco  transparente  verde fosforito (tecla T)")}
             onClick={() =>
               setUi((u) => {
                 // ciclo de 3 estados: blanco -> transparencia -> fosforito
@@ -416,10 +419,10 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
               })
             }
           >
-            {ui.eyeFosforito ? "🟢" : ui.eyeTransparent ? "🙈" : "👁"}
+            {ui.eyeFosforito ? "" : ui.eyeTransparent ? "" : ""}
           </button>
-          <button onClick={() => setZoom((z) => Math.min(12, z * 1.08))} title={t("Acercar (+)")}>＋</button>
-          <button onClick={() => setZoom((z) => Math.max(0.05, z / 1.08))} title={t("Alejar (−)")}>－</button>
+          <button onClick={() => setZoom((z) => Math.min(12, z * 1.08))} title={t("Acercar (+)")}><IconoZoomMas size={15} /></button>
+          <button onClick={() => setZoom((z) => Math.max(0.05, z / 1.08))} title={t("Alejar (−)")}><IconoZoomMenos size={15} /></button>
           <button
             data-testid="zoom-reset"
             onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }}
@@ -527,7 +530,7 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
                 .catch(() => undefined)
             }
           >
-            📂
+            <IconoCarpeta size={16} />
           </button>
           <button data-testid="btn-guardar" onClick={save}>{t("Guardar")}</button>
           <button data-testid="btn-guardar-como" onClick={saveAs}>{t("Guardar como…")}</button>
