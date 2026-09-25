@@ -15,6 +15,13 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+# UTF-8 en consola: evita UnicodeEncodeError con acentos/emojis en Windows
+$env:PYTHONIOENCODING = "utf-8"
+try { [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new() } catch {}
+# que un programa nativo con salida != 0 no aborte por sí solo (se comprueba a mano)
+if (Get-Variable PSNativeCommandUseErrorActionPreference -ErrorAction SilentlyContinue) {
+  $PSNativeCommandUseErrorActionPreference = $false
+}
 $Root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 $inicio = Get-Date
 
@@ -69,11 +76,16 @@ Set-Location "$Root"
 if (-not (Test-Path "frontend\public\pikmin")) {
   Info "descargando Pikmin básicos…"
   & "$Root\backend\.venv\Scripts\python.exe" "$Root\scripts\descargar_pikmin.py"
+  if ($LASTEXITCODE -ne 0) { Aviso "no se pudieron descargar los Pikmin (se continúa sin ellos)" }
 }
 if (-not (Test-Path "frontend\public\pikmin_bloom\indice.json")) {
   Info "descargando Pikmin Bloom (puede tardar)…"
   & "$Root\backend\.venv\Scripts\python.exe" "$Root\scripts\descargar_pikmin_bloom.py"
-  & "$Root\backend\.venv\Scripts\python.exe" "$Root\scripts\indice_pikmin_bloom.py"
+  if ($LASTEXITCODE -eq 0) {
+    & "$Root\backend\.venv\Scripts\python.exe" "$Root\scripts\indice_pikmin_bloom.py"
+  } else {
+    Aviso "no se pudo descargar Pikmin Bloom (se continúa sin ellos)"
+  }
 }
 Ok "Recursos listos"
 

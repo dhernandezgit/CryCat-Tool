@@ -37,13 +37,19 @@ jobs:
       - name: Build (CryCat.exe + instalador)
         shell: pwsh
         run: .\packaging\build_windows.ps1
-      - uses: actions/upload-artifact@v4
+      - name: Subir CryCat.exe
+        uses: actions/upload-artifact@v4
         with:
           name: crycat-windows
           if-no-files-found: error
-          path: |
-            dist/CryCat.exe
-            packaging/Output/crycat-setup.exe
+          path: dist/CryCat.exe
+      - name: Subir instalador (si se generó)
+        uses: actions/upload-artifact@v4
+        continue-on-error: true
+        with:
+          name: crycat-windows-setup
+          if-no-files-found: warn
+          path: packaging/Output/crycat-setup.exe
 
   release:
     # al empujar una etiqueta vX.Y.Z se publica la release con los archivos
@@ -81,8 +87,9 @@ jobs:
             perder nada (tus ajustes, perfiles e imágenes se conservan).
 
             Hecha por **Daniel Hernández Ferrándiz**.
+          fail_on_unmatched_files: false
           files: |
-            artefactos/crycat-windows/dist/CryCat.exe
-            artefactos/crycat-windows/packaging/Output/crycat-setup.exe
-            artefactos/crycat-linux/dist/crycat-linux-*.tar.gz
-            artefactos/crycat-linux/dist/crycat-onefile
+            artefactos/**/CryCat.exe
+            artefactos/**/crycat-setup.exe
+            artefactos/**/crycat-linux-*.tar.gz
+            artefactos/**/crycat-onefile

@@ -21,6 +21,15 @@ from pathlib import Path
 
 from PIL import Image
 
+
+import sys
+
+# Consolas de Windows: evitar UnicodeEncodeError con acentos/emojis
+try:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+except Exception:
+    pass
 ROOT = Path(__file__).resolve().parent.parent
 FUENTE = ROOT / "assets" / "4697-crying-cat.png"
 ICO_SIZES = [(16, 16), (24, 24), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)]

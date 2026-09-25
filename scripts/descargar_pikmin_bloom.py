@@ -18,6 +18,15 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
+
+import sys
+
+# Consolas de Windows: evitar UnicodeEncodeError con acentos/emojis
+try:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+except Exception:
+    pass
 ROOT = Path(__file__).resolve().parent.parent
 DESTINOS = [ROOT / "frontend" / "public" / "pikmin_bloom",
             ROOT / "assets" / "pikmin_bloom"]
