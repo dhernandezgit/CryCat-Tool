@@ -1,0 +1,44 @@
+# ---------------------------------------------------------------- Python --
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# ----------------------------------------------------------------- Node --
+node_modules/
+frontend/coverage/
+
+# --------------------------------------------------------------- builds --
+dist/
+build/
+backend/dist/
+backend/build/
+packaging/Output/
+*.spec.bak
+
+# frontend compilado que sirve el backend (se genera con npm run build)
+backend/crycat/web/
+
+# iconos generados (los crea scripts/gen_icono.py)
+frontend/public/icono.png
+frontend/public/icono.svg
+packaging/icono.png
+packaging/crycat.ico
+
+# recursos descargados (los bajan scripts/descargar_*.py al compilar)
+frontend/public/pikmin/
+frontend/public/pikmin_bloom/
+assets/pikmin/
+assets/pikmin_bloom/
+
+# --------------------------------------------------------------- varios --
+tests_output/
+*.log
+.DS_Store
+Thumbs.db
+
+# artefactos de TypeScript
+*.tsbuildinfo

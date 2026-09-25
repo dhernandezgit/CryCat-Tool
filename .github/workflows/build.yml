@@ -1,0 +1,88 @@
+name: Build CryCat (Linux + Windows)
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+jobs:
+  linux:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - uses: actions/setup-node@v4
+        with: { node-version: "20" }
+      - name: Build (onedir + instalador + archivo único)
+        run: bash packaging/build_linux.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: crycat-linux
+          if-no-files-found: error
+          path: |
+            dist/crycat-linux-*.tar.gz
+            dist/crycat-onefile
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - uses: actions/setup-node@v4
+        with: { node-version: "20" }
+      - name: Inno Setup (para el instalador con accesos directos)
+        run: choco install innosetup --no-progress -y
+      - name: Build (CryCat.exe + instalador)
+        shell: pwsh
+        run: .\packaging\build_windows.ps1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: crycat-windows
+          if-no-files-found: error
+          path: |
+            dist/CryCat.exe
+            packaging/Output/crycat-setup.exe
+
+  release:
+    # al empujar una etiqueta vX.Y.Z se publica la release con los archivos
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [linux, windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artefactos
+      - name: Publicar release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: CryCat ${{ github.ref_name }}
+          body: |
+            ## CryCat ${{ github.ref_name }}
+
+            Coloca tus imágenes de forma óptima para Cricut, todo local y sin
+            conexión a Internet (la app solo se conecta para avisarte de
+            versiones nuevas).
+
+            ### Descargar e instalar
+            - **Windows (instalador automático, con accesos directos):**
+              `crycat-setup.exe`
+            - **Windows (un solo archivo, sin instalación):** `CryCat.exe`
+            - **Linux (un solo archivo):** `crycat-onefile`
+            - **Linux (paquete con instalador de menú):** `crycat-linux-*.tar.gz`
+              (descomprimir y ejecutar `install.sh`)
+
+            ### Actualizaciones automáticas
+            Desde la propia aplicación, en la barra inferior, pulsa ⟳ para
+            comprobar versiones y ⬇ para descargar, instalar y reiniciar sin
+            perder nada (tus ajustes, perfiles e imágenes se conservan).
+
+            Hecha por **Daniel Hernández Ferrándiz**.
+          files: |
+            artefactos/crycat-windows/dist/CryCat.exe
+            artefactos/crycat-windows/packaging/Output/crycat-setup.exe
+            artefactos/crycat-linux/dist/crycat-linux-*.tar.gz
+            artefactos/crycat-linux/dist/crycat-onefile
