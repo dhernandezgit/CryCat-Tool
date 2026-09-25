@@ -25,9 +25,22 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      - name: Activar GitHub Pages si hace falta
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # La API de Pages necesita permiso de administración del repo; si no
+          # se puede, el aviso de abajo explica cómo activarlo a mano.
+          code=$(curl -s -o /tmp/pages.json -w "%{http_code}" -X POST \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/repos/${{ github.repository }}/pages \
+            -d '{"build_type":"workflow"}')
+          echo "activar pages → HTTP $code"
+          if [ "$code" != "201" ] && [ "$code" != "409" ]; then
+            echo "::warning::No se pudo activar Pages automáticamente. Actívalo en Settings → Pages → Source: GitHub Actions."
+          fi
       - uses: actions/configure-pages@v5
-        with:
-          enablement: true      # activa GitHub Pages si aún no lo está
       - uses: actions/upload-pages-artifact@v3
         with:
           path: docs
