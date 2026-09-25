@@ -23,6 +23,16 @@ export async function cargarCryCat(onEstado) {
   di("Cargando Pillow, NumPy y SciPy…");
   await pyodide.loadPackage(["pillow", "numpy", "scipy"]);
 
+  // OpenCV da la extracción de contornos EXACTA (la misma que el escritorio).
+  // Si fallara (conexión lenta), se sigue con la máscara alfa: misma silueta,
+  // solo sin simplificar el contorno.
+  try {
+    di("Cargando OpenCV (contornos exactos)…");
+    await pyodide.loadPackage(["opencv-python"]);
+  } catch (e) {
+    di("OpenCV no disponible: se usará la silueta directa");
+  }
+
   di("Descargando el motor de CryCat (misma versión que la app)…");
   const zip = await (await fetch(`${BASE}crycat.zip`)).arrayBuffer();
   pyodide.FS.writeFile("/crycat.zip", new Uint8Array(zip));
