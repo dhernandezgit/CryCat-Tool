@@ -292,6 +292,6 @@ def test_eficiencia_mide_siluetas_reales():
         f"ratio {cir.efficiency / cua.efficiency:.3f}"
 
 
-def test_metodo_por_defecto_es_silueta_rapido():
+def test_metodo_por_defecto_es_greedy():
     from crycat.config import DEFAULTS
-    assert DEFAULTS["opt_metodo"] == "silueta_rapido"
+    assert DEFAULTS["opt_metodo"] == "greedy"

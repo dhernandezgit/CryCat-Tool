@@ -290,12 +290,10 @@ export default function SettingsPanel({ settings, saveSettings, applySettings }:
       {/* -------- Optimización -------- */}
       <Section id="optimizacion" title={t("Optimización")} open={open.optimizacion} toggle={toggle}>
         {sel("Método", "opt_metodo", [
-          ["silueta", "Silueta adaptativo (rápido si sobra espacio)"],
-          ["silueta_optimo", "Silueta óptimo (máxima calidad)"],
-          ["silueta_rapido", "Silueta rápido (una pasada)"],
-          ["auto", "Caja + búsqueda"],
-          ["maxrects", "Caja MaxRects"],
-          ["skyline", "Caja Skyline"],
+          ["greedy", "Greedy / Bottom-Left (rápido)"],
+          ["largest", "Largest First (mayor primero)"],
+          ["voronoi", "Voronoi (huecos más grandes)"],
+          ["genetic", "Genético (máxima calidad)"],
         ])}
         {num("Tiempo máximo", "opt_tiempo_max_s", 0.5, 120, 0.5, "s")}
         <div className="hint">

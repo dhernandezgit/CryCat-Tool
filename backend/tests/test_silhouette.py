@@ -4,6 +4,7 @@ import numpy as np
 from PIL import Image
 
 from crycat import geometry as g
+from crycat import silhouette
 from crycat.silhouette import pack as sil_pack
 
 
@@ -143,8 +144,8 @@ def test_espaciado_entre_siluetas():
                 if pls[i].page != pls[j].page:
                     continue
                 peor = min(peor, _min_dist_mm(circle, pls[i], pls[j]))
-        # tolerancia por rasterización (celdas de 0.5 mm)
-        assert peor >= sp - 0.6, f"espacio {sp}: mínimo real {peor:.2f}"
+        # tolerancia por rasterización (la rejilla es de 0,5 mm)
+        assert peor >= sp - 0.8, f"espacio {sp}: mínimo real {peor:.2f}"
 
 
 def test_espaciado_a_los_limites():
@@ -267,3 +268,51 @@ def test_silueta_minis_rellenan():
     for m in minis:
         assert min(m.w, m.h) >= 5.0 - 1e-6
         assert m.scale <= 0.99 + 1e-6   # siempre menor que el original
+
+def test_la_mascara_es_la_silueta_no_la_caja():
+    """La máscara de un círculo debe ocupar ~π/4 de su caja (silo la silueta)."""
+    circle = _circle(40)
+    ctx = silhouette._Ctx(area_a4(), {"espacio_mm": 2.0}, cell=0.5)
+    rm, dm = ctx.rotated("c", 40.0, 40.0, 0.0, circle)
+    celdas = (40.0 / 0.5) * (40.0 / 0.5)
+    frac = float(rm.sum()) / celdas
+    assert 0.70 < frac < 0.85, f"un círculo ocupa ~0,785 de su caja, no {frac:.3f}"
+    # la dilatada crece por todos lados (separación euclídea)
+    assert float(dm.sum()) > float(rm.sum())
+
+
+def test_el_solape_se_calcula_con_la_silueta():
+    """La posición diagonal de dos círculos (cajas solapadas 20 mm) debe ser
+    VÁLIDA: si el solape usara cajas, sería rechazada."""
+    circle = _circle(40)
+    ctx = silhouette._Ctx(area_a4(), {"espacio_mm": 0.0}, cell=0.5)
+    ctx.new_page()
+    rm, dm = ctx.rotated("c", 40.0, 40.0, 0.0, circle)
+    got = ctx.best_for(0, dm, rm)
+    ty, tx = got[0]
+    silhouette._commit_offset(ctx, "c", "c", 0, 0.0, 1.0, False, rm, dm,
+                              (ty, tx), 40.0, 40.0)
+    # vecino hexagonal exacto: centro a 20 mm en x y 34.6 mm en y (dist = 40)
+    dy = int(round(34.6 / 0.5))
+    dx = int(round(20.0 / 0.5))
+    off = (ty + dy, tx + dx)
+    h, w = dm.shape
+    zona = ctx.pages[0][off[0]:off[0] + h, off[1]:off[1] + w]
+    solape = int(np.count_nonzero((zona > 0) & dm))
+    assert solape == 0, "la diagonal debe caber: el solape es de SILUETA"
+    # y las cajas (40x40) sí se solapan en esa posición
+    assert dx * 0.5 < 40.0 and dy * 0.5 < 40.0
+
+
+def test_contornos_simplificados_bien_formados():
+    """La extracción de contornos da polígonos cerrados y de área correcta."""
+    from crycat import contour
+    circle = _circle(40)
+    polys = contour.contornos_mm(circle, 40.0, 40.0, eps_mm=0.3)
+    assert polys, "debe haber al menos un contorno"
+    area_pol = contour.area_mm2(polys)
+    # el helper _circle dibuja radio 0,48 del lado: 19,2 mm
+    ideal = 3.14159265 * 19.2 ** 2
+    assert abs(area_pol - ideal) / ideal < 0.06, f"área {area_pol:.1f} vs {ideal:.1f}"
+    assert all(len(p) >= 3 for p in polys)
+

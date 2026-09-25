@@ -93,4 +93,15 @@ describe("Barra de estado", () => {
     expect(screen.getByTestId("eta")).toHaveTextContent(/40%/);
     expect(screen.getByTestId("eta")).toHaveTextContent(/5 s restante/);
   });
+
+  it("avisa cuando no cabe todo en una página", () => {
+    render(<StatusBar job={null} backendOk result={result} />);
+    const aviso = screen.getByTestId("aviso-paginas");
+    expect(aviso).toHaveTextContent(/No cabe en una página: 2 páginas/);
+  });
+
+  it("no avisa si todo cabe en una página", () => {
+    render(<StatusBar job={null} backendOk result={{ ...result, pages: 1 }} />);
+    expect(screen.queryByTestId("aviso-paginas")).toBeNull();
+  });
 });

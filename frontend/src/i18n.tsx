@@ -31,6 +31,9 @@ export const EN: Record<string, string> = {
   "Descargar e instalar la nueva versión":
     "Download and install the new version",
   "Nueva versión {v} disponible": "New version {v} available",
+  "No cabe en una página: {n} páginas": "Doesn't fit on one page: {n} pages",
+  "No cabe todo en una página: se usarán varias":
+    "It doesn't all fit on one page: several will be used",
   "Actualizar": "Update",
   "Estás en la última versión": "You're on the latest version",
   "Comprobando…": "Checking…",
@@ -99,13 +102,10 @@ export const EN: Record<string, string> = {
     "Each value is the mini's size relative to the original; they are tried " +
     "from largest to smallest until they fit.",
   "Método": "Method",
-  "Silueta adaptativo (rápido si sobra espacio)":
-    "Adaptive silhouette (fast when there's room)",
-  "Silueta óptimo (máxima calidad)": "Optimal silhouette (best quality)",
-  "Silueta rápido (una pasada)": "Fast silhouette (single pass)",
-  "Caja + búsqueda": "Box + search",
-  "Caja MaxRects": "MaxRects box",
-  "Caja Skyline": "Skyline box",
+  "Greedy / Bottom-Left (rápido)": "Greedy / Bottom-Left (fast)",
+  "Largest First (mayor primero)": "Largest First (biggest first)",
+  "Voronoi (huecos más grandes)": "Voronoi (largest gaps)",
+  "Genético (máxima calidad)": "Genetic (best quality)",
   "Tiempo máximo": "Maximum time",
   "La eficiencia del último cálculo se muestra en la barra de estado.":
     "The efficiency of the last run is shown in the status bar.",

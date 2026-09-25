@@ -474,14 +474,14 @@ def optimize(assets: list[dict], area: CutArea, settings: dict,
         from .geometry import inset_area
         area = inset_area(area, margen)
 
-    # Empaquetado por SILUETA REAL (usa la forma no transparente, no la caja)
+    # SIEMPRE y SOLO por SILUETA REAL (la parte opaca) cuando hay máscaras.
+    # Sin respaldo por cajas: si la silueta falla, se avisa en vez de colocar
+    # con la caja (la caja falsearía el hueco y la eficiencia).
+    if masks:
+        from .silhouette import pack as sil_pack
+        return sil_pack(assets, masks, area, settings, pinned, progress)
+    # sin máscaras (p. ej. tests internos) se usa el empaquetador por cajas
     fallback_silueta = False
-    if method in ("silueta", "silueta_rapido", "silueta_optimo") and masks:
-        try:
-            from .silhouette import pack as sil_pack
-            return sil_pack(assets, masks, area, settings, pinned, progress)
-        except Exception:
-            fallback_silueta = True  # se avisa; se sigue por cajas
     # solo se necesita al colocar por cajas (para medir siluetas de verdad)
     fracs = sil_fracs(masks) if masks else None
 
