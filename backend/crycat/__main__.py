@@ -165,6 +165,15 @@ def main() -> None:
                 print(f"{ROSA_F}  ! {tb('Abre manualmente:')} {url}{R}")
         threading.Thread(target=abrir, daemon=True).start()
 
+    # Windows: el bucle Proactor lanza WinError 10054 (_call_connection_lost)
+    # cuando el navegador corta una conexión; con Selector no ocurre
+    if sys.platform == "win32":
+        import asyncio
+        try:
+            asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+        except Exception:
+            pass
+
     try:
         uvicorn.run(create_app(), host="127.0.0.1", port=port,
                     log_level="info", access_log=False)

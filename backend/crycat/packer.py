@@ -395,7 +395,7 @@ def sil_fracs(masks: dict | None) -> dict[str, float]:
                              Image.NEAREST)
             alpha = np.asarray(a)
             total = alpha.size or 1
-            out[aid] = float(np.count_nonzero(alpha > 8)) / total
+            out[aid] = float(np.count_nonzero(alpha > 1)) / total
         except Exception:
             continue
     return out

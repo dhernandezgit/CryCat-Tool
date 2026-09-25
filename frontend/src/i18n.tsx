@@ -106,6 +106,21 @@ export const EN: Record<string, string> = {
   "Largest First (mayor primero)": "Largest First (biggest first)",
   "Voronoi (huecos más grandes)": "Voronoi (largest gaps)",
   "Genético (máxima calidad)": "Genetic (best quality)",
+  "Calidad de cálculo": "Calculation quality",
+  "Exacta (más fina, más lenta)": "Exact (finest, slower)",
+  "Normal (equilibrada)": "Normal (balanced)",
+  "Rápida (más gruesa, para bocetos)": "Fast (coarser, for drafts)",
+  "Ajustes rápidos": "Quick settings",
+  "Chapa": "Badge",
+  "Pegatina": "Sticker",
+  "Chapa: casi sin espacio entre piezas":
+    "Badge: almost no spacing between pieces",
+  "Pegatina: espacio y borde de 1 mm para cortar fácil":
+    "Sticker: spacing and a 1 mm border for easy cutting",
+  "Hoja de pegatinas: sin espacio ni borde entre piezas":
+    "Sticker sheet: no spacing or border between pieces",
+  "Chapa: casi sin espacio · Pegatina: espacio y borde · Hoja: sin espacio ni borde":
+    "Badge: almost no spacing · Sticker: spacing and border · Sheet: no spacing or border",
   "Tiempo máximo": "Maximum time",
   "La eficiencia del último cálculo se muestra en la barra de estado.":
     "The efficiency of the last run is shown in the status bar.",
@@ -265,16 +280,7 @@ export const EN: Record<string, string> = {
   "Cancelar": "Cancel",
 
   // ---------------------------------------------------------- sugerencias --
-  "Pegatinas final": "Final stickers",
-  "Ahora ya sí Cricut": "Cricut, now for real",
-  "Tonotini tonotin": "Tonotini tonotin",
-  "Pegatinas kawaii": "Kawaii stickers",
   "Hoja de pegatinas": "Sticker sheet",
-  "Cositas CryCat": "CryCat little things",
-  "Pequeñas maravillas": "Little wonders",
-  "Pega que te pega": "Stick stick sticking",
-  "Stickers del bueno": "Top-notch stickers",
-  "Corte y pegote": "Cut and stick",
 
   // ------------------------------------------------------------- varios --
   "Personalizado": "Custom",

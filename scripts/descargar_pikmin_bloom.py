@@ -13,9 +13,11 @@ import argparse
 import json
 import re
 import sys
+import threading
 import time
 import urllib.parse
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 
@@ -106,24 +108,37 @@ def main() -> int:
         titulos = titulos[:args.limite]
 
     urls = urls_de(titulos)
-    ok = fallo = 0
-    for i, (titulo, url) in enumerate(urls.items(), 1):
+    pendientes = [(t, u) for t, u in urls.items()
+                  if not all((d / slug(t)).exists() for d in DESTINOS)]
+    print(f"{len(pendientes)} por descargar (el resto ya estaba)")
+    ok = len(urls) - len(pendientes)
+    fallo = 0
+    hechas = 0
+    lock = threading.Lock()
+
+    def bajar(par: tuple[str, str]) -> bool:
+        titulo, url = par
         nombre = slug(titulo)
-        if all((d / nombre).exists() for d in DESTINOS):
-            ok += 1
-            continue
         try:
             data = urllib.request.urlopen(
                 urllib.request.Request(url, headers=H), timeout=40).read()
         except Exception:
-            fallo += 1
-            continue
+            return False
         for d in DESTINOS:
             (d / nombre).write_bytes(data)
-        ok += 1
-        if i % 50 == 0:
-            print(f"  {i}/{len(urls)} descargadas…")
-        time.sleep(0.05)   # ser amables con el servidor
+        return True
+
+    # descarga EN PARALELO (8 a la vez): pasa de minutos a segundos
+    with ThreadPoolExecutor(max_workers=8) as ex:
+        for bien in ex.map(bajar, pendientes):
+            with lock:
+                hechas += 1
+                if bien:
+                    ok += 1
+                else:
+                    fallo += 1
+                if hechas % 50 == 0:
+                    print(f"  {hechas}/{len(pendientes)} descargadas…")
     print(f"\n✔ {ok} imágenes guardadas en {DESTINOS[0]} ({fallo} fallos)")
     return 0
 

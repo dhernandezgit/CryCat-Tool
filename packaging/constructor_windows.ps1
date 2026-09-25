@@ -9,7 +9,8 @@
 #
 #  Uso: doble clic en construir_windows.bat
 # =====================================================================
-param([switch]$SinTests)
+# Sin tests por defecto (se ejecutan solo con -ConTests)
+param([switch]$ConTests)
 
 $ErrorActionPreference = "Stop"
 # UTF-8 en consola: evita UnicodeEncodeError con acentos/emojis en Windows
@@ -105,7 +106,7 @@ Paso 2 2 "Construyendo CryCat (dependencias + ejecutable)"
 $argumentos = @("-NoProfile", "-ExecutionPolicy", "Bypass",
                 "-File", "$Root\packaging\build_windows.ps1",
                 "-PythonExe", "$pythonPath")
-if ($SinTests) { $argumentos += "-SinTests" }
+if (-not $ConTests) { $argumentos += "-SinTests" }
 & powershell @argumentos
 $codigo = $LASTEXITCODE
 if ($codigo -ne 0) {

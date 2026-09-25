@@ -80,7 +80,7 @@ def _asset_mask(img: Image.Image, w_mm: float, h_mm: float, cell: float,
         pass
     alpha = img.convert("RGBA").getchannel("A").resize(
         (w, h), Image.Resampling.BILINEAR)
-    m = np.asarray(alpha) > 100
+    m = np.asarray(alpha) > 1
     if pad > 0:
         # relleno transparente para que la dilatación no se recorte
         p = np.zeros((h + 2 * pad, w + 2 * pad), dtype=bool)
@@ -517,6 +517,20 @@ def _angulos_unicos(ctx, aid: str, w_mm: float, h_mm: float,
     return unicos
 
 
+def _cell_para(n_total: int, calidad: str) -> float:
+    """Tamaño de celda (mm) de la rejilla de silueta según la calidad pedida.
+
+    exacta  → más fina (mejor encaje, más lento)
+    normal  → equilibrio (por defecto)
+    rapida  → más gruesa (muy rápido, algo menos fino)
+    """
+    if calidad == "exacta":
+        return 0.25 if n_total <= 40 else (0.5 if n_total <= 120 else 0.75)
+    if calidad == "rapida":
+        return 0.75 if n_total <= 120 else (1.0 if n_total <= 300 else 1.5)
+    return 0.5 if n_total <= 90 else (0.75 if n_total <= 250 else 1.0)
+
+
 def _one_pass(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
               settings: dict, pinned: list[Placement] | None, order: str,
               rnd, progress=None, frac=(0.0, 1.0),
@@ -531,7 +545,7 @@ def _one_pass(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
     """
     # rejilla adaptativa: más gruesa cuantos más objetos (mantiene la rapidez)
     n_total = sum(int(a.get("copies", 1)) for a in assets) + len(pinned or [])
-    cell = 0.5 if n_total <= 90 else (0.75 if n_total <= 250 else 1.0)
+    cell = _cell_para(n_total, str(settings.get("opt_calidad", "normal")))
     ctx = _Ctx(area, settings, cell=cell)
     result = PackResult(method="silueta")
     by_id = {a["id"]: a for a in assets}
@@ -802,30 +816,49 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
         if best is None:
             best = _one_pass(assets, masks, area, settings, pinned, "area",
                              rnd, progress, (0.05, 0.95), deadline=deadline_1)
-    else:  # greedy (adaptativo: varias órdenes, parada si todo cabe en 1 hoja)
-        ordenes = ["area", "alto", "ancho"] + \
-            [f"random{i}" for i in range(1, 9)]
-        best = None
-        for i, order in enumerate(ordenes):
-            lo = 0.05 + 0.9 * i / len(ordenes)
-            hi = 0.05 + 0.9 * (i + 1) / len(ordenes)
-            res = _one_pass(assets, masks, area, settings, pinned, order, rnd,
-                            progress, (lo, hi),
-                            deadline=deadline_1 if i == 0 else deadline)
-            key = (len(res.unplaced), res.pages, -res.efficiency)
-            if best is None or key < (len(best.unplaced), best.pages,
-                                      -best.efficiency):
-                best = res
-            if not best.unplaced and best.pages == 1:
-                break                        # objetivo cumplido: una hoja
-            if time.time() > deadline:
-                break
+    else:  # greedy: Largest First como solución inicial + multi-arranque paralelo
+        best = _one_pass(assets, masks, area, settings, pinned, "area", rnd,
+                         progress, (0.05, 0.35), deadline=deadline_1)
+        if not (not best.unplaced and best.pages == 1):
+            ordenes = ["alto", "ancho"] + \
+                [f"random{i}" for i in range(1, 9)]
+            try:
+                from concurrent.futures import (ThreadPoolExecutor,
+                                                as_completed)
+                import random as _r
+                with ThreadPoolExecutor(max_workers=3) as ex:
+                    futuros = {
+                        ex.submit(_one_pass, assets, masks, area, settings,
+                                  pinned, o, _r.Random(20260925 + i), None,
+                                  (0.35, 0.95), deadline): o
+                        for i, o in enumerate(ordenes)
+                    }
+                    for f in as_completed(futuros):
+                        try:
+                            res = f.result()
+                        except Exception:
+                            continue
+                        key = (len(res.unplaced), res.pages, -res.efficiency)
+                        if key < (len(best.unplaced), best.pages,
+                                  -best.efficiency):
+                            best = res
+                        if not best.unplaced and best.pages == 1:
+                            break            # objetivo cumplido: una hoja
+                        if time.time() > deadline:
+                            break
+            except Exception:
+                pass
+            if progress:
+                try:
+                    progress(0.95, best.pages)
+                except Exception:
+                    pass
 
     assert best is not None
     # fase de compactación (estilo DeepNest): acerca cada pieza al borde
     if best.placements and not pinned:
         try:
-            cell = 0.5 if n_total <= 90 else (0.75 if n_total <= 250 else 1.0)
+            cell = _cell_para(n_total, str(settings.get("opt_calidad", "normal")))
             if compactar(assets, masks, area, settings, best.placements, cell,
                          deadline=max(deadline, time.time() + 2.0)):
                 _recalcular_eficiencia(best, masks, area)
@@ -940,7 +973,7 @@ def _recalcular_eficiencia(result, masks: dict, area: CutArea) -> None:
     for aid, img in masks.items():
         try:
             a = np.asarray(img.getchannel("A"))
-            fracs[aid] = float(np.count_nonzero(a > 100)) / max(1, a.size)
+            fracs[aid] = float(np.count_nonzero(a > 1)) / max(1, a.size)
         except Exception:
             fracs[aid] = 1.0
     paginas = max((p.page for p in result.placements), default=0) + 1

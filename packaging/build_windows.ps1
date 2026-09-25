@@ -157,7 +157,11 @@ if (-not $SoloArchivoUnico) {
   if (Test-Path $ISCC) {
     Info "generando instalador (Inno Setup)…"
     & $ISCC "$Root\packaging\crycat.iss"
-    Ok "Instalador en packaging\Output\crycat-setup.exe"
+    if ($LASTEXITCODE -ne 0) {
+      Aviso "no se pudo generar el instalador (el .exe ya sirve igualmente)"
+    } else {
+      Ok "Instalador en packaging\Output\crycat-setup.exe"
+    }
   } else {
     Aviso "Inno Setup no encontrado: se omite el instalador (el .exe ya sirve)"
   }

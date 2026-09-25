@@ -126,6 +126,16 @@ def export_pages(area: CutArea, placements: list[Placement],
     return written
 
 
+def export_single(area: CutArea, placements: list[Placement],
+                  images: dict[str, Image.Image], path: Path, dpi: float,
+                  full_page: bool = False, color: str = "rgba") -> Path:
+    """Guarda UNA página directamente en un PNG concreto (sin carpeta)."""
+    img = render_page(area, placements, images, dpi, full_page, color)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    _save_png(img, path, dpi)
+    return path
+
+
 def export_layout(area: CutArea, placements: list[Placement], out_dir: Path,
                   dpi: float, settings: dict) -> Path:
     """JSON con la colocación (útil para reproducir el proyecto)."""

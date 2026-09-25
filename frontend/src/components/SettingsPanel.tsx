@@ -295,7 +295,39 @@ export default function SettingsPanel({ settings, saveSettings, applySettings }:
           ["voronoi", "Voronoi (huecos más grandes)"],
           ["genetic", "Genético (máxima calidad)"],
         ])}
+        {sel("Calidad de cálculo", "opt_calidad", [
+          ["exacta", "Exacta (más fina, más lenta)"],
+          ["normal", "Normal (equilibrada)"],
+          ["rapida", "Rápida (más gruesa, para bocetos)"],
+        ])}
         {num("Tiempo máximo", "opt_tiempo_max_s", 0.5, 120, 0.5, "s")}
+        <div className="ctl">
+          <label>{t("Ajustes rápidos")}</label>
+          <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
+            <button data-testid="preset-chapa"
+              title={t("Chapa: casi sin espacio entre piezas")}
+              onClick={() => set({ espacio_mm: 0.5, margen_mm: 0.5,
+                                   offset_activo: false })}>
+              {t("Chapa")}
+            </button>
+            <button data-testid="preset-pegatina"
+              title={t("Pegatina: espacio y borde de 1 mm para cortar fácil")}
+              onClick={() => set({ espacio_mm: 2.0, margen_mm: 1.0,
+                                   offset_activo: true, offset_mm: 1.0,
+                                   offset_modo: "extender" })}>
+              {t("Pegatina")}
+            </button>
+            <button data-testid="preset-hoja"
+              title={t("Hoja de pegatinas: sin espacio ni borde entre piezas")}
+              onClick={() => set({ espacio_mm: 0.0, margen_mm: 0.5,
+                                   offset_activo: false })}>
+              {t("Hoja de pegatinas")}
+            </button>
+          </div>
+          <div className="hint">
+            {t("Chapa: casi sin espacio · Pegatina: espacio y borde · Hoja: sin espacio ni borde")}
+          </div>
+        </div>
         <div className="hint">
           {t("La eficiencia del último cálculo se muestra en la barra de estado.")}
         </div>

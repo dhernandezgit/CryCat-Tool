@@ -64,6 +64,7 @@ export interface AppSettings {
   mini_usar_lista: boolean;
   mini_tamanos_lista: number[];
   opt_metodo: string;
+  opt_calidad: "exacta" | "normal" | "rapida";
   opt_tiempo_max_s: number;
   auto_recalcular: boolean;
   corte_velocidad_mm_s: number;
@@ -129,18 +130,18 @@ export const PAPER_DIMS: Record<string, [number, number]> = {
 
 /** Sugerencias graciosas para el nombre de la carpeta (placeholder). */
 export const NAME_SUGGESTIONS: string[] = [
-  "Pegatinas final",
-  "Ahora ya sí Cricut",
-  "Tonotini tonotin",
-  "Pegatinas kawaii",
-  "Hoja de pegatinas",
-  "Cositas CryCat",
-  "Pequeñas maravillas",
-  "Pega que te pega",
-  "Stickers del bueno",
-  "Corte y pegote",
+  "copia_final_FINAL_v3",
+  "esto_ya_no_es_un_circulo",
+  "ayuda_por_favor",
+  "sin_tiempo_para_mas",
+  "el_cliente_lo_aprobo",
+  "ultima_prueba_de_verdad",
+  "no_miro_mas_las_esquinas",
+  "el_gato_lo_tiño",
+  "mañana_lo_arreglo",
+  "esto_lo_vio_mi_yo_del_pasado",
+  "posdata_perdon",
 ];
-
 /** Las mismas sugerencias en inglés. */
 export const NAME_SUGGESTIONS_EN: string[] = [
   "Final stickers",

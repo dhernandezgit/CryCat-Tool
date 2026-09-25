@@ -322,8 +322,8 @@ def test_nunca_modifica_los_originales(client, tmp_path):
 
 
 def test_export_no_sobrescribe_nada(client, tmp_path):
-    """Exportar dos veces con el mismo nombre crea carpetas distintas y no
-    toca ningún archivo existente."""
+    """Exportar dos veces con el mismo nombre crea archivos distintos (con
+    sufijo) y no toca ningún archivo existente."""
     import time
     c, st, _ = client
     upload(c, "a.png")
@@ -339,8 +339,10 @@ def test_export_no_sobrescribe_nada(client, tmp_path):
     importante.write_text("importante", "utf-8")
     r1 = c.post("/api/export", json={"name": "hoja", "folder": str(salida)}).json()
     r2 = c.post("/api/export", json={"name": "hoja", "folder": str(salida)}).json()
-    assert r1["folder"] != r2["folder"]           # carpetas distintas
-    assert Path(r1["folder"]).exists() and Path(r2["folder"]).exists()
+    # una sola página → PNG directo, y el segundo no pisa al primero
+    assert r1["files"][0].endswith(".png") and r2["files"][0].endswith(".png")
+    assert r1["files"][0] != r2["files"][0]
+    assert Path(r1["files"][0]).exists() and Path(r2["files"][0]).exists()
     assert importante.read_text("utf-8") == "importante"
 
 
@@ -517,9 +519,12 @@ def test_export_guarda_archivos(client, tmp_path):
     r = c.post("/api/export", json={"name": "Mi hoja", "folder": str(tmp_path)})
     assert r.status_code == 200
     data = r.json()
-    assert "Mi_hoja_" in data["folder"]
     pngs = [f for f in data["files"] if f.endswith(".png")]
     assert pngs
+    # UNA página: PNG directo (sin carpeta) y SIN json de colocación
+    assert "Mi_hoja_" in pngs[0]
+    assert not any(f.endswith(".json") for f in data["files"])
+    assert Path(pngs[0]).parent == tmp_path
     img = Image.open(pngs[0])
     assert img.mode == "RGBA"
     # sin guías: esquina transparente (lienzo recortable por defecto)

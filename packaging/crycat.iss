@@ -10,7 +10,7 @@
 #define Version "1.0.0"
 #define Autor "doctor Daniel Hernández Ferrándiz"
 #define ExeOrigen "..\dist\CryCat.exe"
-#define IconoOrigen "icono.png"
+#define IconoOrigen "crycat.ico"
 
 [Setup]
 AppId={{8C6F4A2E-5D3B-4E9A-9C1B-0A1B2C3D4E5F}

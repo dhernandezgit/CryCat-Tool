@@ -20,8 +20,12 @@ except Exception:  # pragma: no cover
     _CV2 = False
 
 
-def segmentar(img: Image.Image, umbral: int = 128) -> np.ndarray:
-    """Máscara booleana (True = opaco) del canal alfa."""
+def segmentar(img: Image.Image, umbral: int = 1) -> np.ndarray:
+    """Máscara booleana (True = opaco) del canal alfa.
+
+    La transparencia REAL es alfa 0: cualquier resto (1 %) ya cuenta como
+    opaco, así no se pierden bordes suavizados al cortar.
+    """
     alpha = np.asarray(img.convert("RGBA"))[:, :, 3]
     return alpha > umbral
 

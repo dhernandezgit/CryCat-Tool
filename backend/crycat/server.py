@@ -532,23 +532,34 @@ def create_app(store: Session = session) -> FastAPI:
         base = Path(folder).expanduser()
         stamp = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
         base_name = f"{name}_{stamp}" if name else stamp
+        dpi = float(settings.get("dpi_salida", 300))
+        full = settings.get("lienzo") == "pagina"
+        color = settings.get("color_formato", "rgba")
+        paginas = max((p.page for p in store.last.placements), default=0) + 1
+        if paginas <= 1:
+            # UNA sola página: PNG directo, sin carpeta y sin JSON
+            archivo = base / f"{base_name}.png"
+            n = 2
+            while archivo.exists():          # nunca se sobrescribe
+                archivo = base / f"{base_name}_{n}.png"
+                n += 1
+            compose.export_single(store.area, store.last.placements,
+                                  store.images(), archivo, dpi,
+                                  full_page=full, color=color)
+            settings.set({"carpeta_export": str(base)})
+            return {"ok": True, "folder": str(base), "files": [str(archivo)]}
+        # varias páginas: carpeta con las páginas (sin JSON)
         out = base / base_name
-        # NUNCA se sobrescribe nada: si la carpeta ya existe, se añade un sufijo
         n = 2
         while out.exists():
             out = base / f"{base_name}_{n}"
             n += 1
-        out.mkdir(parents=True, exist_ok=True)
-        dpi = float(settings.get("dpi_salida", 300))
         written = compose.export_pages(
             store.area, store.last.placements, store.images(), out, name,
-            dpi, full_page=settings.get("lienzo") == "pagina",
-            color=settings.get("color_formato", "rgba"))
-        lay = compose.export_layout(store.area, store.last.placements, out, dpi,
-                                    settings.as_dict())
+            dpi, full_page=full, color=color)
         settings.set({"carpeta_export": str(base)})
         return {"ok": True, "folder": str(out),
-                "files": [str(f) for f in written] + [str(lay)]}
+                "files": [str(f) for f in written]}
 
     @app.get("/api/print.pdf")
     def print_pdf():

@@ -62,21 +62,28 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
   // sólo conviene optimizar a fondo cuando la hoja está llenísima
   const sobraEspacio = !!result && result.efficiency < 0.80;
 
-  const onWheel = (e: React.WheelEvent) => {
-    e.preventDefault();
-    const rect = canvasRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    // zoom hacia el cursor: t' = c - (c - t) * (z1 / z0)
-    const cx = e.clientX - rect.left;
-    const cy = e.clientY - rect.top;
-    setZoom((z0) => {
-      const factor = e.deltaY < 0 ? 1.05 : 1 / 1.05;  // zoom suave
-      const z1 = Math.min(12, Math.max(0.05, z0 * factor));
-      const f = z1 / z0;
-      setPan((t) => ({ x: cx - (cx - t.x) * f, y: cy - (cy - t.y) * f }));
-      return z1;
-    });
-  };
+  // RUEDA = solo zoom (nunca scroll). React registra 'wheel' como pasivo, así
+  // que preventDefault() no evita el scroll; hay que escucharlo a mano.
+  useEffect(() => {
+    const el = canvasRef.current;
+    if (!el) return;
+    const alGirar = (e: WheelEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const rect = el.getBoundingClientRect();
+      const cx = e.clientX - rect.left;
+      const cy = e.clientY - rect.top;
+      setZoom((z0) => {
+        const factor = e.deltaY < 0 ? 1.05 : 1 / 1.05;
+        const z1 = Math.min(12, Math.max(0.05, z0 * factor));
+        const f = z1 / z0;
+        setPan((t) => ({ x: cx - (cx - t.x) * f, y: cy - (cy - t.y) * f }));
+        return z1;
+      });
+    };
+    el.addEventListener("wheel", alGirar, { passive: false });
+    return () => el.removeEventListener("wheel", alGirar);
+  }, []);
 
   const startPan = (e: React.MouseEvent) => {
     if ((e.target as HTMLElement).closest(".item-box")) return;
@@ -240,78 +247,7 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
     }
   };
 
-  const print = () => {
-    // Imprime las imágenes de salida a tamaño real (A4/A3/...) y SIN bordes:
-    // se usa un iframe oculto con @page { size: <papel>; margin: 0 } y una
-    // página por imagen, de modo que salen tal cual, a sangre.
-    const [pw, ph] = result?.page_mm ?? [297, 210];
-    const landscape = pw >= ph;
-    const imgs = Array.from({ length: pages })
-      .map((_, i) =>
-        `<img class="hoja" src="${api.pageUrl(i, version)}" alt="" />`)
-      .join("");
 
-    const iframe = document.createElement("iframe");
-    iframe.style.position = "fixed";
-    iframe.style.right = "0";
-    iframe.style.bottom = "0";
-    iframe.style.width = "0";
-    iframe.style.height = "0";
-    iframe.style.border = "0";
-    iframe.setAttribute("aria-hidden", "true");
-    document.body.appendChild(iframe);
-
-    const doc = iframe.contentWindow?.document;
-    if (!doc) return;
-    doc.open();
-    doc.write(
-      `<!doctype html><html lang="${idioma}"><head><meta charset="utf-8">
-       <title>${t("CryCat · Imprimir")}</title>
-       <style>
-         @page { size: ${pw}mm ${ph}mm; margin: 0; }
-         html, body { margin: 0; padding: 0; background: #fff; }
-         .hoja {
-           display: block; width: ${pw}mm; height: ${ph}mm;
-           object-fit: contain; page-break-after: always;
-           break-after: page; margin: 0; padding: 0;
-         }
-         .hoja:last-child { page-break-after: auto; break-after: auto; }
-         @media screen { body { background: #666; } .hoja { margin: 8px auto; } }
-       </style></head><body class="${landscape ? "apaisado" : "vertical"}">
-       ${imgs}</body></html>`
-    );
-    doc.close();
-
-    const lanzar = () => {
-      try {
-        iframe.contentWindow?.focus();
-        iframe.contentWindow?.print();
-      } finally {
-        // se retira el iframe cuando el usuario cierra el diálogo
-        window.setTimeout(() => iframe.remove(), 60000);
-      }
-    };
-    // espera a que las imágenes estén cargadas para no imprimir en blanco
-    const esperar = Array.from(
-      doc.querySelectorAll<HTMLImageElement>("img.hoja")
-    );
-    if (!esperar.length) {
-      lanzar();
-      return;
-    }
-    let listas = 0;
-    const onFin = () => {
-      listas += 1;
-      if (listas >= esperar.length) window.setTimeout(lanzar, 250);
-    };
-    esperar.forEach((im) => {
-      if (im.complete) onFin();
-      else {
-        im.addEventListener("load", onFin, { once: true });
-        im.addEventListener("error", onFin, { once: true });
-      }
-    });
-  };
 
   const polys = result?.poly_mm ?? [];
   const [bx, by] = result?.bbox_offset_mm ?? [0, 0];
@@ -481,7 +417,6 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
         ref={canvasRef}
         className={`canvas ${drag ? "panning" : ""}`}
         data-testid="canvas"
-        onWheel={onWheel}
         onMouseDown={startPan}
       >
         <div
@@ -543,7 +478,6 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
           </button>
           <button data-testid="btn-guardar" onClick={save}>{t("Guardar")}</button>
           <button data-testid="btn-guardar-como" onClick={saveAs}>{t("Guardar como…")}</button>
-          <button data-testid="btn-imprimir" onClick={print} disabled={pages === 0}>{t("Imprimir")}</button>
         </div>
       </div>
       )}
