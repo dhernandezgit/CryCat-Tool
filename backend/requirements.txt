@@ -6,3 +6,4 @@ scipy>=1.11
 psd-tools>=1.10
 pypdfium2>=4.30
 pydantic>=2.6
+python-multipart>=0.0.9
