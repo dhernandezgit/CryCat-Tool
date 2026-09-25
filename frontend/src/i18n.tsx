@@ -332,6 +332,10 @@ export const EN: Record<string, string> = {
   "Lado menor": "Shortest side",
   "Círculo equivalente (aprox.)": "Equivalent circle (approx.)",
   "Aplicar a los seleccionados": "Apply to selected",
+  "Conservar cambios": "Keep changes",
+  "Importar con tamaño original": "Import at original size",
+  "Los cambios se previsualizan en el A4 y se aplican al conservarlos.":
+    "Changes are previewed on the A4 and applied when kept.",
   "{n} elementos ajustados ✓": "{n} items adjusted ✓",
   "Pasos en Cricut Design Space": "Steps in Cricut Design Space",
   "Cómo usar tu PNG en Cricut Design Space":

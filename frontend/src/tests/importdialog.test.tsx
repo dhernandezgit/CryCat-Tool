@@ -38,7 +38,7 @@ describe("Popup de importación múltiple", () => {
     expect(screen.getByTestId("import-item-b")).not.toHaveClass("sel");
     // lado mayor 80 mm → A (40) al 200 %; B no se toca
     fireEvent.change(screen.getByTestId("import-tamano"), { target: { value: "80" } });
-    fireEvent.click(screen.getByTestId("import-aplicar"));
+    fireEvent.click(screen.getByTestId("import-conservar"));
     await waitFor(() => expect(onDone).toHaveBeenCalled());
     const llamadas = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls;
     const parcheA = llamadas.find((c) => String(c[0]).includes("/api/assets/a"));
@@ -55,11 +55,27 @@ describe("Popup de importación múltiple", () => {
                      { target: { value: "circulo" } });
     fireEvent.change(screen.getByTestId("import-tamano"),
                      { target: { value: "20" } });
-    fireEvent.click(screen.getByTestId("import-aplicar"));
+    fireEvent.click(screen.getByTestId("import-conservar"));
     await waitFor(() => expect(screen.getByTestId("import-aviso")).toBeInTheDocument());
     // 20x20 mm → círculo equivalente (d=22,57 mm): 20/22,57 ≈ 88,6 %
     const llamadas = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls;
     const c = llamadas.find((x) => String(x[0]).includes("/api/assets/a"));
     expect(String((c![1] as RequestInit).body)).toMatch(/"scale_pct":88\.[0-9]/);
+  });
+
+  it("el A4 se actualiza solo al cambiar el tamaño y se puede conservar u original", async () => {
+    render(<ImportDialog open assets={[asset("a", 40, 20)]}
+                         onClose={() => {}} onDone={() => {}} />);
+    // al pedir 80 mm de lado mayor, el ancho del preview pasa a ~80/210
+    fireEvent.change(screen.getByTestId("import-tamano"), { target: { value: "80" } });
+    const prev = screen.getByTestId("import-preview-a") as HTMLElement;
+    await waitFor(() => expect(parseFloat(prev.style.width)).toBeGreaterThan(35));
+    // conservar aplica; con "tamaño original" vuelve a 100 %
+    fireEvent.click(screen.getByTestId("import-original"));
+    await waitFor(() => {
+      const llamadas = (fetch as unknown as ReturnType<typeof vi.fn>).mock.calls;
+      const c = llamadas.find((x) => String(x[0]).includes("/api/assets/a"));
+      expect(String((c![1] as RequestInit).body)).toContain('"scale_pct":100');
+    });
   });
 });

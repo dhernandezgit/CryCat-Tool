@@ -45,15 +45,26 @@ export default function ImportDialog({ open, assets, onClose, onDone }: {
     return 2 * Math.sqrt(Math.max(0, w * h) / Math.PI);   // círculo equivalente
   };
 
+  /** Escala (0-1) que se aplicaría a un elemento con los ajustes actuales. */
+  const escalaDe = (a: Asset) => {
+    if (tamano > 0) {
+      const ref = referencia(a);
+      if (ref > 0) return Math.min(10, Math.max(0.05, tamano / ref));
+    }
+    return Math.min(10, Math.max(0.05, escala / 100));
+  };
+
+  /** Tamaño (mm) que tendría ahora mismo, para el preview en vivo. */
+  const tamanoDe = (a: Asset) => {
+    const f = escalaDe(a);
+    return { w: (a.w_mm_base || 0) * f, h: (a.h_mm_base || 0) * f };
+  };
+
   const aplicar = async () => {
     let n = 0;
     for (const a of assets) {
       if (!seleccionado(a.id)) continue;
-      let pct = escala;
-      if (tamano > 0) {
-        const ref = referencia(a);
-        if (ref > 0) pct = (tamano / ref) * 100;
-      }
+      const pct = escalaDe(a) * 100;
       await api.patchAsset(a.id, {
         scale_pct: Math.min(1000, Math.max(5, Math.round(pct * 10) / 10)),
       });
@@ -75,14 +86,15 @@ export default function ImportDialog({ open, assets, onClose, onDone }: {
             <div className="hint">{t("Cómo quedan sobre un A4")}</div>
             <div className="a4-preview" data-testid="import-preview">
               {assets.map((a) => {
-                const w = Math.min(96, ((a.w_mm_base || 1) / 210) * 100);
-                const h = Math.min(96, ((a.h_mm_base || 1) / 297) * 100);
+                const t = tamanoDe(a);
+                const w = Math.min(98, (t.w / 210) * 100);
                 return (
                   <div key={a.id} className="a4-item"
+                       data-testid={`import-preview-${a.id}`}
                        style={{ width: `${w}%`, maxWidth: `${w}%`,
-                                aspectRatio: `${a.w_mm_base || 1} / ${a.h_mm_base || 1}`,
+                                aspectRatio: `${t.w || 1} / ${t.h || 1}`,
                                 opacity: seleccionado(a.id) ? 1 : 0.3 }}
-                       title={a.name}>
+                       title={`${a.name} · ${t.w.toFixed(1)}×${t.h.toFixed(1)} mm`}>
                     <img src={api.previewUrl(a.id)} alt="" />
                   </div>
                 );
@@ -142,15 +154,27 @@ export default function ImportDialog({ open, assets, onClose, onDone }: {
                 <option value="circulo">{t("Círculo equivalente (aprox.)")}</option>
               </select>
             </label>
-            <button data-testid="import-aplicar" onClick={aplicar}>
-              ✓ {t("Aplicar a los seleccionados")}
-            </button>
+            <div className="hint">
+              {t("Los cambios se previsualizan en el A4 y se aplican al conservarlos.")}
+            </div>
             {aviso && <div className="hint" data-testid="import-aviso">{aviso}</div>}
           </div>
         </div>
         <div className="modal-botones">
-          <button data-testid="import-cerrar" onClick={onClose}>
-            {t("Continuar")}
+          <button data-testid="import-original" onClick={() => {
+            // deja todos los elementos a su tamaño original (100 %)
+            void (async () => {
+              for (const a of assets) {
+                await api.patchAsset(a.id, { scale_pct: 100 });
+              }
+              await onDone();
+              onClose();
+            })();
+          }}>
+            {t("Importar con tamaño original")}
+          </button>
+          <button data-testid="import-conservar" onClick={aplicar}>
+            ✓ {t("Conservar cambios")}
           </button>
         </div>
       </div>
