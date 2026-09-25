@@ -149,10 +149,10 @@ jobs:
             Hecha por **Daniel Hernández Ferrándiz**.
           fail_on_unmatched_files: false
           files: |
-            artefactos/**/CryCat.exe
-            artefactos/**/crycat-setup.exe
-            artefactos/**/crycat-linux-*.tar.gz
-            artefactos/**/crycat-onefile
+            artefactos/crycat-windows/dist/CryCat.exe
+            artefactos/crycat-windows-setup/packaging/Output/crycat-setup.exe
+            artefactos/crycat-linux/dist/crycat-onefile
+            artefactos/crycat-linux/dist/*.tar.gz
       - name: Borrar releases anteriores (solo se guarda la última)
         uses: actions/github-script@v7
         with:

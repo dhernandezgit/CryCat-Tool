@@ -53,8 +53,9 @@ cp ../packaging/install.sh dist/
 cp crycat/web/icono.png dist/
 # versión de UN SOLO ARCHIVO (más cómoda de repartir)
 .venv/bin/pyinstaller crycat-onefile.spec --noconfirm
-mv dist/CryCat "../dist/crycat-onefile" 2>/dev/null || true
-chmod +x "../dist/crycat-onefile" 2>/dev/null || true
+mkdir -p ../dist                     # en un clon limpio aún no existe
+mv dist/CryCat "../dist/crycat-onefile"
+chmod +x "../dist/crycat-onefile"
 
 STAMP="$(date +%Y%m%d)"
 PKG="crycat-linux-$STAMP"
