@@ -15,7 +15,10 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: "20" }
       - name: Build (onedir + instalador + archivo único)
-        run: bash packaging/build_linux.sh
+        run: |
+          cd backend && python -m venv .venv && .venv/bin/pip install -q -r requirements-dev.txt
+          .venv/bin/python -m pytest tests/ -q
+          cd .. && bash packaging/build_linux.sh
       - uses: actions/upload-artifact@v4
         with:
           name: crycat-linux
@@ -61,7 +64,7 @@ jobs:
           "PS=$($PSVersionTable.PSVersion)  PWD=$PWD" | Tee-Object -FilePath $log
           "script existe: $(Test-Path '.\packaging\build_windows.ps1')" | Tee-Object -FilePath $log -Append
           try {
-            & ".\packaging\build_windows.ps1" *>&1 | Tee-Object -FilePath $log -Append
+            & ".\packaging\build_windows.ps1" -Tests *>&1 | Tee-Object -FilePath $log -Append
           } catch {
             "EXCEPCION: $($_.Exception.Message)" | Tee-Object -FilePath $log -Append
             "EN LINEA: $($_.InvocationInfo.PositionMessage)" | Tee-Object -FilePath $log -Append

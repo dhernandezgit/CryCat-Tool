@@ -36,9 +36,15 @@ cd "$ROOT/frontend"
 if [ ! -d node_modules ]; then npm ci --silent; fi
 npm run build
 
-echo "── 5/6 Tests ─────────────────────────────────────"
+# Los tests NO se pasan en un build local (solo con --tests o en la CI)
+if [ "${1:-}" = "--tests" ]; then
+  echo "── 5/6 Tests (a petición) ────────────────────────"
+  cd "$ROOT/backend"
+  .venv/bin/python -m pytest tests/ -q
+else
+  echo "── 5/6 Tests: omitidos (usa --tests para pasarlos) ─"
+fi
 cd "$ROOT/backend"
-.venv/bin/python -m pytest tests/ -q
 
 echo "── 6/6 Ejecutable (PyInstaller) ──────────────────"
 rm -rf dist build

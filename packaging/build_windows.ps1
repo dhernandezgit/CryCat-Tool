@@ -13,7 +13,7 @@
 # fichero de transcripción (depuración)
 param(
   [switch]$SoloArchivoUnico,
-  [switch]$SinTests,
+  [switch]$Tests,
   [string]$PythonExe = "python",
   [string]$Log = ""
 )
@@ -132,13 +132,14 @@ if (Test-Path "$Root\backend\crycat\web\index.html") {
 }
 
 # ---------- tests ----------
-Paso 6 7 "Ejecutando tests"
+Paso 6 7 "Tests"
 Set-Location "$Root\backend"
-if ($SinTests) { Aviso "omitidos (-SinTests)" }
-else {
+if ($Tests) {
   & .\.venv\Scripts\python.exe -m pytest tests\ -q
   if ($LASTEXITCODE -ne 0) { Write-Host "  ✖ Hay tests en rojo" -ForegroundColor Red; exit 1 }
   Ok "Tests en verde"
+} else {
+  Info "omitidos (build local; usa -Tests o la CI para pasarlos)"
 }
 
 # ---------- ejecutable único ----------
