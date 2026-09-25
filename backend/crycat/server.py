@@ -74,7 +74,7 @@ def _persist_asset(a: Asset) -> None:
         json.dumps({"name": a.name, "dpi_origen": a.dpi_origen,
                     "warnings": a.warnings, "bg_removed": a.bg_removed,
                     "copies": a.copies, "mini_enabled": a.mini_enabled,
-                    "mini_pct": a.mini_pct, "scale_pct": a.scale_pct},
+                    "mini_quota": a.mini_quota, "scale_pct": a.scale_pct},
                    ensure_ascii=False), "utf-8")
 
 
@@ -233,7 +233,8 @@ def create_app(store: Session = session) -> FastAPI:
         page_changed = any(k in payload for k in
                            ("pagina_w", "pagina_h", "maquina", "espacio_mm",
                             "margen_mm", "rotacion", "usar_minis", "mini_min_mm",
-                            "mini_max_rescale", "mini_rotacion", "mini_tamanos",
+                            "mini_rotacion", "mini_usar_lista",
+                            "mini_tamanos_lista",
                             "opt_metodo", "opt_tiempo_max_s", "dpi_salida",
                             "lienzo", "color_formato", "offset_activo",
                             "offset_mm", "offset_modo", "offset_color"))
@@ -280,8 +281,9 @@ def create_app(store: Session = session) -> FastAPI:
             a.copies = max(0, int(payload["copies"]))
         if "mini_enabled" in payload:
             a.mini_enabled = bool(payload["mini_enabled"])
-        if "mini_pct" in payload:
-            a.mini_pct = min(1000.0, max(1.0, float(payload["mini_pct"])))
+        if "mini_quota" in payload:
+            # cuota de minis: 1 = reparto equitativo; 3 = el triple (decimales ok)
+            a.mini_quota = min(100.0, max(1.0, float(payload["mini_quota"])))
         if "scale_pct" in payload:
             a.scale_pct = min(1000.0, max(5.0, float(payload["scale_pct"])))
         store.save()

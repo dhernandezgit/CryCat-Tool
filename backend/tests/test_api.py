@@ -96,12 +96,14 @@ def test_upload_invalido_400(client):
 def test_copies_patch_y_limites(client):
     c, st, _ = client
     d = upload(c).json()
-    r = c.patch(f"/api/assets/{d['id']}", json={"copies": 5, "mini_pct": 30})
+    r = c.patch(f"/api/assets/{d['id']}", json={"copies": 5, "mini_quota": 3.0})
     assert r.json()["copies"] == 5
     r = c.patch(f"/api/assets/{d['id']}", json={"copies": -4})
     assert r.json()["copies"] == 0
-    r = c.patch(f"/api/assets/{d['id']}", json={"mini_pct": 5000})
-    assert r.json()["mini_pct"] == 1000.0
+    r = c.patch(f"/api/assets/{d['id']}", json={"mini_quota": 5000})
+    assert r.json()["mini_quota"] == 100.0
+    r = c.patch(f"/api/assets/{d['id']}", json={"mini_quota": 0.1})
+    assert r.json()["mini_quota"] == 1.0   # la cuota mínima es 1
 
 
 def test_scale_pct_cambia_tamano(client):
@@ -206,11 +208,11 @@ def test_move_fija_y_reoptimiza_el_resto(client):
 
 
 def test_reemplazar_imagen_conserva_ajustes(client):
-    """Reemplazar la imagen mantiene copias, cuota de mini y escala."""
+    """Reemplazar la imagen mantiene copias, tamaño de mini y escala."""
     c, st, _ = client
     d = upload(c, "original.png").json()
     c.patch(f"/api/assets/{d['id']}", json={"copies": 5, "mini_enabled": True,
-                                            "mini_pct": 30, "scale_pct": 150})
+                                            "mini_quota": 2.5, "scale_pct": 150})
     # nueva imagen distinta (círculo más pequeño)
     nuevo = sticker_rgba((120, 120))
     r = c.post(f"/api/assets/{d['id']}/reemplazar",
@@ -220,7 +222,7 @@ def test_reemplazar_imagen_conserva_ajustes(client):
     assert a["id"] == d["id"]              # mismo elemento
     assert a["name"] == "nuevo.png"
     assert a["copies"] == 5 and a["mini_enabled"] is True
-    assert a["mini_pct"] == 30 and a["scale_pct"] == 150
+    assert a["mini_quota"] == 2.5 and a["scale_pct"] == 150
     assert a["w_px"] != d["w_px"] or a["h_px"] != d["h_px"]
 
 

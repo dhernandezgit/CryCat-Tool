@@ -458,20 +458,21 @@ def _one_pass(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
                      len(ctx.pages))
 
     # 3) minis: rellenan huecos (no cuentan como copias; dan eficiencia y
-    #    pegatinas extra). El porcentaje de cada elemento es su PROPORCIÓN
-    #    respecto a los demás, y el tamaño lo elige el optimizador (lo mayor
-    #    que quepa en cada hueco, acotado por mini_min_mm y max_rescale).
+    #    pegatinas extra). La cuota de cada elemento decide CUÁNTOS minis
+    #    recibe respecto a los demás (1 = equitativo; 3 = el triple) y el
+    #    TAMAÑO lo elige el optimizador (siempre menor que el original).
     if settings.get("usar_minis"):
         min_mm = float(settings.get("mini_min_mm", 5.0))
-        max_res = max(0.01, float(settings.get("mini_max_rescale", 1000.0))) / 100.0
+        max_res = min(0.99, max(0.01, float(
+            settings.get("mini_max_rescale", 100.0))) / 100.0)
         policy = settings.get("mini_tamanos", "grandes")
         usar_lista = bool(settings.get("mini_usar_lista"))
-        lista = [max(0.01, float(v) / 100.0)
+        lista = [max(0.01, min(0.99, float(v) / 100.0))
                  for v in (settings.get("mini_tamanos_lista") or [])]
         angles_m = _angles(rot_mini)
         cand = [a for a in assets if a.get("mini_enabled") and a["id"] in masks]
         if cand:
-            pesos = {a["id"]: max(1e-6, float(a.get("mini_pct", 50.0)))
+            pesos = {a["id"]: min(100.0, max(1.0, float(a.get("mini_quota", 1.0))))
                      for a in cand}
             peso_total = sum(pesos.values())
             counts = {a["id"]: 0 for a in cand}
@@ -480,7 +481,7 @@ def _one_pass(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
             while total < 800:
                 if deadline is not None and time.time() > deadline:
                     break
-                # primero el elemento más subrepresentado según su proporción
+                # primero el elemento más subrepresentado según su cuota
                 cand.sort(key=lambda a: pesos[a["id"]] / peso_total
                           - counts[a["id"]] / (total + 1.0), reverse=True)
                 hecho = False

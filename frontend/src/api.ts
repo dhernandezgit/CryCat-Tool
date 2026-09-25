@@ -12,7 +12,7 @@ export interface Asset {
   dpi_origen: number;
   copies: number;
   mini_enabled: boolean;
-  mini_pct: number;
+  mini_quota: number;
   scale_pct: number;
   bg_removed: boolean;
   warnings: string[];
@@ -163,7 +163,7 @@ export function normalizeAsset(a: Asset): Asset {
   return {
     ...a,
     copies: Number.isFinite(a.copies) ? a.copies : 1,
-    mini_pct: Number.isFinite(a.mini_pct) ? a.mini_pct : 50,
+    mini_quota: Number.isFinite(a.mini_quota) ? a.mini_quota : 1,
     scale_pct: Number.isFinite(a.scale_pct) ? a.scale_pct : 100,
     w_mm: w,
     h_mm: h,

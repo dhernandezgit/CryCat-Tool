@@ -74,13 +74,17 @@ export const EN: Record<string, string> = {
   "Si lo desactivas, solo se recolocará al pulsar «Recalcular».":
     "If disabled, it will only re-place when you press “Recalculate”.",
   ["Los minis rellenan huecos (no cuentan como copias): dan eficiencia y " +
-   "pegatinas extra. La «cuota» de cada elemento decide su proporción " +
-   "respecto a los demás; el tamaño lo elige el optimizador."]:
+   "pegatinas extra. La cuota de cada elemento decide cuántos recibe " +
+   "respecto a los demás: todos empiezan en 1 (reparto equitativo) y 3 " +
+   "significa el triple. El tamaño lo elige el optimizador, siempre más " +
+   "pequeño que el original."]:
     "Minis fill gaps (they don't count as copies): they add efficiency and " +
-    "extra stickers. Each item's “quota” decides its proportion compared to " +
-    "the others; the size is chosen by the optimizer.",
+    "extra stickers. Each item's quota decides how many it gets compared to " +
+    "the others: everyone starts at 1 (even split) and 3 means triple. The " +
+    "size is chosen by the optimizer, always smaller than the original.",
   "Tamaño mínimo": "Minimum size",
-  "Porcentaje de reescalado máximo": "Maximum rescale percentage",
+  "Tamaño máximo del mini (% del original)":
+    "Maximum mini size (% of the original)",
   "Rotaciones admitidas": "Allowed rotations",
   "Selección de tamaños": "Size selection",
   "Priorizar que sean iguales": "Prefer equal sizes",
@@ -240,13 +244,14 @@ export const EN: Record<string, string> = {
   "Eliminar imagen": "Delete image",
   "Escala del elemento (100% = tamaño natural)":
     "Item scale (100% = natural size)",
-  ["Proporción de minis de este elemento respecto a los demás (no es el " +
-   "tamaño)"]:
-    "Mini quota for this item relative to the others (not the size)",
+  ["Cuántos minis quieres de este elemento respecto a los demás " +
+   "(1 = reparto equitativo; 3 = el triple)"]:
+    "How many minis you want of this item compared to the others " +
+    "(1 = even split; 3 = triple)",
+  "Cuota": "Quota",
   "Colocadas: {n}": "Placed: {n}",
   "limpiar contorno": "clean outline",
   "Incluir como mini": "Include as mini",
-  "Cuota": "Quota",
   ["Sugerencia: activa «Usar minis» en Ajustes para rellenar huecos con " +
    "copias pequeñas."]:
     "Tip: enable “Use minis” in Settings to fill gaps with small copies.",
@@ -272,6 +277,10 @@ export const EN: Record<string, string> = {
   // ------------------------------------------------------------- varios --
   "Personalizado": "Custom",
   "Escala": "Scale",
+  "Ancho": "Width",
+  "Alto": "Height",
+  "Tamaño exacto en milímetros (mantiene la proporción)":
+    "Exact size in millimetres (keeps the proportion)",
   "icono": "icon",
   "→ {n} minis": "→ {n} minis",
 };

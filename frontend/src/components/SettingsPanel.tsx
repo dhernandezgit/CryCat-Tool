@@ -208,11 +208,14 @@ export default function SettingsPanel({ settings, saveSettings, applySettings }:
       <Section id="minis" title={t("Minis")} open={open.minis} toggle={toggle}>
         <div className="hint">
           {t("Los minis rellenan huecos (no cuentan como copias): dan eficiencia y " +
-             "pegatinas extra. La «cuota» de cada elemento decide su proporción " +
-             "respecto a los demás; el tamaño lo elige el optimizador.")}
+             "pegatinas extra. La cuota de cada elemento decide cuántos recibe " +
+             "respecto a los demás: todos empiezan en 1 (reparto equitativo) y 3 " +
+             "significa el triple. El tamaño lo elige el optimizador, siempre más " +
+             "pequeño que el original.")}
         </div>
         {num("Tamaño mínimo", "mini_min_mm", 1, 50, 0.5, "mm")}
-        {num("Porcentaje de reescalado máximo", "mini_max_rescale", 100, 1000, 10, "%")}
+        {num("Tamaño máximo del mini (% del original)", "mini_max_rescale",
+             10, 100, 5, "%")}
         {sel("Rotaciones admitidas", "mini_rotacion", [
           ["no", "No girar"],
           ["90", "Giros de 0º / 90º / 180º / 270º"],

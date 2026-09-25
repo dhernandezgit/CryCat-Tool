@@ -198,8 +198,8 @@ def _expand_items(assets: list[dict], settings: dict
     """Normales = TODAS las copias indicadas.
 
     Los minis van APARTE: no consumen copias; solo rellenan los huecos que
-    sobran tras colocar las copias, respetando los límites establecidos
-    (mini_min_mm, mini_max_rescale, espaciado y polígono recortable).
+    sobran tras colocar las copias. La cuota de cada elemento decide CUÁNTOS
+    minis recibe respecto a los demás (1 = equitativo; 3 = el triple).
     Devuelve (instancias_normales, peticiones_mini).
     """
     normals: list[Instance] = []
@@ -217,8 +217,8 @@ def _expand_items(assets: list[dict], settings: dict
             mini_requests.append({
                 "asset_id": a["id"], "name": a.get("name", ""),
                 "w": a["w_mm"], "h": a["h_mm"],
-                # el % es la PROPORCIÓN del elemento respecto a los demás
-                "weight": max(1e-6, float(a.get("mini_pct", 50.0))),
+                # cuota: cuántos quieres de este elemento respecto a los demás
+                "weight": min(100.0, max(1.0, float(a.get("mini_quota", 1.0)))),
             })
     return normals, mini_requests
 
@@ -274,20 +274,22 @@ def _place_minis(bins: list[Bin], requests: list[dict], settings: dict,
                  result: PackResult) -> None:
     """Rellena los huecos con minis (copias EXTRA que no cuentan).
 
-    El porcentaje de cada elemento es su PROPORCIÓN respecto a los demás: se
-    va colocando el más subrepresentado. El TAMAÑO lo elige el optimizador
-    (lo mayor que quepa en cada hueco), acotado por `mini_min_mm` y
-    `mini_max_rescale`. Política 'iguales' reutiliza una escala común por
-    elemento; 'grandes' usa el mayor tamaño posible en cada hueco.
+    La cuota de cada elemento decide CUÁNTOS minis recibe respecto a los demás
+    (1 = reparto equitativo; 3 = el triple; admite decimales): se coloca
+    primero el más subrepresentado. El TAMAÑO lo elige el optimizador (lo mayor
+    que quepa en cada hueco), acotado por `mini_min_mm` y `mini_max_rescale`, y
+    siempre más pequeño que el original (tope duro del 99 %). La política
+    'iguales' reutiliza una escala común por elemento.
     """
     if not requests:
         return
     min_mm = float(settings.get("mini_min_mm", 5.0))
-    max_res = max(0.01, float(settings.get("mini_max_rescale", 1000.0))) / 100.0
+    max_res = min(0.99, max(0.01,
+                            float(settings.get("mini_max_rescale", 100.0))) / 100.0)
     policy = settings.get("mini_tamanos", "grandes")
     rot_mode = settings.get("mini_rotacion", "no")
     usar_lista = bool(settings.get("mini_usar_lista"))
-    lista = [max(0.01, float(v) / 100.0)
+    lista = [max(0.01, min(0.99, float(v) / 100.0))
              for v in (settings.get("mini_tamanos_lista") or [])]
     peso_total = sum(r["weight"] for r in requests)
     counts = {r["asset_id"]: 0 for r in requests}
@@ -331,11 +333,6 @@ def _place_minis(bins: list[Bin], requests: list[dict], settings: dict,
             break
         if not hecho:
             break
-
-
-def _min_scale_for(w: float, h: float, min_mm: float) -> float:
-    base = max(min(w, h), 1e-6)
-    return min_mm / base
 
 
 def _escalas_mini(s_floor: float, max_res: float, usar_lista: bool,

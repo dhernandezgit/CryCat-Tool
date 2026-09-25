@@ -68,11 +68,14 @@ def _banner(port: int, url: str, carpeta: str) -> None:
     print(f"{ROSA}│{R}            {texto[3]}")
     print(f"{ROSA}╰──────────────────────────────────────────────────────────╯{R}")
     print()
-    print(f"  {CREMA_O}♡  {tb('Aplicación:')}{R}  {ROSA_O}{url}{R}")
-    print(f"  {CREMA_O}♡  {tb('Datos:')}        {GRIS}{carpeta}{R}")
-    print(f"  {CREMA_O}♡  {tb('Puerto:')}       {GRIS}{port}{R}")
-    print(f"  {LAVANDA}♡  {tb('Autor:')}        "
-          f"{CREMA}Daniel Hernández Ferrándiz{R}")
+    filas = [
+        (tb("Aplicación:"), url, ROSA_O),
+        (tb("Datos:"), carpeta, GRIS),
+        (tb("Puerto:"), str(port), GRIS),
+        (tb("Autor:"), "Daniel Hernández Ferrándiz", CREMA),
+    ]
+    for et, val, col in filas:
+        print(f"  {CREMA_O}♡  {et:<30}{R} {col}{val}{R}")
     print()
     print(f"  {LAVANDA}{tb('Se abrirá el navegador automáticamente.')}{R}")
     print(f"  {LAVANDA}{tb('Para salir: cierra esta ventana o pulsa')}{R} "

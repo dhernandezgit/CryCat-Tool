@@ -14,7 +14,7 @@ APP_NAME = "CryCat"
 APP_W = 210.0
 APP_H = 297.0
 
-CONFIG_VERSION = 10  # subir para migrar configuraciones antiguas
+CONFIG_VERSION = 11  # subir para migrar configuraciones antiguas
 
 
 def app_config_dir() -> Path:
@@ -55,11 +55,11 @@ DEFAULTS: dict = {
     "usar_minis": False,
     # Minis
     "mini_min_mm": 5.0,
-    "mini_max_rescale": 1000.0,  # %
+    "mini_max_rescale": 100.0,   # tamaño máximo del mini (% del original, < 100)
     "mini_rotacion": "90",       # no | 90 (0/90/180/270) | libre
     "mini_tamanos": "grandes",   # iguales | grandes
     "mini_usar_lista": False,    # usar la lista de tamaños en vez de automáticos
-    "mini_tamanos_lista": [50.0],  # tamaños deseados (% respecto al original)
+    "mini_tamanos_lista": [50.0],  # tamaños deseados (% del original)
     # Optimización
     "opt_metodo": "silueta",     # silueta | silueta_rapido | auto | maxrects | skyline
     "opt_tiempo_max_s": 8.0,

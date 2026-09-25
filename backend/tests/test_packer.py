@@ -7,7 +7,7 @@ from crycat.packer import Bin, Instance, Placement, optimize, try_move
 
 SETTINGS_BASE = {
     "espacio_mm": 2.0, "rotacion": "no", "usar_minis": False,
-    "mini_min_mm": 5.0, "mini_max_rescale": 1000.0, "mini_rotacion": "no",
+    "mini_min_mm": 5.0, "mini_max_rescale": 100.0, "mini_rotacion": "no",
     "mini_tamanos": "grandes", "opt_metodo": "maxrects",
     "opt_tiempo_max_s": 2.0,
 }
@@ -19,7 +19,7 @@ def area_a4() -> g.CutArea:
 
 def asset(aid="a1", w=50, h=40, copies=1, **kw):
     d = {"id": aid, "name": f"{aid}.png", "w_mm": w, "h_mm": h,
-         "copies": copies, "mini_enabled": False, "mini_pct": 50.0}
+         "copies": copies, "mini_enabled": False, "mini_quota": 1.0}
     d.update(kw)
     return d
 
@@ -115,34 +115,35 @@ def test_rotacion_libre_angulos_arbitrarios():
 def test_minis_van_aparte_de_las_copias():
     """Los minis NO consumen copias: todas las copias se colocan y los minis
     son extra que rellena huecos."""
-    assets = [asset("a", 60, 60, copies=4, mini_enabled=True, mini_pct=50)]
-    st = dict(SETTINGS_BASE, usar_minis=True, mini_tamanos="grandes",
-              mini_max_rescale=100.0, opt_metodo="auto", opt_tiempo_max_s=1.5)
+    assets = [asset("a", 60, 60, copies=4, mini_enabled=True)]
+    st = dict(SETTINGS_BASE, usar_minis=True, opt_metodo="auto",
+              opt_tiempo_max_s=1.5)
     res = optimize(assets, area_a4(), st)
     normales = [p for p in res.placements if not p.mini]
     minis = [p for p in res.placements if p.mini]
     assert len(normales) == 4, "las 4 copias deben colocarse íntegras"
     assert minis, "y además deben rellenarse huecos con minis"
     for m in minis:
-        assert m.scale <= 1.0 + 1e-6
+        # el optimizador elige el tamaño, pero SIEMPRE menor que el original
+        assert m.scale <= 0.99 + 1e-6
         assert min(m.w, m.h) >= st["mini_min_mm"] - 1e-6
 
 
 def test_minis_rellenan_huecos():
-    assets = [asset("a", 60, 60, copies=4, mini_enabled=True, mini_pct=100)]
+    assets = [asset("a", 60, 60, copies=4, mini_enabled=True)]
     st = dict(SETTINGS_BASE, usar_minis=True, mini_tamanos="iguales",
-              mini_max_rescale=100.0, opt_metodo="auto", opt_tiempo_max_s=1.5)
+              opt_metodo="auto", opt_tiempo_max_s=1.5)
     res = optimize(assets, area_a4(), st)
     minis = [p for p in res.placements if p.mini]
     assert minis, "las minis deberían rellenar el sobrante"
     for m in minis:
-        assert m.scale <= 1.0 + 1e-6  # con tope 100% no superan el original
+        assert m.scale <= 0.99 + 1e-6
         assert min(m.w, m.h) >= st["mini_min_mm"] - 1e-6
 
 
 def test_minis_respetan_minimo_mm():
     """Un mini por debajo del mínimo no se coloca."""
-    assets = [asset("a", 20, 20, copies=10, mini_enabled=True, mini_pct=50)]
+    assets = [asset("a", 20, 20, copies=10, mini_enabled=True)]
     st = dict(SETTINGS_BASE, usar_minis=True, mini_min_mm=5.0,
               opt_metodo="maxrects")
     res = optimize(assets, area_a4(), st)
@@ -211,13 +212,28 @@ def test_auto_mejora_o_iguala():
     assert (len(r_auto.unplaced), r_auto.pages) <= (len(r_mx.unplaced), r_mx.pages)
 
 
-def test_minis_iguales():
-    assets = [asset("a", 60, 60, copies=6, mini_enabled=True, mini_pct=50)]
-    st = dict(SETTINGS_BASE, usar_minis=True, mini_tamanos="iguales",
-              opt_metodo="maxrects")
+def test_cuota_reparte_proporcionalmente():
+    """Cuota 3 frente a 1: aproximadamente el triple de minis."""
+    assets = [asset("a", 20, 20, copies=2, mini_enabled=True, mini_quota=3.0),
+              asset("b", 20, 20, copies=2, mini_enabled=True, mini_quota=1.0)]
+    st = dict(SETTINGS_BASE, usar_minis=True, opt_metodo="maxrects")
     res = optimize(assets, area_a4(), st)
-    escalas = {round(p.scale, 6) for p in res.placements if p.mini}
-    assert len(escalas) <= 1
+    ca = sum(1 for p in res.placements if p.mini and p.asset_id == "a")
+    cb = sum(1 for p in res.placements if p.mini and p.asset_id == "b")
+    assert cb >= 1, "el de cuota 1 también recibe minis"
+    assert ca > cb, "el de cuota 3 debe recibir más"
+    assert ca <= 4 * cb, f"reparto desproporcionado: {ca} vs {cb}"
+
+
+def test_cuota_admite_decimales():
+    """Cuota 1.5 frente a 1: aproximadamente una vez y media."""
+    assets = [asset("a", 20, 20, copies=2, mini_enabled=True, mini_quota=1.5),
+              asset("b", 20, 20, copies=2, mini_enabled=True, mini_quota=1.0)]
+    st = dict(SETTINGS_BASE, usar_minis=True, opt_metodo="maxrects")
+    res = optimize(assets, area_a4(), st)
+    ca = sum(1 for p in res.placements if p.mini and p.asset_id == "a")
+    cb = sum(1 for p in res.placements if p.mini and p.asset_id == "b")
+    assert cb >= 1 and ca > cb and ca <= 2.2 * cb, f"{ca} vs {cb}"
 
 
 def test_respeta_tiempo_maximo():

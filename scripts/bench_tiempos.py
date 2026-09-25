@@ -21,7 +21,7 @@ def assets(esc, copies):
     return [{"id": k, "name": k,
              "w_mm": geometry.px_to_mm(v.width, 300) * esc / 100,
              "h_mm": geometry.px_to_mm(v.height, 300) * esc / 100,
-             "copies": copies, "mini_enabled": False, "mini_pct": 50}
+             "copies": copies, "mini_enabled": False, "mini_quota": 1.0}
             for k, v in imgs.items()]
 
 

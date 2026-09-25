@@ -28,7 +28,9 @@ class Asset:
         self.color_mode = color_mode
         self.copies = 1
         self.mini_enabled = False
-        self.mini_pct = 50.0
+        # cuota de minis: cuántos quieres de este elemento respecto a los demás
+        # (1 = reparto equitativo; 3 = el triple; admite decimales)
+        self.mini_quota = 1.0
         self.scale_pct = 100.0  # escala del elemento (100% = tamaño natural)
         self.bg_removed = False
 
@@ -51,7 +53,7 @@ class Asset:
             "w_mm_base": round(wb, 2), "h_mm_base": round(hb, 2),
             "dpi_origen": self.dpi_origen,
             "copies": self.copies, "mini_enabled": self.mini_enabled,
-            "mini_pct": self.mini_pct, "scale_pct": self.scale_pct,
+            "mini_quota": self.mini_quota, "scale_pct": self.scale_pct,
             "bg_removed": self.bg_removed,
             "warnings": self.warnings,
         }
@@ -190,7 +192,8 @@ class Session:
                           list(meta.get("warnings", [])), "")
                 a.copies = int(meta.get("copies", 1))
                 a.mini_enabled = bool(meta.get("mini_enabled", False))
-                a.mini_pct = float(meta.get("mini_pct", 50.0))
+                # sesiones antiguas: la cuota empieza en 1 (reparto equitativo)
+                a.mini_quota = float(meta.get("mini_quota", 1.0))
                 a.scale_pct = float(meta.get("scale_pct", 100.0))
                 a.bg_removed = bool(meta.get("bg_removed", False))
                 self.assets[a.id] = a

@@ -20,6 +20,35 @@ function AssetCard({ a, result, onChange, onEditarContorno }: {
   useEffect(() => setLocal(normalizeAsset(a)), [a]);
   const reemplazarRef = useRef<HTMLInputElement>(null);
   const size = assetSizeMm(local);
+
+  // tamaño exacto en mm (se guarda como escala para mantener una sola fuente)
+  const [mmTexto, setMmTexto] = useState("");
+  const editandoMm = useRef(false);
+  const [altoTexto, setAltoTexto] = useState("");
+  const editandoAlto = useRef(false);
+  useEffect(() => {
+    if (!editandoMm.current) {
+      setMmTexto(size.w > 0 ? size.w.toFixed(1) : "");
+    }
+    if (!editandoAlto.current) {
+      setAltoTexto(size.h > 0 ? size.h.toFixed(1) : "");
+    }
+  }, [size.w, size.h]);
+  const anchoBase = Number.isFinite(local.w_mm_base) ? local.w_mm_base : 0;
+  const altoBase = Number.isFinite(local.h_mm_base) ? local.h_mm_base : 0;
+  // se puede fijar el ancho O el alto: el otro se ajusta manteniendo la proporción
+  const anchoExacto = (texto: string) => {
+    setMmTexto(texto);
+    const v = Number(texto.replace(",", "."));
+    if (!Number.isFinite(v) || v <= 0 || anchoBase <= 0) return;
+    patch({ scale_pct: (v / anchoBase) * 100 });
+  };
+  const altoExacto = (texto: string) => {
+    setAltoTexto(texto);
+    const v = Number(texto.replace(",", "."));
+    if (!Number.isFinite(v) || v <= 0 || altoBase <= 0) return;
+    patch({ scale_pct: (v / altoBase) * 100 });
+  };
   const minisColocados =
     result?.placements.filter((p) => p.asset_id === a.id && p.mini).length ?? 0;
   const normalesColocados =
@@ -133,6 +162,45 @@ function AssetCard({ a, result, onChange, onEditarContorno }: {
           />
           <span className="scale-val">{Math.round(local.scale_pct)}%</span>
         </div>
+        <div className="exact-row">
+          <span title={t("Tamaño exacto en milímetros (mantiene la proporción)")}>
+            {t("Ancho")}
+          </span>
+          <input
+            type="number"
+            min={0.5}
+            max={2000}
+            step={0.5}
+            value={mmTexto}
+            data-testid={`ancho-mm-${a.id}`}
+            onFocus={() => { editandoMm.current = true; editandoAlto.current = false; }}
+            onBlur={() => {
+              editandoMm.current = false;
+              setMmTexto(size.w > 0 ? size.w.toFixed(1) : "");
+            }}
+            onChange={(e) => anchoExacto(e.target.value)}
+          />
+          <span>mm</span>
+          <span className="por">×</span>
+          <span title={t("Tamaño exacto en milímetros (mantiene la proporción)")}>
+            {t("Alto")}
+          </span>
+          <input
+            type="number"
+            min={0.5}
+            max={2000}
+            step={0.5}
+            value={altoTexto}
+            data-testid={`alto-mm-${a.id}`}
+            onFocus={() => { editandoAlto.current = true; editandoMm.current = false; }}
+            onBlur={() => {
+              editandoAlto.current = false;
+              setAltoTexto(size.h > 0 ? size.h.toFixed(1) : "");
+            }}
+            onChange={(e) => altoExacto(e.target.value)}
+          />
+          <span>mm</span>
+        </div>
         {normalesColocados > 0 && (
           <div className="size-mm">{t("Colocadas: {n}", { n: normalesColocados })}</div>
         )}
@@ -160,17 +228,30 @@ function AssetCard({ a, result, onChange, onEditarContorno }: {
           {t("Incluir como mini")}
           {local.mini_enabled && (
             <>
-              <span title={t("Proporción de minis de este elemento respecto a los demás (no es el tamaño)")}>
+              <span title={t("Cuántos minis quieres de este elemento respecto a los demás (1 = reparto equitativo; 3 = el triple)")}>
                 {t("Cuota")}
               </span>
-              <input
-                type="range"
-                min={1}
-                max={100}
-                value={local.mini_pct}
-                onChange={(e) => patch({ mini_pct: Number(e.target.value) })}
-              />
-              <span>{local.mini_pct}%</span>
+              <button
+                className="quota-btn"
+                data-testid={`cuota-menos-${a.id}`}
+                onClick={() => patch({
+                  mini_quota: Math.max(1, Math.round((local.mini_quota - 0.5) * 2) / 2),
+                })}
+              >
+                −
+              </button>
+              <span className="quota-val" data-testid={`cuota-${a.id}`}>
+                ×{local.mini_quota}
+              </span>
+              <button
+                className="quota-btn"
+                data-testid={`cuota-mas-${a.id}`}
+                onClick={() => patch({
+                  mini_quota: Math.min(100, Math.round((local.mini_quota + 0.5) * 2) / 2),
+                })}
+              >
+                +
+              </button>
               <span className="mini-count" data-testid={`minis-${a.id}`}>
                 {t("→ {n} minis", { n: minisColocados })}
               </span>

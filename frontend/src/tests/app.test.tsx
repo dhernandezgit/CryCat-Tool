@@ -7,7 +7,7 @@ import App from "../App";
 const asset = {
   id: "a1", name: "gato.png", w_px: 100, h_px: 80, w_mm: 8.47, h_mm: 6.77,
   w_mm_base: 8.47, h_mm_base: 6.77, scale_pct: 100, dpi_origen: 300,
-  copies: 2, mini_enabled: false, mini_pct: 50,
+  copies: 2, mini_enabled: false, mini_quota: 1,
   bg_removed: false, warnings: [],
 };
 const result = {
@@ -23,8 +23,8 @@ const result = {
 const settings = {
   espacio_mm: 2, margen_mm: 1, rotacion: "no", dpi_salida: 300, pagina: "A4",
   pagina_w: 297, pagina_h: 210, maquina: "estandar", usar_minis: false,
-  mini_min_mm: 5, mini_max_rescale: 1000, mini_rotacion: "no",
-  mini_tamanos: "grandes", opt_metodo: "auto", opt_tiempo_max_s: 8, mini_usar_lista: false, mini_tamanos_lista: [50], auto_recalcular: true, corte_velocidad_mm_s: 50, corte_viaje_mm_s: 120, corte_extra_forma_s: 0.4, corte_factor: 1, pikmin_activo: true, pikmin_frecuencia_min: 1, pikmin_sonido: true, pikmin_sonido_morir: true, volumen: 0.5, mute: false, offset_activo: false, offset_mm: 2, offset_modo: "extender", offset_color: "#ffffff",
+  mini_min_mm: 5, mini_rotacion: "no",
+  opt_metodo: "auto", opt_tiempo_max_s: 8, mini_usar_lista: false, mini_tamanos_lista: [50], auto_recalcular: true, corte_velocidad_mm_s: 50, corte_viaje_mm_s: 120, corte_extra_forma_s: 0.4, corte_factor: 1, pikmin_activo: true, pikmin_frecuencia_min: 1, pikmin_sonido: true, pikmin_sonido_morir: true, volumen: 0.5, mute: false, offset_activo: false, offset_mm: 2, offset_modo: "extender", offset_color: "#ffffff",
   color_formato: "rgba", chequear_lineas: true, carpeta_export: "",
   dpi_importacion: 300, lienzo: "recortable", tema: "wiwi",
   ver_guias: true, fondo_transparente: false,

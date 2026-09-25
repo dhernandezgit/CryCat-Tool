@@ -34,7 +34,7 @@ def area_a4() -> g.CutArea:
 def test_silueta_coloca_todo_sin_solapar():
     circulos = {"c": _circle(40)}
     assets = [{"id": "c", "name": "c.png", "w_mm": 40, "h_mm": 40,
-               "copies": 12, "mini_enabled": False, "mini_pct": 50}]
+               "copies": 12, "mini_enabled": False, "mini_quota": 1.0}]
     res = sil_pack(assets, circulos, area_a4(), SET)
     assert len(res.placements) == 12
     assert not res.unplaced
@@ -55,7 +55,7 @@ def test_silueta_aprovecha_mas_que_la_caja():
     from crycat.packer import optimize as bbox_optimize
     circulos = {"c": _circle(45)}
     assets = [{"id": "c", "name": "c.png", "w_mm": 45, "h_mm": 45,
-               "copies": 18, "mini_enabled": False, "mini_pct": 50}]
+               "copies": 18, "mini_enabled": False, "mini_quota": 1.0}]
     st_box = dict(SET, opt_metodo="maxrects", opt_tiempo_max_s=1.5)
     r_sil = sil_pack(assets, circulos, area_a4(), SET)
     r_box = bbox_optimize(assets, area_a4(), st_box)
@@ -67,7 +67,7 @@ def test_silueta_respeta_el_poligono():
     """La SILUETA (no su caja) debe quedar dentro del área recortable."""
     circle = _circle(60)
     assets = [{"id": "c", "name": "c.png", "w_mm": 60, "h_mm": 60,
-               "copies": 4, "mini_enabled": False, "mini_pct": 50}]
+               "copies": 4, "mini_enabled": False, "mini_quota": 1.0}]
     area = area_a4()
     res = sil_pack(assets, {"c": circle}, area, SET)
     assert len(res.placements) == 4
@@ -93,7 +93,7 @@ def test_silueta_gira_para_encajar():
     # imagen 120x30 (grande, alargada)
     img = Image.new("RGBA", (1200, 300), (200, 60, 90, 255))
     assets = [{"id": "r", "name": "r.png", "w_mm": 120, "h_mm": 30,
-               "copies": 1, "mini_enabled": False, "mini_pct": 50}]
+               "copies": 1, "mini_enabled": False, "mini_quota": 1.0}]
     res = sil_pack(assets, {"r": img}, area_a4(), SET)
     assert len(res.placements) == 1
     # en A4 vertical el ancho útil es 183 mm: 120 cabe, pero con la 2ª copia
@@ -134,7 +134,7 @@ def test_espaciado_entre_siluetas():
     for sp in (1.0, 2.0, 4.0):
         st = dict(SET, espacio_mm=sp)
         assets = [{"id": "c", "name": "c", "w_mm": 40, "h_mm": 40,
-                   "copies": 6, "mini_enabled": False, "mini_pct": 50}]
+                   "copies": 6, "mini_enabled": False, "mini_quota": 1.0}]
         res = sil_pack(assets, {"c": circle}, area, st)
         pls = res.placements
         peor = 99.0
@@ -153,7 +153,7 @@ def test_espaciado_a_los_limites():
     area = area_a4()
     st = dict(SET, espacio_mm=4.0, margen_mm=1.0)
     assets = [{"id": "c", "name": "c", "w_mm": 40, "h_mm": 40,
-               "copies": 8, "mini_enabled": False, "mini_pct": 50}]
+               "copies": 8, "mini_enabled": False, "mini_quota": 1.0}]
     res = sil_pack(assets, {"c": circle}, area, st)
     # todos los centros de silueta deben estar dentro del polígono con margen
     for p in res.placements:
@@ -175,7 +175,7 @@ def test_fijado_se_respeta_y_resto_a_su_alrededor():
     from crycat.packer import Placement
     circle = _circle(50)
     assets = [{"id": "c", "name": "c", "w_mm": 50, "h_mm": 50, "copies": 4,
-               "mini_enabled": False, "mini_pct": 50}]
+               "mini_enabled": False, "mini_quota": 1.0}]
     area = area_a4()
     pinned = [Placement(uid="c#fijo", asset_id="c", page=0, x=30.0, y=40.0,
                         w=50.0, h=50.0, pinned=True)]
@@ -193,7 +193,7 @@ def test_silueta_sin_mascara_no_rompe_api():
     """Sin máscaras, el optimizador cae al empaquetado por caja."""
     from crycat.packer import optimize
     assets = [{"id": "a", "name": "a", "w_mm": 60, "h_mm": 40, "copies": 3,
-               "mini_enabled": False, "mini_pct": 50}]
+               "mini_enabled": False, "mini_quota": 1.0}]
     st = dict(SET, opt_metodo="silueta")
     res = optimize(assets, area_a4(), st, masks=None)
     assert len(res.placements) == 3
@@ -204,7 +204,7 @@ def test_silueta_respeta_tiempo_maximo():
     import time
     circle = _circle(35)
     assets = [{"id": "c", "name": "c", "w_mm": 35, "h_mm": 35, "copies": 300,
-               "mini_enabled": False, "mini_pct": 50}]
+               "mini_enabled": False, "mini_quota": 1.0}]
     st = dict(SET, opt_metodo="silueta", opt_tiempo_max_s=1.0)
     t0 = time.time()
     res = sil_pack(assets, {"c": circle}, area_a4(), st)
@@ -219,23 +219,26 @@ def test_minis_cuota_por_proporcion_y_tamanos_variados():
     tamaño); el optimizador elige tamaños variados que quepan en los huecos."""
     from collections import Counter
     a1 = {"id": "a", "name": "a", "w_mm": 40, "h_mm": 40, "copies": 1,
-          "mini_enabled": True, "mini_pct": 80}
+          "mini_enabled": True, "mini_quota": 3.0}
     a2 = {"id": "b", "name": "b", "w_mm": 40, "h_mm": 40, "copies": 1,
-          "mini_enabled": True, "mini_pct": 20}
+          "mini_enabled": True, "mini_quota": 1.0}
     st = dict(SET, usar_minis=True, mini_min_mm=5.0, mini_max_rescale=100.0,
               mini_tamanos="grandes", mini_rotacion="90")
     res = sil_pack([a1, a2], {"a": _circle(40), "b": _square(40)}, area_a4(), st)
     c = Counter(p.asset_id for p in res.placements if p.mini)
-    assert c.get("a", 0) > c.get("b", 0), "80% debe recibir más minis que 20%"
+    assert c.get("b", 0) >= 1, "el de cuota 1 también recibe minis"
+    assert c.get("a", 0) > c.get("b", 0), "3 debe recibir más que 1"
+    assert c.get("a", 0) <= 4 * c.get("b", 0), f"reparto: {dict(c)}"
     escalas = {round(p.scale, 3) for p in res.placements if p.mini}
-    assert len(escalas) > 1, "los minis deben poder tener tamaños distintos"
+    assert len(escalas) > 1, "el optimizador elige tamaños distintos"
+    assert all(p.scale <= 0.99 + 1e-6 for p in res.placements if p.mini)
 
 
 def test_minis_usan_lista_de_tamanos():
     """Con la lista activada, los minis usan sólo esos tamaños (o menores)."""
     circle = _circle(40)
     assets = [{"id": "c", "name": "c", "w_mm": 40, "h_mm": 40, "copies": 3,
-               "mini_enabled": True, "mini_pct": 50}]
+               "mini_enabled": True, "mini_quota": 1.0}]
     st = dict(SET, usar_minis=True, mini_min_mm=5.0, mini_max_rescale=100.0,
               mini_tamanos="grandes", mini_rotacion="90",
               mini_usar_lista=True, mini_tamanos_lista=[50.0, 25.0])
@@ -244,7 +247,7 @@ def test_minis_usan_lista_de_tamanos():
     assert minis, "deben colocarse minis"
     for m in minis:
         assert round(m.scale, 3) in (0.5, 0.25), m.scale
-    # con la lista desactivada los tamaños pueden variar
+    # con la lista desactivada el optimizador puede usar otros tamaños
     st2 = dict(st, mini_usar_lista=False)
     res2 = sil_pack(assets, {"c": circle}, area_a4(), st2)
     assert {round(p.scale, 3) for p in res2.placements if p.mini} - {0.5, 0.25}
@@ -253,7 +256,7 @@ def test_minis_usan_lista_de_tamanos():
 def test_silueta_minis_rellenan():
     circulos = {"c": _circle(50)}
     assets = [{"id": "c", "name": "c.png", "w_mm": 50, "h_mm": 50,
-               "copies": 4, "mini_enabled": True, "mini_pct": 50}]
+               "copies": 4, "mini_enabled": True, "mini_quota": 1.0}]
     st = dict(SET, usar_minis=True, mini_min_mm=5.0, mini_max_rescale=100.0,
               mini_tamanos="iguales", mini_rotacion="90")
     res = sil_pack(assets, circulos, area_a4(), st)
@@ -263,4 +266,4 @@ def test_silueta_minis_rellenan():
     assert minis, "deberían rellenarse huecos con minis"
     for m in minis:
         assert min(m.w, m.h) >= 5.0 - 1e-6
-        assert m.scale <= 1.0 + 1e-6
+        assert m.scale <= 0.99 + 1e-6   # siempre menor que el original

@@ -7,7 +7,7 @@ import type { AppSettings } from "../api";
 const settings: AppSettings = {
   espacio_mm: 2, margen_mm: 1, rotacion: "no", dpi_salida: 300, pagina: "A4",
   pagina_w: 297, pagina_h: 210, maquina: "estandar", usar_minis: false,
-  mini_min_mm: 5, mini_max_rescale: 1000, mini_rotacion: "no",
+  mini_min_mm: 5, mini_max_rescale: 100, mini_rotacion: "no",
   mini_tamanos: "grandes", opt_metodo: "auto", opt_tiempo_max_s: 8, mini_usar_lista: false, mini_tamanos_lista: [50], auto_recalcular: true, corte_velocidad_mm_s: 50, corte_viaje_mm_s: 120, corte_extra_forma_s: 0.4, corte_factor: 1, pikmin_activo: true, pikmin_frecuencia_min: 1, pikmin_sonido: true, pikmin_sonido_morir: true, volumen: 0.5, mute: false, offset_activo: false, offset_mm: 2, offset_modo: "extender", offset_color: "#ffffff",
   color_formato: "rgba", chequear_lineas: true, carpeta_export: "",
   dpi_importacion: 300, lienzo: "recortable", tema: "wiwi",
@@ -55,7 +55,8 @@ describe("Panel de ajustes", () => {
     expect(screen.queryByTestId("set-mini_min_mm")).toBeNull();
     await u.click(screen.getByText("Minis"));
     expect(screen.getByTestId("set-mini_min_mm")).toHaveValue(5);
-    expect(screen.getByTestId("set-mini_max_rescale")).toHaveValue(1000);
+    // tope de tamaño del mini (% del original): siempre menor que 100
+    expect(screen.getByTestId("set-mini_max_rescale")).toHaveValue(100);
   });
 
   it("la sección imagen incluye carpeta de exportación persistente y líneas anómalas", async () => {

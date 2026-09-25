@@ -46,20 +46,21 @@ def a_mm(px: int) -> float:
     return geometry.px_to_mm(px, DPI)
 
 
-def assets_de(imgs, escalas, copias, minis, mini_pct=50.0):
+def assets_de(imgs, escalas, copias, minis, mini_quota=1.0):
     return [{
         "id": aid, "name": aid,
         "w_mm": a_mm(im.width) * escalas.get(aid, 100.0) / 100.0,
         "h_mm": a_mm(im.height) * escalas.get(aid, 100.0) / 100.0,
-        "copies": copias, "mini_enabled": minis, "mini_pct": mini_pct,
+        "copies": copias, "mini_enabled": minis, "mini_quota": mini_quota,
     } for aid, im in imgs.items()]
 
 
 def ajustes(minis=False, rapido=False):
     d = {
         "espacio_mm": 2.0, "margen_mm": 1.0, "rotacion": "90",
-        "usar_minis": minis, "mini_min_mm": 5.0, "mini_max_rescale": 100.0,
-        "mini_rotacion": "90", "mini_tamanos": "iguales",
+        "usar_minis": minis, "mini_min_mm": 5.0,
+        "mini_max_rescale": 100.0, "mini_rotacion": "90",
+        "mini_tamanos": "iguales",
         "opt_metodo": "silueta_rapido" if rapido else "silueta",
         # el harness no es la app: se da margen para resultados completos
         "opt_tiempo_max_s": 2.0 if rapido else 12.0,
