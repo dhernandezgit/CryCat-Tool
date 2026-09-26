@@ -213,8 +213,13 @@ export interface UiState {
   saveName: string;
 }
 
+/** En la versión web las rutas /api van bajo el directorio de la app para
+ *  que el service worker pueda interceptarlas (también en las imágenes).
+ *  Se lee al usarla: web.tsx fija el valor después de cargar este módulo. */
+const apiBase = () => (globalThis as { __crycatBase?: string }).__crycatBase || "";
+
 async function req<T>(url: string, opts?: RequestInit): Promise<T> {
-  const r = await fetch(url, opts);
+  const r = await fetch(apiBase() + url, opts);
   if (!r.ok) {
     let msg = `${r.status}`;
     try {
@@ -301,7 +306,7 @@ export const api = {
       desglose: { corte_s?: number; viaje_s?: number; extra_s?: number };
     }>("/api/estimate"),
   pageUrl: (i: number, v: number, sim = false) =>
-    `/api/pages/${i}.png?v=${v}${sim ? "&sim=1" : ""}`,
+    `${apiBase().replace(/\/$/, "")}/api/pages/${i}.png?v=${v}${sim ? "&sim=1" : ""}`,
   move: (uid: string, x: number, y: number) =>
     req<{ ok: boolean; placement: Placement; job: Job | null }>(
       `/api/placements/move`, {
@@ -348,7 +353,7 @@ export const api = {
     fd.append("file", file, "icono.png");
     return req<{ ok: boolean }>("/api/icon", { method: "POST", body: fd });
   },
-  iconUrl: () => `/api/icon.png?v=${Date.now()}`,
+  iconUrl: () => `${apiBase()}/api/icon.png?v=${Date.now()}`,
 
   // ---------------------------------------------------- perfiles --
   presets: () => req<{ names: string[] }>("/api/presets"),

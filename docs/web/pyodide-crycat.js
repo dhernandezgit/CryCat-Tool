@@ -20,8 +20,19 @@ export async function cargarCryCat(onEstado) {
     indexURL: "https://cdn.jsdelivr.net/pyodide/v0.26.2/full/",
   });
 
-  di("Cargando Pillow, NumPy y SciPy…");
-  await pyodide.loadPackage(["pillow", "numpy", "scipy"]);
+  di("Cargando Pillow, NumPy, SciPy, micropip y pydantic…");
+  // pydantic viene compilado en Pyodide (pydantic-core en WebAssembly): hay
+  // que cargarlo ANTES para que micropip no intente bajarlo de PyPI
+  // ssl: anyio (dependencia de starlette/fastapi) lo importa al cargar
+  await pyodide.loadPackage(["pillow", "numpy", "scipy", "micropip",
+                             "pydantic", "ssl"]);
+  // comprobar que micropip está de verdad (si no, cargarlo aparte)
+  const hayMicropip = await pyodide.runPythonAsync(
+    "import importlib.util as u\nbool(u.find_spec('micropip'))");
+  if (!hayMicropip) {
+    di("Instalando micropip…");
+    await pyodide.loadPackage("micropip");
+  }
 
   // OpenCV da la extracción de contornos EXACTA (la misma que el escritorio).
   // Si fallara (conexión lenta), se sigue con la máscara alfa: misma silueta,
@@ -34,16 +45,19 @@ export async function cargarCryCat(onEstado) {
   }
 
   di("Descargando el motor de CryCat (misma versión que la app)…");
-  const zip = await (await fetch(`${BASE}crycat.zip`)).arrayBuffer();
+  // sin caché: el motor cambia con cada versión y son solo ~270 KB
+  const zip = await (await fetch(`${BASE}crycat.zip`,
+                                 { cache: "no-cache" })).arrayBuffer();
   pyodide.FS.writeFile("/crycat.zip", new Uint8Array(zip));
 
   di("Preparando el motor…");
   await pyodide.runPythonAsync(`
 import zipfile, sys, os
-os.makedirs("/crycat", exist_ok=True)
+# el zip trae el paquete tal cual: crycat/… → se extrae a /motor
+os.makedirs("/motor", exist_ok=True)
 with zipfile.ZipFile("/crycat.zip") as z:
-    z.extractall("/crycat")
-sys.path.insert(0, "/crycat/backend")
+    z.extractall("/motor")
+sys.path.insert(0, "/motor")
 `);
   _py = pyodide;
   di("Motor listo");

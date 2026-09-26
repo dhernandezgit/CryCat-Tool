@@ -183,7 +183,15 @@ async def iniciar() -> str:
     global _app
     import micropip  # type: ignore
 
-    await micropip.install(["fastapi", "python-multipart"])
+    # Versiones compatibles con lo que trae Pyodide (pydantic 2.7 y
+    # typing-extensions 4.11): las más nuevas piden pydantic>=2.9 o
+    # typing-extensions>=4.16, que no tienen ruedas WebAssembly.
+    await micropip.install([
+        "fastapi==0.110.0",
+        "starlette==0.36.3",
+        "anyio==4.3.0",
+        "python-multipart==0.0.9",
+    ])
 
     import os
     from .config import settings
@@ -194,6 +202,16 @@ async def iniciar() -> str:
                   "carpeta_export": destino, "auto_recalcular": True})
     from .server import create_app
     _app = create_app()
+
+    # En el navegador no se pueden crear hilos: Starlette/FastAPI mandan los
+    # endpoints síncronos a un hilo del pool, así que se ejecutan en línea.
+    import anyio.to_thread
+
+    async def _en_linea(func, *args, **kwargs):
+        return func(*args, **kwargs)
+
+    anyio.to_thread.run_sync = _en_linea
+
     from . import __version__
     return json.dumps({"ok": True, "version": __version__, "web": True})
 

@@ -17,8 +17,6 @@ import sys
 import tempfile
 import threading
 import time
-import urllib.error
-import urllib.request
 from pathlib import Path
 
 from . import __version__
@@ -85,6 +83,7 @@ def _asset_para(assets: list) -> dict | None:
 
 
 def _get_json(url: str, timeout: float) -> dict:
+    import urllib.request
     req = urllib.request.Request(url, headers={
         "User-Agent": USER_AGENT,
         "Accept": "application/vnd.github+json",
@@ -117,14 +116,14 @@ def comprobar(timeout: float = 5.0, force: bool = False) -> dict:
                 asset_size=(asset or {}).get("size"),
                 asset_name=(asset or {}).get("name"),
             )
-    except urllib.error.HTTPError as e:
+    except Exception as e:
+        # sin importar urllib arriba: en el navegador no siempre está
+        codigo = getattr(e, "code", None)
         with _lock:
-            _estado.update(comprobado=time.time(), hay_nueva=False,
-                           error=None if e.code == 404 else f"HTTP {e.code}")
-    except Exception:
-        with _lock:
-            _estado.update(comprobado=time.time(), hay_nueva=False,
-                           error=tr("sin conexión"))
+            _estado.update(
+                comprobado=time.time(), hay_nueva=False,
+                error=(None if codigo == 404 else
+                       (f"HTTP {codigo}" if codigo else tr("sin conexión"))))
     return estado()
 
 
@@ -153,6 +152,7 @@ def _progreso(estado_txt: str, progreso: float | None = None,
 
 
 def _descargar(url: str, destino: Path, tam_esperado: int | None) -> None:
+    import urllib.request
     req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
     with urllib.request.urlopen(req, timeout=30) as r, open(destino, "wb") as f:
         total = tam_esperado or int(r.headers.get("Content-Length") or 0)

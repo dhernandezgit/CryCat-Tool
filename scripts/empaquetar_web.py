@@ -16,8 +16,8 @@ RAIZ = pathlib.Path(__file__).resolve().parents[1]
 BACKEND = RAIZ / "backend" / "crycat"
 DESTINO = RAIZ / "docs" / "web" / "crycat.zip"
 
-# módulos que no tienen sentido (ni dependencias) en el navegador
-EXCLUIR = {"server.py", "version.py", "webapi.py", "__main__.py"}
+# solo se excluye el arranque de terminal (uvicorn no va en el navegador)
+EXCLUIR = {"__main__.py"}
 
 
 def main() -> int:

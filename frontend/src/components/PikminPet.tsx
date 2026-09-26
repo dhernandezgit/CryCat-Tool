@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { assetUrl } from "../recursos";
 
 export interface PikminConfig {
   activo: boolean;
@@ -59,12 +60,14 @@ export function usePikminFuentes(extra?: string[]): string[] {
           const j = Math.floor(Math.random() * (i + 1));
           [c[i], c[j]] = [c[j], c[i]];
         }
-        setBloom(c.slice(0, 60).map((n) => BLOOM_DIR + n));
+        setBloom(c.slice(0, 60).map((n) => assetUrl(BLOOM_DIR + n)));
       })
       .catch(() => undefined);
   }, []);
   return useMemo(
-    () => (extra && extra.length ? [...extra, ...bloom] : [...BASE_IMGS, ...bloom]),
+    () => (extra && extra.length
+      ? [...extra, ...bloom].map(assetUrl)
+      : [...BASE_IMGS, ...bloom].map(assetUrl)),
     [extra, bloom]
   );
 }
@@ -103,7 +106,7 @@ export default function PikminPet({
   const suena = (morir: boolean) => {
     if (!sonido || mute) return;
     try {
-      const a = new Audio(morir ? SONIDO_MORIR : SONIDO);
+      const a = new Audio(assetUrl(morir ? SONIDO_MORIR : SONIDO));
       a.volume = Math.min(1, Math.max(0, volumen));
       void a.play().catch(() => undefined);
     } catch {
@@ -114,8 +117,8 @@ export default function PikminPet({
   const soltar = () => {
     const muere = sonidoMorir && Math.random() < 0.25;
     const src = muere
-      ? ALMA
-      : catalogo[Math.floor(Math.random() * catalogo.length)] ?? ALMA;
+      ? assetUrl(ALMA)
+      : catalogo[Math.floor(Math.random() * catalogo.length)] ?? assetUrl(ALMA);
     setPets((ps) => [...ps, {
       src, left: 3 + Math.random() * 92, key: Date.now() + ps.length,
       morir: muere, estado: "paseando",

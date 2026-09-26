@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api, type Job, type Result, type VersionInfo } from "../api";
+import { assetUrl } from "../recursos";
 import { useIdioma, useT } from "../i18n";
 import { IconoMute, IconoVolumen, IconoInfo, IconoAlerta,
          IconoCheck, IconoDescargar, IconoComprobar, IconoAyuda,
@@ -210,7 +211,7 @@ export default function StatusBar({ job, backendOk, result, estimate,
             <img
               className="piensa"
               data-testid="piensa"
-              src="/piensa.gif"
+              src={assetUrl("/piensa.gif")}
               alt=""
               title={t("Pensando…")}
               onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
