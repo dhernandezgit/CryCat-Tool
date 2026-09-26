@@ -39,11 +39,6 @@ def main() -> int:
                 continue
             z.write(f, rel)
             n += 1
-        # el puente, siempre incluido
-        puente = BACKEND / "webapi.py"
-        if puente.exists():
-            z.write(puente, "crycat/webapi.py")
-            n += 1
         # recursos que usa el backend: marcas de Cricut e icono
         for extra in sorted((BACKEND / "web" / "marcas").glob("*.png")):
             z.write(extra, f"crycat/web/marcas/{extra.name}")
