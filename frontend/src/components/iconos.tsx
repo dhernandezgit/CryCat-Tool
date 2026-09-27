@@ -129,6 +129,18 @@ export function IconoFosforito({ size }: P) {
   );
 }
 
+export function IconoTijeras({ size }: P) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"
+      strokeLinejoin="round" aria-hidden="true">
+      <circle cx="6" cy="6" r="2.6" />
+      <circle cx="6" cy="18" r="2.6" />
+      <path d="M8.4 7.6L20 18M8.4 16.4L20 6" />
+    </svg>
+  );
+}
+
 export function IconoDisposicion({ size }: P) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none"

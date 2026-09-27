@@ -7,8 +7,8 @@ import FolderPicker from "./FolderPicker";
 import AccionesRapidas from "./AccionesRapidas";
 import Toggle from "./Toggle";
 import { IconoAjustar, IconoMini, IconoRecalcular, IconoFondo, IconoBordes,
-         IconoGuias, IconoGuardar, IconoImprimir, IconoRotar,
-         IconoVolumen } from "./iconos";
+         IconoGuias, IconoGuardar, IconoImprimir, IconoRotar, IconoTijeras,
+         IconoDeshacer, IconoVolumen } from "./iconos";
 
 interface Props {
   settings: AppSettings;
@@ -515,7 +515,9 @@ export default function SettingsPanel({ settings, saveSettings,
       </Section>}
 
       {/* -------- Estimación de corte -------- */}
-      {experto && <Section id="corte" title={t("Estimación de corte")} open={open.corte} toggle={toggle}>
+      {experto && <Section id="corte" title={t("Estimación de corte")}
+               open={open.corte} toggle={toggle}
+               icon={<IconoTijeras size={15} />}>
         <div className="hint">
           {destacar(
             t("Tiempo estimado de corte de la {maquina}, calculado a partir " +
@@ -536,7 +538,8 @@ export default function SettingsPanel({ settings, saveSettings,
 
       {/* -------- Historial -------- */}
       {experto && <Section id="historial" title={t("Historial (deshacer/rehacer)")}
-               open={open.historial} toggle={toggle}>
+               open={open.historial} toggle={toggle}
+               icon={<IconoDeshacer size={15} />}>
         <div className="hint">
           {t("Guarda los cambios en tu equipo para poder deshacer y rehacer (Ctrl+Z / Ctrl+Y). Elige qué se guarda.")}
         </div>

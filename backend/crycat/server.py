@@ -313,11 +313,7 @@ def create_app(store: Session = session) -> FastAPI:
             # (salvo UN ejemplo: 0 normales y todos los minis que quepan)
             a.copies = random.choice([1, 1, 2, 2, 3, 4])
             a.mini_enabled = False
-            if k == 0:
-                a.copies = 0                 # 0 normales: solo minis
-                a.mini_enabled = True
-                a.mini_quota = 2.0
-            elif k == 1:
+            if k == 1:
                 a.scale_pct = 55.0           # un ejemplo bien pequeño
             _avisar_blobs(a)
             store.add(a)

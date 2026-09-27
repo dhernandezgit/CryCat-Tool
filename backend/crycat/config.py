@@ -14,7 +14,7 @@ APP_NAME = "CryCat"
 APP_W = 210.0
 APP_H = 297.0
 
-CONFIG_VERSION = 25  # subir para migrar configuraciones antiguas
+CONFIG_VERSION = 26  # subir para migrar configuraciones antiguas
 
 # Tiempo máximo RECOMENDADO por método (segundos). El usuario puede
 # desactivar el automático y fijar su propio presupuesto.
@@ -83,7 +83,7 @@ DEFAULTS: dict = {
     "pagina_w": APP_W,           # mm (A4 vertical)
     "pagina_h": APP_H,
     "maquina": "maker3",         # maker3 | maker | maker5 | estandar | joy
-    "usar_minis": True,        # activado: solo genera minis de los elementos marcados
+    "usar_minis": False,       # desactivado por defecto (se activa en la barra)
     # Minis
     "mini_min_mm": 10.0,
     "mini_max_rescale": 70.0,    # tamaño máximo del mini (% del original)
@@ -165,7 +165,11 @@ class Settings:
                 if CONFIG_FILE.exists():
                     saved = json.loads(CONFIG_FILE.read_text("utf-8"))
                     if saved.get("_v") != CONFIG_VERSION:
-                        if saved.get("_v") == 24:
+                        if saved.get("_v") == 25:
+                            # los minis pasan a estar desactivados por defecto
+                            saved["usar_minis"] = False
+                            saved["_v"] = CONFIG_VERSION
+                        elif saved.get("_v") == 24:
                             # nuevos valores de minis: lista en mm por defecto
                             saved.update({"mini_min_mm": 10.0,
                                           "mini_max_rescale": 70.0,
