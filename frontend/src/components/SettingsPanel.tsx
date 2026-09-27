@@ -248,25 +248,6 @@ export default function SettingsPanel({ settings, saveSettings,
           ["estandar", "Explore / Joy Xtra / Venture"],
           ["joy", "Cricut Joy 2"],
         ])}
-        <div className="ctl">
-          <label className="row">
-            <input type="checkbox" data-testid="set-usar-minis"
-              checked={settings.usar_minis}
-              onChange={(e) => set({ usar_minis: e.target.checked })} />
-            {t("Usar minis (rellenar huecos con copias pequeñas)")}
-          </label>
-        </div>
-        <div className="ctl">
-          <label className="row">
-            <input type="checkbox" data-testid="set-auto-recalcular"
-              checked={settings.auto_recalcular !== false}
-              onChange={(e) => set({ auto_recalcular: e.target.checked })} />
-            {t("Recalcular automáticamente con cada cambio")}
-          </label>
-          <div className="hint">
-            {t("Si lo desactivas, solo se recolocará al pulsar «Recalcular».")}
-          </div>
-        </div>
         </Grupo>
       </Section>
 

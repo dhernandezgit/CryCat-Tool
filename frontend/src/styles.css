@@ -371,6 +371,18 @@ input::placeholder { color: #cbbfc8; opacity: 1; font-style: italic; }
   border: 2px solid var(--border);
 }
 .stat-card b { font-size: 14px; color: var(--accent2); line-height: 1.1; }
+.stat-card.eficiencia {
+  min-width: 74px; margin-left: 10px; padding: 4px 12px;
+  border-width: 3px;
+}
+.stat-card.eficiencia b { font-size: 20px; }
+.stat-card.eficiencia span { font-size: 10px; }
+.stat-card.eficiencia.buena { border-color: #3fae72; background: #eafaf0; }
+.stat-card.eficiencia.buena b { color: #2c8a58; }
+.stat-card.eficiencia.normal { border-color: #e0a52e; background: #fff8e8; }
+.stat-card.eficiencia.normal b { color: #b57f14; }
+.stat-card.eficiencia.baja { border-color: #d9425f; background: #fdeef1; }
+.stat-card.eficiencia.baja b { color: #c02a47; }
 .stat-card span {
   font-size: 9px; font-weight: 700; letter-spacing: .04em;
   text-transform: uppercase; color: var(--textSoft);

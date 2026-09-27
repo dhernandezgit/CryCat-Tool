@@ -163,6 +163,8 @@ export const EN: Record<string, string> = {
   "página": "page",
   "páginas": "pages",
   "eficiencia": "efficiency",
+  ["Eficiencia real (siluetas / área útil). Con estas formas y {n} piezas, lo esperable es ~{e}%."]:
+    "Real efficiency (silhouettes / useful area). With these shapes and {n} pieces, ~{e}% is to be expected.",
   "minis": "minis",
   "Imágenes colocadas en las hojas": "Images placed on the sheets",
   "Páginas que ocupa el trabajo": "Pages the job takes",

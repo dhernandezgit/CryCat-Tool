@@ -67,6 +67,7 @@ class PackResult:
     placements: list[Placement] = field(default_factory=list)
     pages: int = 0
     efficiency: float = 0.0
+    densidad: float = 0.75      # densidad media de las siluetas (complejidad)
     method: str = ""
     elapsed_s: float = 0.0
     unplaced: list[str] = field(default_factory=list)
@@ -455,6 +456,9 @@ def _run_pack(assets: list[dict], area: CutArea, settings: dict,
     else:
         item_area = sum(p.w * p.h for p in result.placements)
     result.efficiency = item_area / used if used > 0 else 0.0
+    if fracs and result.placements:
+        vals = [fracs.get(p.asset_id, 1.0) for p in result.placements]
+        result.densidad = min(1.0, max(0.05, sum(vals) / len(vals)))
     if result.unplaced:
         result.warnings.append(
             tr("{n} copias no caben en el área recortable",
@@ -473,21 +477,17 @@ def optimize(assets: list[dict], area: CutArea, settings: dict,
     progress(frac 0..1, pages) para la barra de estado.
     """
     t0 = time.time()
-    method = settings.get("opt_metodo", "silueta")
+    method = str(settings.get("opt_metodo", "greedy")).lower()
     margen = max(0.0, float(settings.get("margen_mm", 0.0)))
     if margen > 0:
         from .geometry import inset_area
         area = inset_area(area, margen)
 
-    # SIEMPRE y SOLO por SILUETA REAL (la parte opaca) cuando hay máscaras.
-    # Sin respaldo por cajas: si la silueta falla, se avisa en vez de colocar
-    # con la caja (la caja falsearía el hueco y la eficiencia).
-    if masks:
-        from .silhouette import pack as sil_pack
-        return sil_pack(assets, masks, area, settings, pinned, progress)
-    # sin máscaras (p. ej. tests internos) se usa el empaquetador por cajas
+    # Estrategia: se prueba primero el empaquetado por CAJAS, que es
+    # instantáneo. Si el trabajo es HOLGADO (cabe todo en una hoja), ese
+    # resultado vale y ya está. En cuanto NO quepa, se pasa al método de
+    # SILUETAS, que es el normal: usa la forma real y coloca de verdad.
     fallback_silueta = False
-    # solo se necesita al colocar por cajas (para medir siluetas de verdad)
     fracs = sil_fracs(masks) if masks else None
 
     pinned = [p for p in (pinned or []) if p.pinned]
@@ -497,7 +497,6 @@ def optimize(assets: list[dict], area: CutArea, settings: dict,
     normals, _ = _expand_items(assets, settings)
 
     if method == "maxrects":
-        # las tres heurísticas MaxRects (baratas y complementarias)
         variants = [(o, h) for o in ("area", "alto") for h in ("bssf", "baf", "bl")]
     elif method == "skyline":
         variants = [("area", "bl")]
@@ -532,7 +531,8 @@ def optimize(assets: list[dict], area: CutArea, settings: dict,
         if progress:
             progress(min(0.99, i / (i + 2)), best.pages)
         # mientras la hoja no esté llenísima, basta con un resultado rápido
-        if (method == "auto" and not best.unplaced and best.efficiency < 0.80):
+        if (method == "auto" and not best.unplaced
+                and best.efficiency < 0.80):
             break
         if method != "auto":
             if i >= len(variants):
@@ -540,9 +540,13 @@ def optimize(assets: list[dict], area: CutArea, settings: dict,
         elif time.time() > deadline or i >= 120:
             break
     assert best is not None
-    if fallback_silueta:
-        best.warnings.append(
-            tr("no se pudo usar la silueta; se colocó por cajas"))
+    # ¿ha quedado holgado por cajas? Entonces vale (rápido y sin solapes).
+    # Si NO cabe (hay copias fuera o hace falta más de una hoja), se resuelve
+    # con el método de SILUETAS, que es la funcionalidad normal.
+    if masks and (best.unplaced or best.pages > 1):
+        # el intento por cajas no basta: el método de verdad decide
+        from .silhouette import pack as sil_pack
+        return sil_pack(assets, masks, area, settings, pinned, progress)
     best.elapsed_s = time.time() - t0
     return best
 

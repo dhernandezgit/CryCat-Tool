@@ -183,7 +183,7 @@ def contornos_bordes(canvas: Image.Image, placements: list[Placement],
                      area: CutArea, dpi: float,
                      color_final: tuple[int, int, int] = (226, 18, 94),
                      color_sin: tuple[int, int, int] = (0, 148, 211),
-                     grosor_px: int = 3,
+                     grosor_px: int = 8,
                      ) -> Image.Image:
     """Vista de comprobación: contorno REAL de cada pieza.
 

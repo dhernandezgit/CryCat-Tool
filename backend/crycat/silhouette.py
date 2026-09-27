@@ -762,6 +762,11 @@ def _one_pass(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
     used = page_area * max(1, len(ctx.pages))
     sil_area = ctx.mask_cells * ctx.cell * ctx.cell
     result.efficiency = min(1.0, sil_area / used) if used > 0 else 0.0
+    # densidad media de las siluetas colocadas (1 = lleno, 0.5 = formas finas):
+    # sirve para juzgar la eficiencia según la complejidad de las piezas
+    if ctx.placements and ctx.mask_cells:
+        area_caja = sum(p.w * p.h for p in ctx.placements) or 1.0
+        result.densidad = min(1.0, max(0.05, sil_area / area_caja))
     if unplaced:
         result.warnings.append(
             tr("{n} copias no caben en el área recortable", n=len(unplaced)))
@@ -882,7 +887,7 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
     # La PRIMERA pasada completa SIEMPRE (colocar es barato): el presupuesto
     # solo limita la búsqueda de una colocación MEJOR, nunca deja piezas sin
     # colocar por tiempo. Así el resultado siempre es válido y completo.
-    deadline_1 = None
+    deadline_1 = deadline
 
     # cachés compartidas por TODAS las pasadas (máscaras, correlaciones y
     # rejilla de área): es la mayor ganancia de velocidad sin tocar nada más
@@ -899,9 +904,8 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
     semilla["opt_calidad"] = "rapida"
     if str(settings.get("rotacion", "90")) != "no":
         semilla["rotacion"] = "90"
-    t_seed = min(deadline, t0 + max(1.0, t_max * 0.35))
     best = _one_pass(assets, masks, area, semilla, pinned, "area", rnd,
-                     progress, (0.02, 0.15), deadline=t_seed, contacto=False,
+                     progress, (0.02, 0.15), deadline=None, contacto=False,
                      **extra)
 
     if metodo == "largest":

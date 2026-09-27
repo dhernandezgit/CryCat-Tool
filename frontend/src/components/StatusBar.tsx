@@ -194,24 +194,39 @@ export default function StatusBar({ job, backendOk, result, estimate,
         <span className="nombre">CryCat</span>
       </div>
       <div className="center" data-testid="status-center">
-        {result && result.pages > 0 && !running && (
-          <div className="stat-cards" data-testid="stat-cards">
-            <div className="stat-card" data-tip={t("Imágenes colocadas en las hojas")}>
-              <b>{result.placed}</b><span>{t("imágenes")}</span>
+        {result && result.pages > 0 && !running && (() => {
+          // La eficiencia se juzga según la COMPLEJIDAD de las piezas: con
+          // formas finas (densidad baja) o muchas piezas es normal aprovechar
+          // menos; con formas macizas se exige más.
+          const d = Math.min(1, Math.max(0.05, result.densidad ?? 0.75));
+          const piezas = result.placed || 1;
+          const esperado = Math.min(80, Math.max(30,
+            48 + 22 * d - Math.min(18, piezas * 0.08)));
+          const ef = result.efficiency * 100;
+          const nivel = ef >= esperado ? "buena"
+            : ef >= esperado * 0.72 ? "normal" : "baja";
+          return (
+            <div className="stat-cards" data-testid="stat-cards">
+              <div className="stat-card" data-tip={t("Imágenes colocadas en las hojas")}>
+                <b>{result.placed}</b><span>{t("imágenes")}</span>
+              </div>
+              <div className="stat-card" data-tip={t("Páginas que ocupa el trabajo")}>
+                <b>{result.pages}</b>
+                <span>{result.pages > 1 ? t("páginas") : t("página")}</span>
+              </div>
+              <div className="stat-card" data-tip={t("Copias pequeñas extra que rellenan huecos")}>
+                <b>{result.minis}</b><span>{t("minis")}</span>
+              </div>
+              <div className={`stat-card eficiencia ${nivel}`}
+                   data-testid="eficiencia-card"
+                   data-nivel={nivel}
+                   data-tip={t("Eficiencia real (siluetas / área útil). Con estas formas y {n} piezas, lo esperable es ~{e}%.", { n: piezas, e: Math.round(esperado) })}>
+                <b>{Math.round(ef)}%</b>
+                <span>{t("eficiencia")}</span>
+              </div>
             </div>
-            <div className="stat-card" data-tip={t("Páginas que ocupa el trabajo")}>
-              <b>{result.pages}</b>
-              <span>{result.pages > 1 ? t("páginas") : t("página")}</span>
-            </div>
-            <div className="stat-card" data-tip={t("Eficiencia real: superficie de las siluetas sobre el área ÚTIL de la hoja (contando los límites)")}>
-              <b>{Math.round(result.efficiency * 100)}%</b>
-              <span>{t("eficiencia")}</span>
-            </div>
-            <div className="stat-card" data-tip={t("Copias pequeñas extra que rellenan huecos")}>
-              <b>{result.minis}</b><span>{t("minis")}</span>
-            </div>
-          </div>
-        )}
+          );
+        })()}
         {!(result && result.pages > 0 && !running) && (
           <span className="msg">{message}</span>
         )}

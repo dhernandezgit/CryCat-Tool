@@ -42,6 +42,7 @@ export interface Result {
   pages: number;
   placements: Placement[];
   efficiency: number;
+  densidad?: number;         // densidad media de las siluetas (complejidad)
   bbox_mm: [number, number];
   bbox_offset_mm: [number, number];
   poly_mm: [number, number][];

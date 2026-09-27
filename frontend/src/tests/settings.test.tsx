@@ -40,7 +40,9 @@ describe("Panel de ajustes", () => {
     expect(screen.getByTestId("set-espacio_mm")).toHaveValue(2);
     expect(screen.getByTestId("set-rotacion")).toHaveValue("no");
     expect(screen.getByTestId("set-dpi_salida")).toHaveValue(300);
-    expect(screen.getByTestId("set-usar-minis")).not.toBeChecked();
+    // minis y recalcular ya no son sliders de General: están arriba como chips
+    expect(screen.queryByTestId("set-usar-minis")).toBeNull();
+    expect(screen.getByTestId("chip-minis")).toBeInTheDocument();
   });
 
   it("los créditos del autor aparecen siempre visibles", () => {
@@ -190,9 +192,9 @@ describe("Panel de ajustes", () => {
     expect(screen.getByTestId("set-corte_factor")).toHaveValue(1);
   });
 
-  it("incluye la opción de recálculo automático (activada por defecto)", () => {
+  it("el recálculo automático está arriba como chip (activado por defecto)", () => {
     render(<SettingsPanel settings={settings} saveSettings={saveSettings} />);
-    expect(screen.getByTestId("set-auto-recalcular")).toBeChecked();
+    expect(screen.getByTestId("chip-auto")).toHaveClass("on");
   });
 
   it("la sección Historial permite elegir qué se guarda", async () => {

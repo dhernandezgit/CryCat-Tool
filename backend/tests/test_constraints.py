@@ -65,7 +65,7 @@ def _poligono_mask(area, H: int, W: int, x0: float, y0: float) -> np.ndarray:
 def _una_pagina(area, pagina, masks, assets_por_id, spacing):
     """(fuera, solape, pintado) de una página, reconstruido desde cero."""
     bx, by, bw, bh = area.bbox
-    margen = 6.0
+    margen = 24.0
     x0, y0 = bx - margen, by - margen
     W = int(round((bw + 2 * margen) / CELL)) + 4
     H = int(round((bh + 2 * margen) / CELL)) + 4
@@ -226,3 +226,44 @@ def test_sin_espacio_no_se_tocan():
                "copies": 20, "mini_enabled": False}]
     _caso(assets, {"c": circ}, dict(BASE, espacio_mm=0.0, margen_mm=0.0),
           solape_activo=False)
+
+
+def _caso_cajas(assets, masks, settings, page=(210.0, 297.0),
+                machine="maker3", paper="A4"):
+    """Igual que _caso pero con el método SEGURO por cajas (el de defecto)."""
+    from crycat.packer import optimize
+    area = cut_area(page[0], page[1], machine, paper)
+    res = optimize(assets, area, settings, masks=masks)
+    _comprobar(res, area, masks, assets,
+               float(settings.get("espacio_mm", 0.0)),
+               float(settings.get("margen_mm", 0.0)))
+    return res
+
+
+def test_metodo_segura_limites_solapes_y_espacio():
+    """El método por cajas (por defecto): rápido, sin solapes y sin salirse."""
+    circ = trim(_circulo(300))
+    est = trim(_estrella(360))
+    assets = [
+        {"id": "c", "name": "c", "w_mm": 25.4, "h_mm": 25.4,
+         "copies": 18, "mini_enabled": True, "mini_quota": 2.0},
+        {"id": "e", "name": "e", "w_mm": 30.5, "h_mm": 30.5,
+         "copies": 10, "mini_enabled": False},
+    ]
+    masks = {"c": circ, "e": est}
+    st = dict(BASE, opt_metodo="segura", usar_minis=True, mini_min_mm=10.0,
+              mini_max_rescale=70.0, mini_lista_modo="mm",
+              mini_tamanos_lista=[20.0], mini_usar_lista=True)
+    _caso_cajas(assets, masks, st)
+
+
+def test_metodo_segura_rotacion_libre_y_a3():
+    """Con ángulos libres y en A3 el método por cajas sigue siendo seguro."""
+    est = trim(_estrella(360))
+    assets = [{"id": "e", "name": "e", "w_mm": 30.5, "h_mm": 30.5,
+               "copies": 12, "mini_enabled": False}]
+    _caso_cajas(assets, {"e": est},
+                dict(BASE, opt_metodo="segura", rotacion="libre"))
+    _caso_cajas(assets, {"e": est},
+                dict(BASE, opt_metodo="segura"), page=(297.0, 420.0),
+                paper="A3")

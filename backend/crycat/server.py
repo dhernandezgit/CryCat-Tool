@@ -573,6 +573,17 @@ def create_app(store: Session = session) -> FastAPI:
                          float(payload.get("x", 0)), float(payload.get("y", 0)),
                          area, float(settings.get("espacio_mm", 2.0)))
         if p is None:
+            # si no se mueve de sitio (mismo punto), se acepta igualmente: fija
+            # la pieza y se reoptimiza el resto (nunca un 409 por no moverse)
+            actual = next((q for q in store.last.placements
+                           if q.uid == payload.get("uid", "")), None)
+            if actual is not None:
+                dx = abs(float(payload.get("x", 0)) - actual.x)
+                dy = abs(float(payload.get("y", 0)) - actual.y)
+                if dx < 0.05 and dy < 0.05:
+                    actual.pinned = True
+                    p = actual
+        if p is None:
             raise HTTPException(409, tr("posición no válida"))
         store.save()
         # al fijar un elemento, se reoptimiza el resto a su alrededor
@@ -615,6 +626,7 @@ def create_app(store: Session = session) -> FastAPI:
             "pages": r.pages,
             "placements": [_pl_dict(p) for p in r.placements],
             "efficiency": r.efficiency,
+            "densidad": getattr(r, "densidad", 0.75),
             "bbox_mm": [bw, bh],
             "bbox_offset_mm": [bx, by],
             "poly_mm": [[round(x, 3), round(y, 3)] for x, y in area.poly],
