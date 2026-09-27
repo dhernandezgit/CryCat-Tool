@@ -72,17 +72,30 @@ STEP_H_INNER = 0.028   # primer escalón (arriba/abajo) respecto al alto
 STEP_H_OUTER = 0.088   # segundo escalón respecto al alto
 
 # Perfiles de máquina (máximos de A4 en mm); None = usa los estándar.
+# Toda la serie Maker (Maker, Maker 3, Maker 5) comparte el mismo patrón de
+# área recortable y de marcas: solo cambia el nombre.
 MACHINE_A4_OVERRIDE: dict[str, tuple[float, float] | None] = {
+    "maker3": None,            # Cricut Maker 3 (por defecto)
+    "maker": None,             # Cricut Maker (original)
+    "maker5": None,            # Cricut Maker 5 (serie Maker)
     "estandar": None,          # Joy Xtra / Explore / Venture
-    "maker5": None,            # Cricut Maker 5 = serie Maker (mismos números)
     "joy": (78.0, 269.8),      # Cricut Joy 2: máx horizontal 3.07 in
 }
 
 MACHINE_LABELS: dict[str, str] = {
+    "maker3": "Cricut Maker 3",
+    "maker": "Cricut Maker",
     "maker5": "Cricut Maker 5",
     "estandar": "Explore / Joy Xtra / Venture (estándar)",
     "joy": "Cricut Joy 2",
 }
+
+MAQUINA_POR_DEFECTO = "maker3"
+
+
+def machine_label(m: str | None) -> str:
+    """Nombre visible de la máquina (Maker 3 si no se reconoce)."""
+    return MACHINE_LABELS.get(str(m or ""), MACHINE_LABELS[MAQUINA_POR_DEFECTO])
 
 
 @dataclass(frozen=True)

@@ -47,7 +47,7 @@ def area_recortable(payload: str) -> str:
     from . import geometry
     datos = json.loads(payload)
     area = geometry.cut_area(float(datos["page_w"]), float(datos["page_h"]),
-                             datos.get("machine", "maker5"),
+                             datos.get("machine", "maker3"),
                              datos.get("paper_key"))
     return json.dumps({"poly": area.poly, "bbox": area.bbox,
                        "page_mm": [area.page_w, area.page_h]})
@@ -69,7 +69,7 @@ def optimizar(payload: str) -> str:
     ajustes = datos.get("settings", {})
     page_w = float(datos.get("page_w", 210))
     page_h = float(datos.get("page_h", 297))
-    maquina = datos.get("machine", "maker5")
+    maquina = datos.get("machine", "maker3")
 
     area = geometry.cut_area(page_w, page_h, maquina, datos.get("paper_key"))
     margen = max(0.0, float(ajustes.get("margen_mm", 1.0)))
@@ -146,7 +146,7 @@ def estimar_corte(payload: str) -> str:
     datos = json.loads(payload)
     area = geometry.cut_area(float(datos.get("page_w", 210)),
                              float(datos.get("page_h", 297)),
-                             datos.get("machine", "maker5"))
+                             datos.get("machine", "maker3"))
     placements = [Placement(uid=f"{p['id']}#{i}", asset_id=p["id"], page=0,
                             x=p["x"], y=p["y"], w=p["w"], h=p["h"],
                             angle=p.get("angle", 0), mini=p.get("mini", False))

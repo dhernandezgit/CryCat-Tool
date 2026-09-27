@@ -135,6 +135,29 @@ export default function App() {
     optTimer.current = window.setTimeout(optimize, 400);
   }, [optimize, settings]);
 
+  const scheduleOptimizeRef = useRef<(() => void) | null>(null);
+  useEffect(() => {
+    scheduleOptimizeRef.current = scheduleOptimize;
+  }, [scheduleOptimize]);
+
+  // muestra inicial: si no hay imágenes, figuras geométricas de ejemplo
+  const demoPedida = useRef(false);
+  useEffect(() => {
+    if (!settings || demoPedida.current) return;
+    if (assets.length > 0) {
+      demoPedida.current = true;
+      return;
+    }
+    demoPedida.current = true;
+    api.crearDemo().then(async (r) => {
+      if (r.ok) {
+        await refresh();
+        scheduleOptimizeRef.current?.();
+      }
+    }).catch(() => undefined);
+  }, [settings, assets.length, refresh]);
+
+
   const saveSettings = useCallback(
     async (patch: Partial<AppSettings>) => {
       setSettings((s) => (s ? { ...s, ...patch } : s));
@@ -320,15 +343,8 @@ export default function App() {
         <div className="panel right" style={{ flex: 1 }} data-testid="settings-panel">
           <SettingsPanel
             settings={settings}
+            assets={assets}
             saveSettings={saveSettings}
-            applySettings={(s, job) => {
-              setSettings(s);
-              applyTheme(s.tema);
-              if (job) {
-                setJob(job);
-                pollJob(job.id);
-              }
-            }}
           />
         </div>
       </div>

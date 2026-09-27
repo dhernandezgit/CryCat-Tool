@@ -26,13 +26,19 @@ from crycat import silhouette                      # noqa: E402
 from crycat.geometry import cut_area                # noqa: E402
 
 
-def mascara_real(img: Image.Image, w_mm: float, h_mm: float, cell: float):
+def mascara_real(img: Image.Image, w_mm: float, h_mm: float, cell: float,
+                 pad: int = 0):
     """Silueta REAL: el canal alfa tal cual (sin contornos simplificados)."""
     w = max(2, int(round(w_mm / cell)))
     h = max(2, int(round(h_mm / cell)))
     alpha = img.convert("RGBA").getchannel("A").resize(
         (w, h), Image.Resampling.BILINEAR)
-    return np.asarray(alpha) > 1
+    m = np.asarray(alpha) > 1
+    if pad > 0:
+        q = np.zeros((h + 2 * pad, w + 2 * pad), dtype=bool)
+        q[pad:pad + h, pad:pad + w] = m
+        m = q
+    return m
 
 
 def mascara_optimizador(img: Image.Image, w_mm: float, h_mm: float,
@@ -57,9 +63,9 @@ def main() -> int:
     area = cut_area(210.0, 297.0, "maker5")          # A4
     cell = 0.25
     assets = [{"id": "prueba", "name": "prueba", "w_mm": w_mm, "h_mm": h_mm,
-               "copies": 6, "mini_enabled": False}]
+               "copies": 30, "mini_enabled": False}]
     masks = {"prueba": img}
-    settings = {"espacio_mm": 1.0, "rotacion": "90", "opt_metodo": "greedy",
+    settings = {"espacio_mm": 0.5, "rotacion": "90", "opt_metodo": "greedy",
                 "opt_calidad": "exacta", "opt_tiempo_max_s": 6.0,
                 "usar_minis": False}
     res = silhouette.pack(assets, masks, area, settings)
@@ -72,19 +78,22 @@ def main() -> int:
     lienzo = np.full((H, W, 3), 255, dtype=np.uint8)
     total = np.zeros((H, W), dtype=np.int32)
     dif = 0
-    for p in res.placements:
+    for p in [q for q in res.placements if q.page == 0]:
         rm, _, _, _ = silhouette._mask_for_placement(
             p, {"w_mm": w_mm, "h_mm": h_mm}, img, cell, 0)
-        ys, xs = np.where(rm)
-        ty = int(round((p.y - by) / cell)) - int(ys.min())
-        tx = int(round((p.x - bx) / cell)) - int(xs.min())
-        h, w = rm.shape
-        if ty < 0 or tx < 0 or ty + h > H or tx + w > W:
-            continue
-        real = mascara_real(img, w_mm, h_mm, cell)
+        # mismo relleno que usa _mask_for_placement (pad = r + 2; aquí r = 0)
+        real = silhouette._rotate_mask(
+            mascara_real(img, w_mm, h_mm, cell, 2), p.angle)
         if real.shape != rm.shape:
+            print("  (formas distintas: revisa el tamaño)", real.shape, rm.shape)
             continue
         dif += int(np.count_nonzero(real != rm))
+        ys, xs = np.where(real)
+        ty = int(round((p.y - by) / cell)) - int(ys.min())
+        tx = int(round((p.x - bx) / cell)) - int(xs.min())
+        h, w = real.shape
+        if ty < 0 or tx < 0 or ty + h > H or tx + w > W:
+            continue
         total[ty:ty + h, tx:tx + w] += real.astype(np.int32)
         lienzo[ty:ty + h, tx:tx + w][real] = (0, 0, 0)
     solape = total > 1

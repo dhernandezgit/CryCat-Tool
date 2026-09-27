@@ -8,6 +8,8 @@
  */
 import { createRoot } from "react-dom/client";
 import App from "./App";
+import { temaRecordado } from "./themes";
+import { apiBase } from "./api";
 import "./styles.css";
 
 declare const __SELLO__: string;   // lo inyecta vite.web.config.ts
@@ -101,34 +103,36 @@ let rotarFrases: number | undefined;
 
 function pintarCarga(texto: string, error = false) {
   window.clearTimeout(rotarFrases);
+  // el mismo tema que la app (Wiwi por defecto, o el último que usaste)
+  const c = temaRecordado().colors;
   raiz.innerHTML = `
     <div style="min-height:100vh;display:flex;flex-direction:column;
                 align-items:center;justify-content:center;gap:12px;
-                font:16px/1.5 system-ui,sans-serif;color:#8a7480;
-                background:#fdf7f9;padding:24px;text-align:center">
+                font:16px/1.5 system-ui,sans-serif;color:${c.textSoft};
+                background:${c.bg};padding:24px;text-align:center">
       <img src="./app/icono.png" alt="" style="width:88px;height:88px;border-radius:22px" />
-      <div style="font-size:19px;font-weight:700;color:#43303a">CryCat web</div>
-      <div id="carga-fun" style="font-size:22px;font-weight:700;color:#43303a;
+      <div style="font-size:19px;font-weight:700;color:${c.text}">CryCat web</div>
+      <div id="carga-fun" style="font-size:22px;font-weight:700;color:${c.text};
                 min-height:2.2em;max-width:640px;line-height:1.25">${texto}</div>
       <div id="carga-paso" style="font-size:12px;font-weight:700;
-                letter-spacing:.06em;text-transform:uppercase;color:#c06a8a;
+                letter-spacing:.06em;text-transform:uppercase;color:${c.accent3};
                 min-height:1.2em">${error ? "" : "Paso 1 de " + TOTAL_PASOS}</div>
       <div style="width:min(340px,80vw);height:8px;border-radius:99px;
-                  background:#f3e3ea;overflow:hidden">
+                  background:${c.border};overflow:hidden">
         <div id="carga-barra" style="height:100%;width:${error ? 100 : 8}%;
-             border-radius:99px;background:linear-gradient(90deg,#e7a0bd,#c06a8a);
+             border-radius:99px;background:linear-gradient(90deg,${c.accent},${c.accent2});
              transition:width .45s ease"></div>
       </div>
-      <div id="carga-txt" style="font-size:13px;color:#8a7480;min-height:1.2em">
+      <div id="carga-txt" style="font-size:13px;color:${c.textSoft};min-height:1.2em">
         ${error ? "" : "Preparando todo…"}</div>
-      <div style="max-width:520px;font-size:12px;color:#a8929c;margin-top:6px">
+      <div style="max-width:520px;font-size:12px;color:${c.textSoft};margin-top:6px">
         El motor se descarga una vez y se queda en caché del navegador.
         Tus imágenes no salen de tu equipo.
       </div>
     </div>`;
   if (error) {
     const fun = document.getElementById("carga-fun");
-    if (fun) fun.style.color = "#d94f6a";
+    if (fun) fun.style.color = c.danger;
     return;
   }
   let i = Math.floor(Math.random() * FRASES_CARGA.length);
@@ -312,6 +316,22 @@ async function main() {
       new URL("./app", location.href).pathname;
 
     instalarPuente();          // reserva: la API funciona sin service worker
+
+    // en la web los ajustes viven en memoria: se recupera el último tema
+    // elegido (guardado en el navegador) para que no se pierda al recargar
+    try {
+      const tema = temaRecordado().key;
+      if (tema && tema !== "wiwi") {
+        await fetch(apiBase() + "/api/settings", {
+          method: "PUT",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ tema }),
+        });
+      }
+    } catch (e) {
+      /* si falla, se queda el tema por defecto */
+    }
+
     estado("Abriendo la aplicación…", 7);
     window.clearTimeout(rotarFrases);
     createRoot(raiz).render(<App />);

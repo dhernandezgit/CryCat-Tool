@@ -206,7 +206,8 @@ def test_silueta_respeta_tiempo_maximo():
     circle = _circle(35)
     assets = [{"id": "c", "name": "c", "w_mm": 35, "h_mm": 35, "copies": 300,
                "mini_enabled": False, "mini_quota": 1.0}]
-    st = dict(SET, opt_metodo="silueta", opt_tiempo_max_s=1.0)
+    st = dict(SET, opt_metodo="greedy", opt_tiempo_auto=False,
+              opt_tiempo_max_s=1.0)
     t0 = time.time()
     res = sil_pack(assets, {"c": circle}, area_a4(), st)
     dt = time.time() - t0

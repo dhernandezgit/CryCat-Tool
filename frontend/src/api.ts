@@ -18,6 +18,7 @@ export interface Asset {
   offset_color?: string;
   scale_pct: number;
   bg_removed: boolean;
+  demo?: boolean;          // figura de la muestra inicial
   warnings: string[];
 }
 
@@ -69,6 +70,7 @@ export interface AppSettings {
   opt_metodo: string;
   opt_calidad: "exacta" | "normal" | "rapida";
   opt_tiempo_max_s: number;
+  opt_tiempo_auto?: boolean;   // usar el tiempo recomendado del método
   auto_recalcular: boolean;
   corte_velocidad_mm_s: number;
   corte_viaje_mm_s: number;
@@ -136,6 +138,15 @@ export interface Job {
   warnings?: string[];
   unplaced?: number;
 }
+
+/** Máquinas Cricut: la serie Maker comparte el mismo patrón de área y marcas. */
+export const MACHINE_LABELS: Record<string, string> = {
+  maker3: "Cricut Maker 3",
+  maker: "Cricut Maker",
+  maker5: "Cricut Maker 5",
+  estandar: "Explore / Joy Xtra / Venture (estándar)",
+  joy: "Cricut Joy 2",
+};
 
 /** Tamaños de papel en mm, en vertical: clave -> [ancho, alto]. */
 export const PAPER_DIMS: Record<string, [number, number]> = {
@@ -216,7 +227,8 @@ export interface UiState {
 /** En la versión web las rutas /api van bajo el directorio de la app para
  *  que el service worker pueda interceptarlas (también en las imágenes).
  *  Se lee al usarla: web.tsx fija el valor después de cargar este módulo. */
-const apiBase = () => (globalThis as { __crycatBase?: string }).__crycatBase || "";
+export const apiBase = () =>
+  (globalThis as { __crycatBase?: string }).__crycatBase || "";
 
 async function req<T>(url: string, opts?: RequestInit): Promise<T> {
   const r = await fetch(apiBase() + url, opts);
@@ -258,6 +270,9 @@ export const api = {
       body: JSON.stringify(patch),
     }),
   deleteAsset: (id: string) => req<{ ok: boolean }>(`/api/assets/${id}`, { method: "DELETE" }),
+  crearDemo: (n = 16) =>
+    req<{ ok: boolean; assets: Asset[]; motivo?: string }>(
+      `/api/demo?n=${n}`, { method: "POST" }),
   clearAssets: () => req<{ ok: boolean }>("/api/assets", { method: "DELETE" }),
   removeBackground: (id: string) =>
     req<Asset>(`/api/assets/${id}/remove-background`, {

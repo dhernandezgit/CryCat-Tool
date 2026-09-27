@@ -38,6 +38,7 @@ class Asset:
         self.offset_modo = ""      # "" = usar el global
         self.offset_color = ""     # "" = usar el global
         self.bg_removed = False
+        self.demo = False          # figura de la muestra inicial (no se guarda)
 
     @property
     def w_mm(self) -> float:
@@ -63,6 +64,7 @@ class Asset:
             "offset_modo": self.offset_modo,
             "offset_color": self.offset_color,
             "bg_removed": self.bg_removed,
+            "demo": self.demo,
             "warnings": self.warnings,
         }
 
@@ -80,9 +82,24 @@ class Session:
     # ------------------------------------------------------------- assets --
     def add(self, asset: Asset) -> Asset:
         with self._lock:
+            # una imagen de verdad barre la muestra inicial
+            if not asset.demo:
+                self._quitar_demo()
             self.assets[asset.id] = asset
             self.save()
         return asset
+
+    def _quitar_demo(self) -> None:
+        demo = [a for a in self.assets.values() if getattr(a, "demo", False)]
+        for a in demo:
+            self.assets.pop(a.id, None)
+        if demo and self.last:
+            ids = {a.id for a in demo}
+            self.last.placements = [p for p in self.last.placements
+                                    if p.asset_id not in ids]
+
+    def hay_demo(self) -> bool:
+        return any(getattr(a, "demo", False) for a in self.assets.values())
 
     def get(self, asset_id: str) -> Asset | None:
         return self.assets.get(asset_id)
@@ -161,14 +178,18 @@ class Session:
     # ------------------------------------------------------- persistencia --
     def save(self) -> None:
         try:
+            demo_ids = {a.id for a in self.assets.values()
+                        if getattr(a, "demo", False)}
             data = {
-                "assets": [a.to_dict() for a in self.assets.values()],
+                "assets": [a.to_dict() for a in self.assets.values()
+                           if not getattr(a, "demo", False)],
                 "placements": [
                     {"uid": p.uid, "asset_id": p.asset_id, "page": p.page,
                      "x": p.x, "y": p.y, "w": p.w, "h": p.h, "angle": p.angle,
                      "mini": p.mini, "scale": p.scale, "pinned": p.pinned,
                      "rot90": p.rot90}
-                    for p in (self.last.placements if self.last else [])],
+                    for p in (self.last.placements if self.last else [])
+                    if p.asset_id not in demo_ids],
                 "pages": self.last.pages if self.last else 0,
             }
             cfg.SESSION_FILE.parent.mkdir(parents=True, exist_ok=True)
@@ -192,6 +213,9 @@ class Session:
         data = getattr(self, "_pending_session", None)
         if not data:
             return
+        if data.get("assets"):
+            self.assets = {k: v for k, v in self.assets.items()
+                           if getattr(v, "demo", False)}
         for meta in data.get("assets", []):
             aid = meta.get("id")
             fp = cfg.ASSETS_DIR / str(aid) / "img.png"

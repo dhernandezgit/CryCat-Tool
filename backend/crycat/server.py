@@ -17,7 +17,9 @@ from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from PIL import Image
 
-from . import __version__, compose, cuttime, geometry, imaging, version
+import random
+
+from . import __version__, compose, cuttime, demo, geometry, imaging, version
 from . import config as cfg
 from .config import settings
 from .funmsgs import mensajes as mensajes_funny
@@ -285,6 +287,28 @@ def create_app(store: Session = session) -> FastAPI:
         store.add(a)
         return a.to_dict()
 
+    @app.post("/api/demo")
+    def crear_demo(n: int = 16):
+        """Rellena la sesión con figuras de ejemplo (se van al subir imágenes).
+
+        Se generan al azar (círculos, cuadrados, estrellas, anillos, flores…)
+        en colores pastel para ver el optimizador funcionando desde el primer
+        segundo. Cualquier imagen de verdad las borra automáticamente.
+        """
+        if any(not getattr(a, "demo", False) for a in store.assets.values()):
+            return {"ok": False, "motivo": "ya hay imágenes"}
+        store._quitar_demo()
+        for nombre, img in demo.figuras(max(1, min(60, n))):
+            a = Asset(new_id(), nombre, img, b"", demo.DPI, [], "RGBA")
+            a.demo = True
+            a.copies = 1
+            # algunos llevan minis: con los minis activados la hoja se llena sola
+            a.mini_enabled = random.random() < 0.45
+            a.mini_quota = 1.0
+            store.add(a)
+        return {"ok": True, "assets": store.asset_dicts(),
+                "demo": store.hay_demo()}
+
     @app.get("/api/assets")
     def list_assets():
         return store.asset_dicts()
@@ -544,9 +568,11 @@ def create_app(store: Session = session) -> FastAPI:
 
     @app.get("/api/estimate")
     def estimate_cut():
-        """Tiempo estimado de corte (Cricut Maker 5) según siluetas y viajes."""
+        """Tiempo estimado de corte (serie Maker) según siluetas y viajes."""
         if not store.last:
-            return {"maquina": "Cricut Maker 5", "segundos": 0.0,
+            from .geometry import machine_label
+            return {"maquina": machine_label(str(settings.get("maquina"))),
+                    "segundos": 0.0,
                     "paginas": [], "desglose": {}}
         assets_by_id = {a["id"]: a for a in store.asset_dicts()}
         return cuttime.estimate(store.last.placements, assets_by_id,

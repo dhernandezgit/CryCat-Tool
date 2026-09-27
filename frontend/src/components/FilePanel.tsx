@@ -2,8 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import { api, assetSizeMm, normalizeAsset, prepareFile, type AppSettings, type Asset, type Result } from "../api";
 import { useT } from "../i18n";
 import { IconoCarpeta, IconoReemplazar, IconoLimpiar, IconoFondo,
-         IconoDeshacerFondo, IconoBorrar, IconoMini, IconoAviso } from "./iconos";
+         IconoDeshacerFondo, IconoBorrar, IconoMini, IconoAviso,
+         IconoRecalcular, IconoRotar } from "./iconos";
 import ImportDialog from "./ImportDialog";
+import Perfiles from "./Perfiles";
 
 interface Props {
   assets: Asset[];
@@ -325,6 +327,13 @@ export default function FilePanel({ assets, result, settings, onChange,
   };
 
   const usarMinis = settings.usar_minis;
+  const ROT_SIGUIENTE: Record<string, "90" | "libre" | "no"> = {
+    "90": "libre", libre: "no", no: "90",
+  };
+  const ROT_ETIQUETA: Record<string, string> = {
+    "90": "90°", libre: t("libre"), no: t("fijo"),
+  };
+  const hayDemo = assets.some((a) => a.demo);
 
   return (
     <div className="file-panel">
@@ -332,6 +341,48 @@ export default function FilePanel({ assets, result, settings, onChange,
         <h2>{t("Imágenes")}</h2>
         <span className="count-badge" data-testid="total-assets">{assets.length}</span>
       </div>
+
+      {/* botones siempre a la vista: minis, recálculo automático y rotación */}
+      <div className="acciones-rapidas">
+        <button
+          className={`chip${usarMinis ? " on" : ""}`}
+          data-testid="chip-minis"
+          title={t("Generar minis: rellenar los huecos con copias pequeñas")}
+          onClick={() => saveSettings({
+            usar_minis: !usarMinis,
+            // al activarlos se desactiva el recálculo automático (solo ahora)
+            ...(usarMinis ? {} : { auto_recalcular: false }),
+          })}
+        >
+          <IconoMini size={15} /> {t("Minis")}
+        </button>
+        <button
+          className={`chip${settings.auto_recalcular ? " on" : ""}`}
+          data-testid="chip-auto"
+          title={t("Recalcular automáticamente con cada cambio")}
+          onClick={() => saveSettings({ auto_recalcular: !settings.auto_recalcular })}
+        >
+          <IconoRecalcular size={15} /> {t("Auto")}
+        </button>
+        <button
+          className="chip"
+          data-testid="chip-rotacion"
+          title={t("Rotación admitida: pulsa para cambiar entre 90°, libre y fijo")}
+          onClick={() => saveSettings({
+            rotacion: ROT_SIGUIENTE[settings.rotacion] ?? "90",
+          })}
+        >
+          <IconoRotar size={15} /> {ROT_ETIQUETA[settings.rotacion] ?? "90°"}
+        </button>
+      </div>
+
+      <Perfiles saveSettings={saveSettings} />
+
+      {hayDemo && (
+        <div className="hint" data-testid="aviso-demo">
+          {t("Estas figuras son de ejemplo: desaparecen solas al añadir tus imágenes.")}
+        </div>
+      )}
       <div
         className={`dropzone${over ? " over" : ""}`}
         data-testid="dropzone"

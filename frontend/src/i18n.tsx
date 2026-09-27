@@ -54,6 +54,31 @@ export const EN: Record<string, string> = {
   "Ajustes": "Settings",
   "General": "General",
   "Minis": "Minis",
+  "Tiempo automático (el recomendado para cada método)":
+    "Automatic time (the recommended one per method)",
+  ["Se usarán {s} s con «{m}» (el resto de métodos tienen el suyo)."]:
+    "{s} s will be used with “{m}” (the other methods have their own).",
+  "Perfil…": "Profile…",
+  "De fábrica": "Factory",
+  "Guardados": "Saved",
+  "Guardar perfil": "Save profile",
+  "Aplicar un perfil de fábrica o uno guardado":
+    "Apply a factory or saved profile",
+  "Guardar los ajustes actuales como perfil":
+    "Save the current settings as a profile",
+  "Gestionar los perfiles guardados": "Manage saved profiles",
+  ["Perfil «{n}» aplicado"]: "Profile “{n}” applied",
+  ["Perfil «{n}» guardado"]: "Profile “{n}” saved",
+  ["Perfil «{n}» borrado"]: "Profile “{n}” deleted",
+  "No se pudo aplicar el perfil": "Could not apply the profile",
+  "libre": "free",
+  "fijo": "fixed",
+  "Generar minis: rellenar los huecos con copias pequeñas":
+    "Generate minis: fill the gaps with small copies",
+  "Rotación admitida: pulsa para cambiar entre 90°, libre y fijo":
+    "Allowed rotation: press to switch between 90°, free and fixed",
+  "Estas figuras son de ejemplo: desaparecen solas al añadir tus imágenes.":
+    "These shapes are samples: they disappear on their own when you add your images.",
   "Optimización": "Optimization",
   "Imagen": "Image",
   "Historial (deshacer/rehacer)": "History (undo/redo)",
@@ -190,9 +215,9 @@ export const EN: Record<string, string> = {
    "guarda en la imagen final). El original nunca se modifica."]:
     "The border is part of the piece (it is taken into account when placing " +
     "and saved in the final image). The original is never modified.",
-  ["Tiempo estimado de corte de la Cricut Maker 5, calculado a partir del " +
+  ["Tiempo estimado de corte de la {maquina}, calculado a partir del " +
    "perímetro de las siluetas y del recorrido entre formas."]:
-    "Estimated cutting time for the Cricut Maker 5, calculated from the " +
+    "Estimated cutting time for the {maquina}, calculated from the " +
     "outline perimeter and the travel between shapes.",
   "Velocidad de corte": "Cutting speed",
   "Velocidad de viaje (sin cortar)": "Travel speed (not cutting)",

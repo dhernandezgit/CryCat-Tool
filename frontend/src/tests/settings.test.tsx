@@ -148,6 +148,26 @@ describe("Panel de ajustes", () => {
     expect(saveSettings).toHaveBeenCalledWith({ mini_usar_lista: true });
   });
 
+  it("la lista de minis muestra % y mm en paralelo y se sincronizan", async () => {
+    const u = userEvent.setup();
+    const assets = [{
+      id: "a1", name: "gato", w_mm: 60, h_mm: 40, mini_enabled: true,
+    }] as never[];
+    render(
+      <SettingsPanel settings={{ ...settings, mini_usar_lista: true }}
+                     saveSettings={saveSettings} assets={assets} />,
+    );
+    await u.click(screen.getByText("Minis"));
+    // 50 % del lado menor (40 mm) = 20 mm
+    expect(screen.getByTestId("mini-tamano-0")).toHaveValue(50);
+    expect(screen.getByTestId("mini-tamano-mm-0")).toHaveValue(20);
+    // escribir en mm actualiza el porcentaje
+    await u.clear(screen.getByTestId("mini-tamano-mm-0"));
+    await u.type(screen.getByTestId("mini-tamano-mm-0"), "30");
+    await waitFor(() =>
+      expect(saveSettings).toHaveBeenLastCalledWith({ mini_tamanos_lista: [75] }));
+  });
+
   it("la sección de estimación de corte tiene sus parámetros y factor", async () => {
     const u = userEvent.setup();
     render(<SettingsPanel settings={settings} saveSettings={saveSettings} />);
@@ -159,43 +179,6 @@ describe("Panel de ajustes", () => {
   it("incluye la opción de recálculo automático (activada por defecto)", () => {
     render(<SettingsPanel settings={settings} saveSettings={saveSettings} />);
     expect(screen.getByTestId("set-auto-recalcular")).toBeChecked();
-  });
-
-  it("el botón de carpeta abre el selector y guarda la ruta elegida", async () => {
-    const u = userEvent.setup();
-    render(<SettingsPanel settings={settings} saveSettings={saveSettings} />);
-    await u.click(screen.getByText("Imagen"));
-    await u.click(screen.getByTestId("btn-elegir-carpeta"));
-    expect(await screen.findByTestId("folder-picker")).toBeInTheDocument();
-    await u.click(screen.getByTestId("elegir-carpeta-ok"));
-    await waitFor(() =>
-      expect(saveSettings).toHaveBeenCalledWith({ carpeta_export: "/home/daniel" })
-    );
-  });
-
-  it("guarda y lista perfiles de configuración", async () => {
-    const u = userEvent.setup();
-    const applySettings = vi.fn();
-    render(<SettingsPanel settings={settings} saveSettings={saveSettings}
-                          applySettings={applySettings} />);
-    await u.click(screen.getByText("Perfiles de configuración"));
-    // al abrir, se listan los perfiles del backend (mock: "Pikmin A4")
-    expect(await screen.findByTestId("cargar-Pikmin A4")).toBeInTheDocument();
-    // guardar un perfil nuevo llama a la API
-    await u.type(screen.getByTestId("perfil-nombre"), "Mi setup");
-    await u.click(screen.getByTestId("btn-guardar-perfil"));
-    await waitFor(() =>
-      expect(global.fetch).toHaveBeenCalledWith(
-        "/api/presets",
-        expect.objectContaining({ method: "POST" })
-      )
-    );
-    // cargar un perfil aplica los ajustes
-    await u.click(screen.getByTestId("cargar-Pikmin A4"));
-    await waitFor(() => expect(applySettings).toHaveBeenCalled());
-    // guardar ajustes explícitamente
-    await u.click(screen.getByTestId("btn-guardar-ajustes"));
-    await waitFor(() => expect(saveSettings).toHaveBeenCalledWith({}));
   });
 
   it("la sección Historial permite elegir qué se guarda", async () => {

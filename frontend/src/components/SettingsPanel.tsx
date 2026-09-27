@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from "react";
-import { api, PAPER_DIMS, type AppSettings, type Job } from "../api";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { api, MACHINE_LABELS, PAPER_DIMS, type AppSettings,
+         type Asset, type Job } from "../api";
 import { useT } from "../i18n";
 import { THEMES } from "../themes";
 import FolderPicker from "./FolderPicker";
@@ -7,7 +8,58 @@ import FolderPicker from "./FolderPicker";
 interface Props {
   settings: AppSettings;
   saveSettings: (p: Partial<AppSettings>) => Promise<void>;
-  applySettings?: (s: AppSettings, job: Job | null) => void;
+  assets?: Asset[];
+}
+
+/** Una fila de la lista de minis: % y mm en paralelo, sincronizados.
+ *  El texto en mm se guarda en local mientras escribes para no pelearse. */
+function FilaMini({ i, valor, refBase, onPct, onQuitar, t }: {
+  i: number;
+  valor: number;
+  refBase: number;
+  onPct: (pct: number) => void;
+  onQuitar: () => void;
+  t: (s: string, v?: Record<string, string | number>) => string;
+}) {
+  const [mmTxt, setMmTxt] = useState<string | null>(null);
+  const mm = refBase ? (valor / 100) * refBase : 0;
+  return (
+    <div className="mini-fila">
+      <input
+        type="number" min={1} max={99} step={5}
+        data-testid={`mini-tamano-${i}`}
+        value={String(valor)}
+        onChange={(e) => onPct(Math.min(99, Math.max(1, Number(e.target.value))))}
+      />
+      <span className="hint">%</span>
+      <input
+        type="number" min={1} step={1}
+        data-testid={`mini-tamano-mm-${i}`}
+        value={mmTxt ?? (refBase ? mm.toFixed(1) : "")}
+        disabled={!refBase}
+        title={t("Tamaño final del mini para la imagen de referencia")}
+        onChange={(e) => {
+          setMmTxt(e.target.value);
+          if (!refBase) return;
+          const x = Number(e.target.value);
+          if (isFinite(x) && x > 0) {
+            onPct(Math.min(99, Math.max(1,
+              Math.round(x / refBase * 1000) / 10)));
+          }
+        }}
+        onBlur={() => setMmTxt(null)}
+      />
+      <span className="hint">mm</span>
+      <button
+        className="icon-btn danger"
+        title={t("Quitar tamaño")}
+        data-testid={`mini-tamano-quitar-${i}`}
+        onClick={onQuitar}
+      >
+        
+      </button>
+    </div>
+  );
 }
 
 function Section({ id, title, open, toggle, children }: {
@@ -35,12 +87,18 @@ function destacar(texto: string, partes: string[]): React.ReactNode[] {
       partes.includes(trozo) ? <strong key={i}>{trozo}</strong> : trozo);
 }
 
-const nombrePreset: Record<string, string> = {
-  chapa: "Chapa", pegatina: "Pegatina", hoja: "Hoja de pegatinas",
-  iman: "Imán", "pegatina-grande": "Pegatina grande", vinilo: "Vinilo",
+/** Tiempo máximo recomendado por método (igual que en el backend). */
+const OPT_TIEMPOS: Record<string, number> = {
+  greedy: 6, largest: 3, voronoi: 6, genetic: 25,
 };
 
-export default function SettingsPanel({ settings, saveSettings, applySettings }: Props) {
+const METODO_NOMBRE: Record<string, string> = {
+  greedy: "Greedy / Bottom-Left", largest: "Largest First",
+  voronoi: "Voronoi", genetic: "Genético",
+};
+
+export default function SettingsPanel({ settings, saveSettings,
+  assets }: Props) {
   const t = useT();
   const [panelAbierto, setPanelAbierto] = useState(true);
   const [open, setOpen] = useState<Record<string, boolean>>({
@@ -49,67 +107,20 @@ export default function SettingsPanel({ settings, saveSettings, applySettings }:
     perfiles: false, corte: false, extras: false, offset: false,
   });
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [perfiles, setPerfiles] = useState<string[]>([]);
-  const [nombrePerfil, setNombrePerfil] = useState("");
-  const [avisoTxt, setAvisoTxt] = useState("");
-  const [presetsFabrica, setPresetsFabrica] = useState<
-    Record<string, Partial<AppSettings>>>({});
-  useEffect(() => {
-    api.factoryPresets()
-      .then((d) => setPresetsFabrica(d.presets ?? {}))
-      .catch(() => undefined);
-  }, []);
+
+  // imagen de referencia para la columna de mm: la más grande con minis
+  // activados (o la más grande a secas); el backend escala por el lado menor
+  const refMini = useMemo(() => {
+    const conMinis = (assets ?? []).filter((a) => a.mini_enabled);
+    const lista = conMinis.length ? conMinis : (assets ?? []);
+    return lista.slice().sort((a, b) =>
+      Math.min(b.w_mm, b.h_mm) - Math.min(a.w_mm, a.h_mm))[0] ?? null;
+  }, [assets]);
+  const refBase = refMini ? Math.min(refMini.w_mm, refMini.h_mm) : 0;
   const toggle = (id: string) => setOpen((o) => ({ ...o, [id]: !o[id] }));
   // el servidor relanza la optimización con los ajustes que la afectan
   const set = (p: Partial<AppSettings>) => saveSettings(p);
   const iconInput = useRef<HTMLInputElement>(null);
-  const avisoTimer = useRef<number | undefined>(undefined);
-  const aviso = (msg: string) => {
-    setAvisoTxt(msg);
-    if (avisoTimer.current) window.clearTimeout(avisoTimer.current);
-    avisoTimer.current = window.setTimeout(() => setAvisoTxt(""), 2000);
-  };
-
-  const cargarPerfiles = async () => {
-    try {
-      const r = await api.presets();
-      setPerfiles(Array.isArray(r.names) ? r.names : []);
-    } catch {
-      /* backend no disponible */
-    }
-  };
-  useEffect(() => {
-    cargarPerfiles();
-  }, []);
-
-  const guardarPerfil = async () => {
-    const n = nombrePerfil.trim();
-    if (!n) return;
-    try {
-      const r = await api.savePreset(n);
-      setPerfiles(r.names);
-      setNombrePerfil("");
-      aviso(t("Perfil guardado "));
-    } catch {
-      aviso(t("No se pudo guardar el perfil"));
-    }
-  };
-  const cargarPerfil = async (n: string) => {
-    try {
-      const r = await api.loadPreset(n);
-      applySettings?.(r.settings, r.job);
-      aviso(t("Perfil «{n}» cargado ", { n }));
-    } catch {
-      aviso(t("No se pudo cargar el perfil"));
-    }
-  };
-  const borrarPerfil = async (n: string) => {
-    try {
-      setPerfiles((await api.deletePreset(n)).names);
-    } catch {
-      aviso(t("No se pudo borrar el perfil"));
-    }
-  };
 
   const num = (label: string, key: keyof AppSettings, min: number, max: number,
                step = 1, unit = "", extra?: React.ReactNode) => (
@@ -200,6 +211,8 @@ export default function SettingsPanel({ settings, saveSettings, applySettings }:
           </div>
         )}
         {sel("Máquina Cricut", "maquina", [
+          ["maker3", "Cricut Maker 3"],
+          ["maker", "Cricut Maker"],
           ["maker5", "Cricut Maker 5"],
           ["estandar", "Explore / Joy Xtra / Venture"],
           ["joy", "Cricut Joy 2"],
@@ -256,36 +269,24 @@ export default function SettingsPanel({ settings, saveSettings, applySettings }:
         </div>
         {settings.mini_usar_lista && (
           <div className="ctl">
-            <label>{t("Tamaños deseados (mayor a menor)")}</label>
+            <label>{t("Tamaños deseados (% y tamaño final)")}</label>
             <div className="size-list" data-testid="mini-lista">
               {(settings.mini_tamanos_lista ?? []).map((v, i) => (
-                <div className="row" key={i}>
-                  <input
-                    type="number" min={1} max={1000} step={5}
-                    data-testid={`mini-tamano-${i}`}
-                    value={String(v)}
-                    onChange={(e) => {
-                      const l = [...(settings.mini_tamanos_lista ?? [])];
-                      l[i] = Number(e.target.value);
-                      set({ mini_tamanos_lista: l });
-                    }}
-                  />
-                  <span className="hint">%</span>
-                  <button
-                    className="icon-btn danger"
-                    title={t("Quitar tamaño")}
-                    data-testid={`mini-tamano-quitar-${i}`}
-                    onClick={() =>
-                      set({
-                        mini_tamanos_lista:
-                          (settings.mini_tamanos_lista ?? []).filter(
-                            (_, j) => j !== i),
-                      })
-                    }
-                  >
-                    
-                  </button>
-                </div>
+                <FilaMini
+                  key={i} i={i} valor={v} refBase={refBase} t={t}
+                  onPct={(pct) => {
+                    const l = [...(settings.mini_tamanos_lista ?? [])];
+                    l[i] = pct;
+                    set({ mini_tamanos_lista: l });
+                  }}
+                  onQuitar={() =>
+                    set({
+                      mini_tamanos_lista:
+                        (settings.mini_tamanos_lista ?? []).filter(
+                          (_, j) => j !== i),
+                    })
+                  }
+                />
               ))}
               <button
                 data-testid="btn-add-mini-tamano"
@@ -301,8 +302,12 @@ export default function SettingsPanel({ settings, saveSettings, applySettings }:
               </button>
             </div>
             <div className="hint">
-              {t("Cada valor es el tamaño del mini respecto al original; se prueban " +
-                 "de mayor a menor hasta que quepan.")}
+              {refMini
+                ? t("El tamaño en mm es para «{nombre}» (su lado menor mide " +
+                    "{mm} mm); cada mini se escala igual respecto a su original.",
+                    { nombre: refMini.name, mm: refBase.toFixed(1) })
+                : t("El tamaño en mm se calcula por imagen; añade imágenes para " +
+                    "verlo. Cada valor es el tamaño del mini respecto al original.")}
             </div>
           </div>
         )}
@@ -321,51 +326,21 @@ export default function SettingsPanel({ settings, saveSettings, applySettings }:
           ["normal", "Normal (equilibrada)"],
           ["rapida", "Rápida (más gruesa, para bocetos)"],
         ])}
-        {num("Tiempo máximo", "opt_tiempo_max_s", 0.5, 120, 0.5, "s")}
-        <div className="ctl">
-          <label>{t("Perfiles listos")}</label>
-          <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
-            {Object.entries(presetsFabrica).map(([clave, valores]) => (
-              <button
-                key={clave}
-                data-testid={`preset-${clave}`}
-                onClick={() => set(valores as Partial<AppSettings>)}
-              >
-                {t(nombrePreset[clave] ?? clave)}
-              </button>
-            ))}
+        <label className="row">
+          <input type="checkbox" data-testid="set-opt_tiempo_auto"
+            checked={settings.opt_tiempo_auto !== false}
+            onChange={(e) => set({ opt_tiempo_auto: e.target.checked })} />
+          {t("Tiempo automático (el recomendado para cada método)")}
+        </label>
+        {settings.opt_tiempo_auto !== false ? (
+          <div className="hint" data-testid="tiempo-recomendado">
+            {t("Se usarán {s} s con «{m}» (el resto de métodos tienen el suyo).",
+               { s: OPT_TIEMPOS[settings.opt_metodo] ?? 8,
+                 m: t(METODO_NOMBRE[settings.opt_metodo] ?? settings.opt_metodo) })}
           </div>
-          <div className="hint">
-            {t("Chapa: casi sin espacio · Pegatina: espacio y borde · Hoja: sin espacio ni borde · Imán: borde blanco")}
-          </div>
-        </div>
-        <div className="ctl">
-          <label>{t("Ajustes rápidos")}</label>
-          <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
-            <button data-testid="preset-chapa"
-              title={t("Chapa: casi sin espacio entre piezas")}
-              onClick={() => set({ espacio_mm: 0.5, margen_mm: 0.5,
-                                   offset_activo: false })}>
-              {t("Chapa")}
-            </button>
-            <button data-testid="preset-pegatina"
-              title={t("Pegatina: espacio y borde de 1 mm para cortar fácil")}
-              onClick={() => set({ espacio_mm: 2.0, margen_mm: 1.0,
-                                   offset_activo: true, offset_mm: 1.0,
-                                   offset_modo: "extender" })}>
-              {t("Pegatina")}
-            </button>
-            <button data-testid="preset-hoja"
-              title={t("Hoja de pegatinas: sin espacio ni borde entre piezas")}
-              onClick={() => set({ espacio_mm: 0.0, margen_mm: 0.5,
-                                   offset_activo: false })}>
-              {t("Hoja de pegatinas")}
-            </button>
-          </div>
-          <div className="hint">
-            {t("Chapa: casi sin espacio · Pegatina: espacio y borde · Hoja: sin espacio ni borde")}
-          </div>
-        </div>
+        ) : (
+          num("Tiempo máximo", "opt_tiempo_max_s", 0.5, 120, 0.5, "s")
+        )}
         <div className="hint">
           {t("La eficiencia del último cálculo se muestra en la barra de estado.")}
         </div>
@@ -484,9 +459,10 @@ export default function SettingsPanel({ settings, saveSettings, applySettings }:
       <Section id="corte" title={t("Estimación de corte")} open={open.corte} toggle={toggle}>
         <div className="hint">
           {destacar(
-            t("Tiempo estimado de corte de la Cricut Maker 5, calculado a partir " +
-              "del perímetro de las siluetas y del recorrido entre formas."),
-            ["Cricut Maker 5"],
+            t("Tiempo estimado de corte de la {maquina}, calculado a partir " +
+              "del perímetro de las siluetas y del recorrido entre formas.",
+              { maquina: MACHINE_LABELS[settings.maquina] ?? "Cricut Maker 3" }),
+            [MACHINE_LABELS[settings.maquina] ?? "Cricut Maker 3"],
           )}
         </div>
         {num("Velocidad de corte", "corte_velocidad_mm_s", 1, 500, 1, "mm/s")}
@@ -589,66 +565,6 @@ export default function SettingsPanel({ settings, saveSettings, applySettings }:
         </div>
       </Section>
 
-      <Section id="perfiles" title={t("Perfiles de configuración")} open={open.perfiles} toggle={toggle}>
-        <div className="ctl">
-          <label>{t("Guardar la configuración actual con un nombre")}</label>
-          <div className="row">
-            <input
-              type="text"
-              data-testid="perfil-nombre"
-              placeholder={t("Nombre del perfil (p. ej. «Pikmin A4»)")}
-              value={nombrePerfil}
-              onChange={(e) => setNombrePerfil(e.target.value)}
-            />
-            <button data-testid="btn-guardar-perfil" onClick={guardarPerfil}>
-              {t("Guardar")}
-            </button>
-          </div>
-        </div>
-        <div className="ctl">
-          <div className="row">
-            <button
-              data-testid="btn-guardar-ajustes"
-              onClick={async () => {
-                await saveSettings({});
-                aviso(t("Ajustes guardados "));
-              }}
-            >
-              {t("Guardar ajustes para la próxima vez")}
-            </button>
-            {avisoTxt && <span className="hint">{avisoTxt}</span>}
-          </div>
-        </div>
-        <div className="ctl">
-          <label>{t("Perfiles guardados")}</label>
-          {perfiles.length === 0 && (
-            <div className="hint">{t("Todavía no hay perfiles guardados.")}</div>
-          )}
-          <div className="profile-list" data-testid="perfil-lista">
-            {perfiles.map((n) => (
-              <div className="profile-row" key={n}>
-                <span className="profile-name" title={n}>{n}</span>
-                <button data-testid={`cargar-${n}`} onClick={() => cargarPerfil(n)}>
-                  {t("Cargar")}
-                </button>
-                <button
-                  className="icon-btn danger"
-                  title={t("Borrar perfil")}
-                  onClick={() => borrarPerfil(n)}
-                >
-                  
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className="hint">
-          {t("Los ajustes se guardan solos al cambiarlos; los perfiles permiten " +
-             "tener varias configuraciones con nombre y recuperarlas cuando quieras.")}
-        </div>
-      </Section>
-
-      {/* -------- Extras (Pikmin + sonido) -------- */}
       <Section id="extras" title={t("Extras")} open={open.extras} toggle={toggle}>
         <div className="ctl">
           <label className="row">

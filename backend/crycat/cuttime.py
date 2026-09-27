@@ -1,4 +1,4 @@
-"""Estimación del tiempo de corte de la Cricut (p. ej. Maker 5).
+"""Estimación del tiempo de corte de la Cricut (serie Maker).
 
 El modelo usa la geometría real de las siluetas y el recorrido de la máquina:
 
@@ -109,8 +109,11 @@ def estimate(placements, assets_by_id: dict, images: dict,
             "extra_s": round(extra_s, 1), "segundos": round(seg, 1),
         })
 
+    from .config import settings
+    from .geometry import machine_label
+
     return {
-        "maquina": "Cricut Maker 5",
+        "maquina": machine_label(str(settings.get("maquina", "maker3"))),
         "segundos": round(total, 1),
         "factor": factor,
         "velocidad_corte_mm_s": cut_speed,

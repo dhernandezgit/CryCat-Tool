@@ -152,4 +152,21 @@ export function applyTheme(key: string): void {
     root.style.setProperty(`--${k.replace(/[A-Z]/g, (c) => "-" + c.toLowerCase())}`, v);
   });
   root.dataset.theme = th.key;
+  // recordar el último tema: la pantalla de carga de la web lo usa
+  try {
+    localStorage.setItem("crycat-tema", th.key);
+  } catch (e) {
+    /* sin almacenamiento: no pasa nada */
+  }
+}
+
+/** Tema guardado en este navegador (o Wiwi, el de por defecto). */
+export function temaRecordado(): Theme {
+  try {
+    const k = localStorage.getItem("crycat-tema");
+    if (k) return themeByKey(k);
+  } catch (e) {
+    /* sin almacenamiento */
+  }
+  return themeByKey("wiwi");
 }

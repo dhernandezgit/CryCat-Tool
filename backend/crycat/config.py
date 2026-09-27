@@ -14,7 +14,32 @@ APP_NAME = "CryCat"
 APP_W = 210.0
 APP_H = 297.0
 
-CONFIG_VERSION = 22  # subir para migrar configuraciones antiguas
+CONFIG_VERSION = 24  # subir para migrar configuraciones antiguas
+
+# Tiempo máximo RECOMENDADO por método (segundos). El usuario puede
+# desactivar el automático y fijar su propio presupuesto.
+OPT_TIEMPOS: dict[str, float] = {
+    "greedy": 6.0,       # multi-arranque en paralelo: rápido y bueno
+    "largest": 3.0,      # una sola pasada: no necesita más
+    "voronoi": 6.0,      # huecos grandes: un par de pasadas
+    "genetic": 25.0,     # máxima calidad: el que más aprovecha
+}
+
+
+# nombres antiguos de método → nombre actual
+METODO_ALIAS: dict[str, str] = {
+    "silueta": "greedy", "silueta_rapido": "greedy", "auto": "greedy",
+    "maxrects": "greedy", "skyline": "greedy", "silueta_optimo": "genetic",
+}
+
+
+def tiempo_optimo(d) -> float:
+    """Presupuesto efectivo: el recomendado del método o el manual."""
+    if bool(d.get("opt_tiempo_auto", True)):
+        m = str(d.get("opt_metodo", "greedy"))
+        m = METODO_ALIAS.get(m, m)
+        return float(OPT_TIEMPOS.get(m, 8.0))
+    return max(0.5, float(d.get("opt_tiempo_max_s", 8.0)))
 
 
 # En la nube se puede fijar una carpeta de datos con CRYCAT_DATA_DIR
@@ -55,8 +80,8 @@ DEFAULTS: dict = {
     "pagina": "A4",
     "pagina_w": APP_W,           # mm (A4 vertical)
     "pagina_h": APP_H,
-    "maquina": "maker5",         # maker5 | estandar | joy
-    "usar_minis": False,
+    "maquina": "maker3",         # maker3 | maker | maker5 | estandar | joy
+    "usar_minis": True,        # activado: solo genera minis de los elementos marcados
     # Minis
     "mini_min_mm": 15.0,
     "mini_max_rescale": 100.0,   # tamaño máximo del mini (% del original, < 100)
@@ -136,12 +161,23 @@ class Settings:
                 if CONFIG_FILE.exists():
                     saved = json.loads(CONFIG_FILE.read_text("utf-8"))
                     if saved.get("_v") != CONFIG_VERSION:
-                        # config de una versión anterior: se conserva solo lo
-                        # que el usuario eligió claramente (no los formatos)
-                        saved = {k: saved[k] for k in
-                                 ("carpeta_export", "tema", "fondo_transparente",
-                                  "idioma")
-                                 if k in saved}
+                        if saved.get("_v") == 23:
+                            # los minis pasan a estar activados por defecto
+                            saved["usar_minis"] = True
+                            saved["_v"] = CONFIG_VERSION
+                        elif saved.get("_v") == 22:
+                            # migración suave: el antiguo perfil Maker único
+                            # pasa a la serie Maker (Maker 3 por defecto)
+                            if saved.get("maquina") in ("maker5", "maker"):
+                                saved["maquina"] = "maker3"
+                            saved["_v"] = CONFIG_VERSION
+                        else:
+                            # config muy antigua: se conserva solo lo que el
+                            # usuario eligió claramente (no los formatos)
+                            saved = {k: saved[k] for k in
+                                     ("carpeta_export", "tema",
+                                      "fondo_transparente", "idioma")
+                                     if k in saved}
                     self._data.update(saved)
             except Exception:
                 pass

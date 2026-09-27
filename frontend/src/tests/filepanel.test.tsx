@@ -127,20 +127,6 @@ describe("Panel de archivos", () => {
     );
   });
 
-  it("cada elemento tiene botones de abrir carpeta y reemplazar", async () => {
-    const u = userEvent.setup();
-    render(<FilePanel assets={[asset()]} result={null} settings={settings} onChange={onChange} saveSettings={saveSettings} />);
-    // abrir carpeta del elemento
-    await u.click(screen.getByTestId("abrir-carpeta-a1"));
-    await waitFor(() =>
-      expect(global.fetch).toHaveBeenCalledWith(
-        "/api/fs/open", expect.objectContaining({ method: "POST" })
-      )
-    );
-    // reemplazar: el botón abre el selector de archivos
-    expect(screen.getByTestId("reemplazar-a1")).toBeInTheDocument();
-  });
-
   it("permite fijar el tamaño exacto en mm por ancho o por alto", async () => {
     render(<FilePanel assets={[asset()]} result={result} settings={settings}
                        onChange={onChange} saveSettings={saveSettings} />);

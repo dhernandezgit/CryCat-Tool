@@ -543,6 +543,9 @@ def _one_pass(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
     `contacto=False` usa Bottom-Left puro; `voronoi=True` coloca en el hueco
     libre más grande.
     """
+    # presupuesto agotado: mejor devolver vacío que hacer esperar
+    if deadline is not None and time.time() > deadline:
+        return PackResult(method="silueta")
     # rejilla adaptativa: más gruesa cuantos más objetos (mantiene la rapidez)
     n_total = sum(int(a.get("copies", 1)) for a in assets) + len(pinned or [])
     cell = _cell_para(n_total, str(settings.get("opt_calidad", "normal")))
@@ -698,6 +701,14 @@ def _one_pass(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
     return result
 
 
+def _clave(res: PackResult) -> tuple:
+    """Orden de calidad de un resultado: primero los VÁLIDOS (con páginas),
+    luego menos sin colocar, menos páginas y más eficiencia. Un resultado
+    vacío (presupuesto agotado antes de empezar) nunca puede ganar."""
+    vacio = 0 if res.pages > 0 else 1
+    return (vacio, len(res.unplaced), max(0, res.pages), -res.efficiency)
+
+
 def _cruce_orden(a: list[int], b: list[int], rnd) -> list[int]:
     """Cruce de orden (OX) para el algoritmo genético."""
     n = len(a)
@@ -737,8 +748,7 @@ def _pase_genetico(assets: list[dict], masks: dict[str, Image.Image],
                          None, (0.05, 0.95), deadline=deadline,
                          orden_idx=perm)
 
-    def clave(r: PackResult) -> tuple:
-        return (len(r.unplaced), r.pages, -r.efficiency)
+    clave = _clave
 
     poblacion: list[list[int]] = [list(range(n)),
                                   list(range(n - 1, -1, -1))]
@@ -789,8 +799,10 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
     Todos usan SIEMPRE la silueta real y prueban los ángulos permitidos.
     """
     import random as _random
+    from .config import tiempo_optimo
+
     t0 = time.time()
-    t_max = max(0.5, float(settings.get("opt_tiempo_max_s", 8.0)))
+    t_max = max(0.5, tiempo_optimo(settings))
     metodo = str(settings.get("opt_metodo", "greedy")).lower()
     # compatibilidad con los nombres antiguos
     if metodo in ("silueta_rapido", "silueta", "maxrects", "skyline", "auto"):
@@ -822,7 +834,8 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
     else:  # greedy: Largest First como solución inicial + multi-arranque paralelo
         best = _one_pass(assets, masks, area, settings, pinned, "area", rnd,
                          progress, (0.05, 0.35), deadline=deadline_1)
-        if not (not best.unplaced and best.pages == 1):
+        if (not (not best.unplaced and best.pages == 1)
+                and time.time() < deadline):
             ordenes = ["alto", "ancho"] + \
                 [f"random{i}" for i in range(1, 9)]
             try:
@@ -841,9 +854,7 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
                             res = f.result()
                         except Exception:
                             continue
-                        key = (len(res.unplaced), res.pages, -res.efficiency)
-                        if key < (len(best.unplaced), best.pages,
-                                  -best.efficiency):
+                        if _clave(res) < _clave(best):
                             best = res
                         if not best.unplaced and best.pages == 1:
                             break            # objetivo cumplido: una hoja
@@ -858,15 +869,19 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
                     pass
 
     assert best is not None
-    # fase de compactación (estilo DeepNest): acerca cada pieza al borde
+    # fase de compactación (estilo DeepNest): acerca cada pieza al borde,
+    # pero SOLO con el tiempo que quede (nunca se pasa del presupuesto)
     if best.placements and not pinned:
-        try:
-            cell = _cell_para(n_total, str(settings.get("opt_calidad", "normal")))
-            if compactar(assets, masks, area, settings, best.placements, cell,
-                         deadline=max(deadline, time.time() + 2.0)):
-                _recalcular_eficiencia(best, masks, area)
-        except Exception:
-            pass
+        fin = min(deadline, time.time() + 1.5)
+        if time.time() < fin:
+            try:
+                cell = _cell_para(n_total,
+                                  str(settings.get("opt_calidad", "normal")))
+                if compactar(assets, masks, area, settings, best.placements,
+                             cell, deadline=fin):
+                    _recalcular_eficiencia(best, masks, area)
+            except Exception:
+                pass
     best.method = metodo
     best.elapsed_s = time.time() - t0
     return best

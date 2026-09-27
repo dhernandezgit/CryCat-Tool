@@ -365,8 +365,26 @@ def test_defaults_extras_pikmin(client):
     assert s2["mute"] is True and s2["volumen"] == 0.2
 
 
+def test_demo_inicial(client):
+    """La muestra de figuras se genera y se va al subir una imagen de verdad."""
+    c, st, _ = client
+    r = c.post("/api/demo?n=6")
+    assert r.status_code == 200
+    d = r.json()
+    assert d["ok"] is True and d["demo"] is True
+    assert len(d["assets"]) == 6
+    assert all(a.get("demo") for a in d["assets"])
+    assert all(a["w_mm"] > 10 for a in d["assets"])
+    # una imagen real barre la muestra
+    upload(c, "a.png")
+    lista = c.get("/api/assets").json()
+    assert lista and not any(a.get("demo") for a in lista)
+    # y con imágenes de verdad no se genera otra muestra
+    assert c.post("/api/demo?n=6").json()["ok"] is False
+
+
 def test_estimacion_corte(client):
-    """La estimación de corte (Maker 5) usa siluetas/viajes y el factor ajusta."""
+    """La estimación de corte (serie Maker) usa siluetas/viajes y el factor."""
     import time
     c, st, _ = client
     d = upload(c, "a.png").json()
@@ -377,7 +395,7 @@ def test_estimacion_corte(client):
             break
         time.sleep(0.05)
     e = c.get("/api/estimate").json()
-    assert e["maquina"] == "Cricut Maker 5"
+    assert e["maquina"] == "Cricut Maker 3"     # máquina por defecto
     assert e["segundos"] > 0
     assert e["paginas"] and e["paginas"][0]["formas"] == 4
     base = e["segundos"]

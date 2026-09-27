@@ -486,7 +486,9 @@ def optimize(assets: list[dict], area: CutArea, settings: dict,
     fracs = sil_fracs(masks) if masks else None
 
     pinned = [p for p in (pinned or []) if p.pinned]
-    t_max = max(0.5, float(settings.get("opt_tiempo_max_s", 8.0)))
+    from .config import tiempo_optimo
+
+    t_max = max(0.5, tiempo_optimo(settings))
     normals, _ = _expand_items(assets, settings)
 
     if method == "maxrects":
@@ -515,8 +517,11 @@ def optimize(assets: list[dict], area: CutArea, settings: dict,
             label = f"{heur}/random{i}"
         res = _run_pack(assets, area, settings, pinned, ordered, heur, label,
                         deadline, fracs=fracs)
-        key = (len(res.unplaced), res.pages, -res.efficiency)
-        if best is None or key < (len(best.unplaced), best.pages, -best.efficiency):
+        def _clave(r):
+            return (0 if r.pages > 0 else 1, len(r.unplaced),
+                    max(0, r.pages), -r.efficiency)
+
+        if best is None or _clave(res) < _clave(best):
             best = res
         i += 1
         if progress:
