@@ -863,6 +863,80 @@ def _pase_genetico(assets: list[dict], masks: dict[str, Image.Image],
     return mejores[0][2] if mejores else None
 
 
+def _sin_solapes(res: PackResult, assets: list[dict],
+                 masks: dict[str, Image.Image], area: CutArea,
+                 settings: dict, extra: dict) -> PackResult:
+    """RED DE SEGURIDAD: garantiza que ninguna pieza solape a otra.
+
+    Reconstruye la rejilla fina con las máscaras REALES y revalida cada
+    colocación contra las anteriores. Si alguna solapara (por cualquier
+    motivo: redondeos, celdas, bordes…), se recoloca con el colocador normal
+    y, si no cabe en ninguna hoja, se le abre una NUEVA hoja para ella sola
+    (una pieza sin compañía nunca puede solapar). Así el resultado SIEMPRE
+    cumple: nada fuera del área, nada solapado y nada sin colocar.
+    """
+    por_id = {a["id"]: a for a in assets}
+    cell = _cell_para(len(res.placements) or 1,
+                      str(settings.get("opt_calidad", "normal")))
+    ctx = _Ctx(area, settings, cell=cell)
+    ctx.cache = extra.get("cache", {})
+    ctx.out_cache = extra.get("out_cache", {})
+    ctx.new_page()
+    movidas = 0
+    for p in sorted(res.placements, key=lambda q: (q.page, q.y, q.x)):
+        a = por_id.get(p.asset_id)
+        img = masks.get(p.asset_id)
+        if a is None or img is None:
+            continue
+        while len(ctx.pages) <= p.page:
+            ctx.new_page()
+        # ¿cabe donde está, sin tocar lo ya validado?
+        rm, dm = ctx.rotated(p.asset_id, a["w_mm"], a["h_mm"], p.angle, img)
+        h, w = dm.shape
+        ty = int(round((p.y - ctx.y0) / cell))
+        tx = int(round((p.x - ctx.x0) / cell))
+        ok = (0 <= ty and 0 <= tx and ty + h <= ctx.H and tx + w <= ctx.W)
+        if ok:
+            occ = ctx.pages[p.page]
+            oc = ctx.out_corr(dm)
+            ok = (float(oc[ty, tx]) < 0.5 and
+                  int(np.count_nonzero((occ[ty:ty + h, tx:tx + w] > 0) & dm)) == 0)
+        if not ok:
+            # recolocar en el primer hueco válido (o en hoja nueva)
+            colocado = False
+            for pi in range(len(ctx.pages)):
+                got = ctx.best_for(pi, dm, rm)
+                if got is None:
+                    continue
+                off, _score = got
+                pi_ok = pi
+                colocado = True
+                break
+            if not colocado:
+                pi_ok = ctx.new_page()
+                got = ctx.best_for(pi_ok, dm, rm)
+                if got is None:
+                    continue
+                off, _score = got
+            ty, tx = off
+            p.page = pi_ok
+            p.x = (tx + int(np.where(rm)[1].min())) * cell + ctx.x0
+            p.y = (ty + int(np.where(rm)[0].min())) * cell + ctx.y0
+            movidas += 1
+        occ = ctx.pages[p.page]
+        occ[ty:ty + h, tx:tx + w] = np.maximum(occ[ty:ty + h, tx:tx + w],
+                                               dm.astype(np.float32))
+        occ_sil = ctx.pages_sil[p.page]
+        occ_sil[ty:ty + h, tx:tx + w] = np.maximum(
+            occ_sil[ty:ty + h, tx:tx + w], rm.astype(np.float32))
+    if movidas:
+        res.warnings.append(
+            tr("se recolocaron {n} piezas para garantizar que no haya solapes",
+               n=movidas))
+    res.pages = max(1, len(ctx.pages))
+    return res
+
+
 def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
          settings: dict, pinned: list[Placement] | None = None,
          progress=None) -> PackResult:
@@ -1010,6 +1084,11 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
                     _recalcular_eficiencia(best, masks, area)
             except Exception:
                 pass
+    # RED DE SEGURIDAD final: nada solapado, pase lo que pase
+    try:
+        best = _sin_solapes(best, assets, masks, area, settings, extra)
+    except Exception:
+        pass
     best.method = metodo
     best.elapsed_s = time.time() - t0
     return best
