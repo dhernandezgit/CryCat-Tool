@@ -176,6 +176,17 @@ export const EN: Record<string, string> = {
     "Cut-area guides (key G): preview only",
   "Recalcular la colocación (ignora los elementos fijados)":
     "Recalculate the layout (ignores pinned items)",
+  "Auto optimizar": "Auto-optimise",
+  "Optimizar": "Optimise",
+  "Optimizar: vuelve a colocar todo (ignora los fijados)":
+    "Optimise: re-places everything (ignores pinned items)",
+  "Qué se ve detrás: blanco, transparente o verde fosforito (tecla T)":
+    "What shows behind: white, transparent or neon green (key T)",
+  "Transparente": "Transparent",
+  "Fosforito": "Neon",
+  "Centrar": "Centre",
+  "Centrar la hoja y volver al tamaño original (tecla 0)":
+    "Centre the sheet and go back to the original size (key 0)",
   "Modo básico": "Basic mode",
   "Modo experto": "Expert mode",
   "Modo básico (lo esencial) o experto (todos los menús)":

@@ -40,7 +40,7 @@ export default function AccionesRapidas({ settings, saveSettings }: {
           data-tip={t("Recalcular automáticamente con cada cambio")}
           onClick={() => saveSettings({ auto_recalcular: !settings.auto_recalcular })}
         >
-          <IconoRecalcular size={16} /> {t("Auto")}
+          <IconoRecalcular size={16} /> {t("Auto optimizar")}
         </button>
         <button
           className={`chip${experto ? " on" : ""}`}

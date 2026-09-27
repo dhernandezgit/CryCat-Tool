@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { api, NAME_SUGGESTIONS, NAME_SUGGESTIONS_EN, type AppSettings, type Asset, type Job, type Placement, type Result, type UiState } from "../api";
 import FolderPicker from "./FolderPicker";
 import SaveDialog from "./SaveDialog";
-import { IconoGuias, IconoBordes, IconoRecalcular,
+import { IconoGuias, IconoBordes, IconoRecalcular, IconoOjo,
+         IconoFosforito, IconoCentrar,
          IconoZoomMas, IconoZoomMenos, IconoAjustar,
          IconoGuardar, IconoImprimir, IconoCarpeta, IconoDeshacer,
          IconoRehacer } from "./iconos";
@@ -249,6 +250,27 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
       setGuardado({ files: [], folder: "", error: (e as Error).message });
       return;
     }
+    // En la WEB no se imprime la página: se descarga el PDF con las marcas
+    // negras de Cricut (que es lo que se lleva a la impresora).
+    const web = !!(globalThis as { __crycatBase?: string }).__crycatBase;
+    if (web) {
+      try {
+        const r = await fetch(
+          (globalThis as { __crycatBase?: string }).__crycatBase +
+          "api/print.pdf");
+        const blob = await r.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${ui.saveName || "crycat"}-cricut.pdf`;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 4000);
+      } catch (e) {
+        setGuardado({ files: [], folder: "",
+                      error: (e as Error).message });
+      }
+      return;
+    }
     const iframe = document.createElement("iframe");
     iframe.setAttribute("aria-hidden", "true");
     iframe.style.cssText =
@@ -404,10 +426,10 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
         <button
           className="recalc-btn"
           data-testid="btn-recalcular"
-          data-tip={t("Recalcular la colocación (ignora los elementos fijados)")}
+          data-tip={t("Optimizar: vuelve a colocar todo (ignora los fijados)")}
           onClick={() => onRecalc(sobraEspacio ? "rapido" : "optimo")}
         >
-          <IconoRecalcular size={16} />
+          <IconoRecalcular size={16} /> {t("Optimizar")}
         </button>
         <div className="group">
           {pages > 1 && largePage === null && (
@@ -422,7 +444,7 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
           )}
           <button
             data-testid="btn-ojo"
-            title={t("Fondo: blanco  transparente  verde fosforito (tecla T)")}
+            data-tip={t("Qué se ve detrás: blanco, transparente o verde fosforito (tecla T)")}
             onClick={() =>
               setUi((u) => {
                 // ciclo de 3 estados: blanco -> transparencia -> fosforito
@@ -432,16 +454,20 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
               })
             }
           >
-            {ui.eyeFosforito ? "" : ui.eyeTransparent ? "" : ""}
+            {ui.eyeFosforito ? <IconoFosforito size={16} />
+              : ui.eyeTransparent ? <IconoOjo size={16} />
+              : <IconoOjo size={16} />}
+            {ui.eyeFosforito ? t("Fosforito")
+              : ui.eyeTransparent ? t("Transparente") : t("Blanco")}
           </button>
           <button onClick={() => setZoom((z) => Math.min(12, z * 1.08))} title={t("Acercar (+)")}><IconoZoomMas size={15} /></button>
           <button onClick={() => setZoom((z) => Math.max(0.05, z / 1.08))} title={t("Alejar (−)")}><IconoZoomMenos size={15} /></button>
           <button
             data-testid="zoom-reset"
             onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }}
-            title={t("Volver al zoom original (tecla 0)")}
+            data-tip={t("Centrar la hoja y volver al tamaño original (tecla 0)")}
           >
-            100%
+            <IconoCentrar size={16} /> {t("Centrar")}
           </button>
         </div>
       </div>

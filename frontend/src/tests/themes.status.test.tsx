@@ -53,27 +53,6 @@ describe("Barra de estado", () => {
     expect(screen.getByTestId("corte-estimado")).toHaveTextContent(/1 min 35 s/);
   });
 
-  it("tiene botón de mute y barra de volumen", () => {
-    const onVolumen = vi.fn();
-    const onMute = vi.fn();
-    render(<StatusBar job={null} backendOk result={result} estimate={null}
-                      volumen={0.4} mute={false}
-                      onVolumen={onVolumen} onMute={onMute} />);
-    expect(screen.getByTestId("btn-mute").querySelector("svg")).toBeTruthy();
-    const vol = screen.getByTestId("volumen") as HTMLInputElement;
-    expect(vol.value).toBe("0.4");
-    fireEvent.change(vol, { target: { value: "0.8" } });
-    expect(onVolumen).toHaveBeenCalledWith(0.8);
-    fireEvent.click(screen.getByTestId("btn-mute"));
-    expect(onMute).toHaveBeenCalledWith(true);
-  });
-
-  it("muestra el icono de mute cuando está silenciado", () => {
-    render(<StatusBar job={null} backendOk result={null} estimate={null}
-                      volumen={0} mute={true} />);
-    expect(screen.getByTestId("btn-mute").querySelector("svg")).toBeTruthy();
-  });
-
   it("sin estimación muestra un guion", () => {
     render(<StatusBar job={null} backendOk result={null} estimate={null} />);
     expect(screen.getByTestId("corte-estimado")).toHaveTextContent("—");

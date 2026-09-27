@@ -107,6 +107,39 @@ export function IconoBordes({ size }: P) {
   );
 }
 
+export function IconoOjo({ size }: P) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"
+      strokeLinejoin="round" aria-hidden="true">
+      <path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  );
+}
+
+export function IconoFosforito({ size }: P) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"
+      strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 3l7 7-7 11L5 10z" />
+      <path d="M12 8v6" />
+    </svg>
+  );
+}
+
+export function IconoCentrar({ size }: P) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"
+      strokeLinejoin="round" aria-hidden="true">
+      <rect x="3" y="3" width="18" height="18" rx="3" />
+      <path d="M12 3v18M3 12h18" strokeDasharray="2 3" />
+    </svg>
+  );
+}
+
 export function IconoRotar({ size }: P) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none"

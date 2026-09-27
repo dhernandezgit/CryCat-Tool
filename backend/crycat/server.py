@@ -514,15 +514,17 @@ def create_app(store: Session = session) -> FastAPI:
         img = imaging.thumbnail(a.img)
         if bordes:
             # contornos punteados de la carta: la silueta final (con borde y
-            # cambios) y el dibujo sin borde. Solo es vista previa.
-            esc = max(img.width, img.height) / max(1, max(a.img.size))
+            # cambios) y el dibujo sin borde, ambos centrados. Solo vista previa.
+            final = store.images().get(aid) or a.img
+            esc = max(img.width, img.height) / max(1, max(final.size))
+            vista = img.convert("RGBA")
+            w_mm = final.width / max(1e-6, a.dpi_origen) * 25.4 * esc
+            h_mm = final.height / max(1e-6, a.dpi_origen) * 25.4 * esc
             img = compose.contornos_bordes(
-                img.convert("RGBA"),
+                vista,
                 [Placement(uid="carta", asset_id=aid, page=0, x=0.0, y=0.0,
-                           w=img.width / max(1e-6, esc) / (a.dpi_origen / 25.4),
-                           h=img.height / max(1e-6, esc) / (a.dpi_origen / 25.4),
-                           angle=0.0, scale=1.0)],
-                {aid: img.convert("RGBA")},
+                           w=w_mm, h=h_mm, angle=0.0, scale=1.0)],
+                {aid: vista},
                 {aid: imaging.thumbnail(a.img)},
                 store.current_area(),
                 a.dpi_origen * esc,

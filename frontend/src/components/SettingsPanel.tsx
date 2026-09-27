@@ -108,7 +108,8 @@ export default function SettingsPanel({ settings, saveSettings,
   const t = useT();
   const [panelAbierto, setPanelAbierto] = useState(true);
   const [open, setOpen] = useState<Record<string, boolean>>({
-    minis: false, optimizacion: false, imagen: false, visualizacion: false,
+    general: true, minis: false, optimizacion: false, imagen: false,
+    visualizacion: false,
     historial: false,
     perfiles: false, corte: false, extras: false, offset: false,
   });
@@ -189,7 +190,8 @@ export default function SettingsPanel({ settings, saveSettings,
         </div>
       )}
       {/* -------- General -------- */}
-      <Section id="general" title={t("General")} open toggle={() => undefined}
+      <Section id="general" title={t("General")} open={open.general}
+               toggle={toggle}
                icon={<IconoAjustar size={15} />}>
         <Grupo titulo="Colocación">
         {num("Espacio entre elementos", "espacio_mm", 0, 20, 0.5, "mm", undefined,
@@ -612,7 +614,32 @@ export default function SettingsPanel({ settings, saveSettings,
         </div>
       </Section>
 
-      {experto && <Section id="extras" title={t("Extras")} open={open.extras} toggle={toggle}>
+      <Section id="extras" title={t("Extras")} open={open.extras} toggle={toggle}
+               icon={<IconoVolumen size={15} />}>
+        <Grupo titulo="Sonido">
+          <div className="ctl">
+            <label>{t("Volumen de la mascota")}</label>
+            <div className="row">
+              <button
+                data-testid="set-mute"
+                className={`chip${settings.mute ? " on" : ""}`}
+                onClick={() => set({ mute: !settings.mute })}
+              >
+                {settings.mute ? t("Silenciado") : t("Con sonido")}
+              </button>
+              <input
+                type="range" min={0} max={1} step={0.05}
+                data-testid="set-volumen"
+                value={settings.volumen ?? 0.5}
+                onChange={(e) => set({ volumen: Number(e.target.value) })}
+              />
+              <span className="hint">
+                {Math.round((settings.volumen ?? 0.5) * 100)}%
+              </span>
+            </div>
+          </div>
+        </Grupo>
+        <Grupo titulo="Pikmin">
         <div className="ctl">
           <label className="row">
             <input type="checkbox" data-testid="set-pikmin-activo"
@@ -646,10 +673,11 @@ export default function SettingsPanel({ settings, saveSettings,
             {t("Comprobar si hay versiones nuevas al iniciar")}
           </label>
         </div>
+        </Grupo>
         <div className="hint">
           {t("Las imágenes rotan entre las del proyecto y las de Pikmin Bloom.")}
         </div>
-      </Section>}
+      </Section>
 
       <div className="creditos" data-testid="creditos">
         {destacar(

@@ -319,30 +319,6 @@ export default function StatusBar({ job, backendOk, result, estimate,
             </button>
           )}
         </span>
-        <div className="vol-control">
-          <button
-            data-testid="btn-mute"
-            className="icon-sonido"
-            title={mute ? t("Activar sonido") : t("Silenciar")}
-            aria-label={mute ? t("Activar sonido") : t("Silenciar")}
-            onClick={() => onMute?.(!mute)}
-          >
-            {mute ? <IconoMute /> : <IconoVolumen />}
-          </button>
-          <input
-            type="range"
-            min={0}
-            max={1}
-            step={0.05}
-            data-testid="volumen"
-            title={t("Volumen")}
-            value={volumen}
-            onChange={(e) => {
-              onVolumen?.(Number(e.target.value));
-              if (mute && Number(e.target.value) > 0) onMute?.(false);
-            }}
-          />
-        </div>
         <span
           className={`dot ${backendOk ? "" : "off"}`}
           data-testid="backend-status"
