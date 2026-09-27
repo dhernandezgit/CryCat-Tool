@@ -514,22 +514,36 @@ def create_app(store: Session = session) -> FastAPI:
             raise HTTPException(404, tr("asset no encontrado"))
         img = imaging.thumbnail(a.img)
         if bordes:
-            # contornos punteados de la carta: la silueta final (con borde y
-            # cambios) y el dibujo sin borde, ambos centrados. Solo vista previa.
+            # Contornos punteados de la carta, alineados a lo bruto:
+            #  · guiones magenta = silueta final (con borde y cambios)
+            #  · puntos cian = dibujo sin borde, CENTRADO dentro de la final
+            from scipy import ndimage
             final = store.images().get(aid) or a.img
-            esc = max(img.width, img.height) / max(1, max(final.size))
+            ft = imaging.thumbnail(final)
+            esc = ft.width / max(1, final.width)
             vista = img.convert("RGBA")
-            w_mm = final.width / max(1e-6, a.dpi_origen) * 25.4 * esc
-            h_mm = final.height / max(1e-6, a.dpi_origen) * 25.4 * esc
-            img = compose.contornos_bordes(
-                vista,
-                [Placement(uid="carta", asset_id=aid, page=0, x=0.0, y=0.0,
-                           w=w_mm, h=h_mm, angle=0.0, scale=1.0)],
-                {aid: vista},
-                {aid: imaging.thumbnail(a.img)},
-                store.current_area(),
-                a.dpi_origen * esc,
-                grosor_px=2)
+            arr = np.asarray(vista).copy()
+            m_final = np.asarray(ft.convert("RGBA").getchannel("A")) > 1
+            # el original, escalado y centrado dentro de la final
+            w_o = max(1, int(round(a.img.width * esc)))
+            h_o = max(1, int(round(a.img.height * esc)))
+            orig = a.img.convert("RGBA").resize((w_o, h_o),
+                                                Image.Resampling.LANCZOS)
+            capa = Image.new("RGBA", ft.size, (0, 0, 0, 0))
+            capa.alpha_composite(orig, (max(0, (ft.width - w_o) // 2),
+                                        max(0, (ft.height - h_o) // 2)))
+            m_orig = np.asarray(capa.getchannel("A")) > 1
+            yy, xx = np.mgrid[0:m_final.shape[0], 0:m_final.shape[1]]
+            fase = (xx + yy) % 12
+            for mask, color, es_final in ((m_final, (226, 18, 94), True),
+                                          (m_orig, (0, 148, 211), False)):
+                if mask.shape != m_final.shape:
+                    continue
+                cont = mask & ~ndimage.binary_erosion(mask, iterations=1)
+                cont = ndimage.binary_dilation(cont, iterations=1)
+                cont = cont & ((fase < 8) if es_final else (fase >= 8))
+                arr[cont] = (color[0], color[1], color[2], 255)
+            img = Image.fromarray(arr, "RGBA")
         return _png_response(img)
 
     # ----------------------------------------------------------- optimizar --

@@ -149,6 +149,30 @@ input::placeholder { color: #cbbfc8; opacity: 1; font-style: italic; }
 
 /* ---------------- visor ---------------- */
 .viewer { flex: 1; display: flex; flex-direction: column; padding: 8px 6px; min-height: 0; }
+.viewer { position: relative; }
+.viewer-flotantes {
+  position: absolute; inset: auto 10px 10px 10px; display: flex;
+  justify-content: space-between; align-items: flex-end;
+  pointer-events: none; z-index: 5;
+}
+.viewer-flotantes .vf-izq { display: flex; gap: 6px; pointer-events: auto; }
+.viewer-flotantes .vf-der {
+  display: flex; flex-direction: column; gap: 6px; align-items: center;
+  pointer-events: auto;
+}
+.viewer-flotantes button {
+  font: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer;
+  padding: 7px 9px; border-radius: 10px; line-height: 1;
+  border: 2px solid var(--border); background: var(--panel); color: var(--textSoft);
+  box-shadow: 0 2px 8px rgba(80, 40, 60, .10);
+}
+.viewer-flotantes button:hover { border-color: var(--accent); color: var(--text); }
+.viewer-flotantes button:disabled { opacity: .45; cursor: default; }
+.viewer-flotantes .zoom-nivel {
+  font-size: 10.5px; font-weight: 800; color: var(--accent3);
+  background: var(--panel); border: 2px solid var(--border);
+  border-radius: 8px; padding: 2px 6px;
+}
 .viewer-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex: none; padding: 0 2px 8px; }
 .viewer-top .group { display: flex; gap: 6px; align-items: center; }
 .recalc-btn { flex: 1; padding: 7px 10px; }

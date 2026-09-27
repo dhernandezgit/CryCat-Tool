@@ -292,6 +292,7 @@ def test_eficiencia_mide_siluetas_reales():
         f"ratio {cir.efficiency / cua.efficiency:.3f}"
 
 
-def test_metodo_por_defecto_es_greedy():
+def test_metodo_por_defecto_es_auto():
+    """Por defecto, AUTOMÁTICO: elige el método según el espacio disponible."""
     from crycat.config import DEFAULTS
-    assert DEFAULTS["opt_metodo"] == "greedy"
+    assert DEFAULTS["opt_metodo"] == "auto"

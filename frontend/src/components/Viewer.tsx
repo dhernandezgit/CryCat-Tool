@@ -416,24 +416,6 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
   return (
     <div className="viewer" data-testid="viewer">
       <div className="viewer-top">
-        <div className="group hist">
-          <button
-            data-testid="btn-deshacer"
-            data-tip={t("Deshacer (Ctrl+Z)")}
-            onClick={() => onDeshacer()}
-            disabled={!puedeDeshacer}
-          >
-            <IconoDeshacer size={16} />
-          </button>
-          <button
-            data-testid="btn-rehacer"
-            data-tip={t("Rehacer (Ctrl+Y / Ctrl+Shift+Z)")}
-            onClick={() => onRehacer()}
-            disabled={!puedeRehacer}
-          >
-            <IconoRehacer size={16} />
-          </button>
-        </div>
         <div className="group">
           <button
             data-testid="btn-bordes"
@@ -490,15 +472,61 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
             {ui.eyeFosforito ? t("Fosforito")
               : ui.eyeTransparent ? t("Transparente") : t("Blanco")}
           </button>
-          <button onClick={() => setZoom((z) => Math.min(12, z * 1.08))} title={t("Acercar (+)")}><IconoZoomMas size={15} /></button>
-          <button onClick={() => setZoom((z) => Math.max(0.05, z / 1.08))} title={t("Alejar (−)")}><IconoZoomMenos size={15} /></button>
+          <button
+            data-testid="btn-disposicion"
+            data-tip={t("Cambiar la disposición: menús anchos o hoja más grande")}
+            onClick={() => {
+              const horizontal = !(window as { __crycatAncho?: boolean })
+                .__crycatAncho;
+              (window as { __crycatAncho?: boolean }).__crycatAncho = horizontal;
+              window.dispatchEvent(new CustomEvent("crycat:disposicion",
+                { detail: horizontal }));
+            }}
+          >
+            <IconoCentrar size={16} />
+          </button>
+        </div>
+      </div>
+
+      {/* flotantes: deshacer/rehacer abajo-izquierda; zoom en columna abajo-derecha */}
+      <div className="viewer-flotantes">
+        <div className="vf-izq">
+          <button
+            data-testid="btn-deshacer"
+            data-tip={t("Deshacer (Ctrl+Z)")}
+            onClick={() => onDeshacer()}
+            disabled={!puedeDeshacer}
+          >
+            <IconoDeshacer size={16} />
+          </button>
+          <button
+            data-testid="btn-rehacer"
+            data-tip={t("Rehacer (Ctrl+Y / Ctrl+Shift+Z)")}
+            onClick={() => onRehacer()}
+            disabled={!puedeRehacer}
+          >
+            <IconoRehacer size={16} />
+          </button>
+        </div>
+        <div className="vf-der">
+          <button data-tip={t("Acercar (+)")}
+                  onClick={() => setZoom((z) => Math.min(12, z * 1.08))}>
+            <IconoZoomMas size={15} />
+          </button>
           <button
             data-testid="zoom-reset"
-            onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }}
             data-tip={t("Centrar la hoja y volver al tamaño original (tecla 0)")}
+            onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }}
           >
-            <IconoCentrar size={16} /> {t("Centrar")}
+            <IconoCentrar size={15} />
           </button>
+          <button data-tip={t("Alejar (−)")}
+                  onClick={() => setZoom((z) => Math.max(0.05, z / 1.08))}>
+            <IconoZoomMenos size={15} />
+          </button>
+          <span className="zoom-nivel" data-testid="zoom-nivel">
+            {Math.round(zoom * 100)}%
+          </span>
         </div>
       </div>
 

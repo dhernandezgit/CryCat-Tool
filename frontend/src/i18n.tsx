@@ -192,6 +192,8 @@ export const EN: Record<string, string> = {
   "Transparente": "Transparent",
   "Fosforito": "Neon",
   "Centrar": "Centre",
+  "Cambiar la disposición: menús anchos o hoja más grande":
+    "Switch the layout: wide menus or a bigger sheet",
   "Centrar la hoja y volver al tamaño original (tecla 0)":
     "Centre the sheet and go back to the original size (key 0)",
   "Modo básico": "Basic mode",

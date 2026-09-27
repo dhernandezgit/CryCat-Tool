@@ -61,6 +61,17 @@ export default function App() {
     })();
   }, []);
 
+  // botón de disposición del visor: menús anchos <-> hoja más grande
+  useEffect(() => {
+    const alCambiar = (ev: Event) => {
+      const horizontal = (ev as CustomEvent<boolean>).detail;
+      setLeftW(horizontal ? 19 : 33.3);
+      setCenterW(horizontal ? 62 : 33.3);
+    };
+    window.addEventListener("crycat:disposicion", alCambiar);
+    return () => window.removeEventListener("crycat:disposicion", alCambiar);
+  }, []);
+
   // latido del backend
   useEffect(() => {
     const t = setInterval(async () => {
