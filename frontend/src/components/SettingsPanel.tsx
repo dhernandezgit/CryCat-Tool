@@ -362,7 +362,7 @@ export default function SettingsPanel({ settings, saveSettings,
       </Section>
 
       {/* -------- Optimización -------- */}
-      <Section id="optimizacion" title={t("Optimización")} open={open.optimizacion} toggle={toggle}
+{experto &&       <Section id="optimizacion" title={t("Optimización")} open={open.optimizacion} toggle={toggle}
                icon={<IconoRecalcular size={15} />}>
         {sel("Método", "opt_metodo", [
           ["greedy", "Greedy / Bottom-Left (rápido)"],
@@ -393,10 +393,10 @@ export default function SettingsPanel({ settings, saveSettings,
         <div className="hint">
           {t("La eficiencia del último cálculo se muestra en la barra de estado.")}
         </div>
-      </Section>
+      </Section>}
 
       {/* -------- Imagen -------- */}
-      <Section id="imagen" title={t("Imagen")} open={open.imagen} toggle={toggle}
+{experto &&       <Section id="imagen" title={t("Imagen")} open={open.imagen} toggle={toggle}
                icon={<IconoFondo size={15} />}>
         <Grupo titulo="Impresión">
         {num("Sangrado de impresión", "bleed_mm", 0, 5, 0.2, "mm", undefined,
@@ -471,7 +471,7 @@ export default function SettingsPanel({ settings, saveSettings,
           <div className="hint">{t("Se guarda para la próxima vez que abras CryCat.")}</div>
         </div>
         </Grupo>
-      </Section>
+      </Section>}
 
       {/* -------- Offset / borde -------- */}
 {experto &&       <Section id="offset" title={t("Offset / borde")} open={open.offset} toggle={toggle}

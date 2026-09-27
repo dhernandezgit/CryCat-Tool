@@ -356,8 +356,8 @@ async function main() {
     const fetchConAviso = async (input: RequestInfo | URL,
                                  init?: RequestInit) => {
       const url = String((input as Request)?.url ?? input ?? "");
-      const esOptimizar = url.includes("/api/optimize") ||
-        url.includes("/api/demo");
+      // solo la optimización real: el demo sale en el paso 8 de la carga
+      const esOptimizar = url.includes("/api/optimize");
       if (esOptimizar) {
         espera.style.display = "flex";
         // frases graciosas rotando mientras el hilo está ocupado

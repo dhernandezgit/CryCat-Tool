@@ -166,10 +166,9 @@ export default function App() {
     }
     demoPedida.current = true;
     api.crearDemo().then(async (r) => {
-      if (r.ok) {
-        await refresh();
-        scheduleOptimizeRef.current?.();
-      }
+      // la demo ya viene OPTIMIZADA del backend (paso 8 de la carga):
+      // no hay que relanzar nada, solo refrescar la vista
+      if (r.ok) await refresh();
     }).catch(() => undefined);
   }, [settings, assets.length, refresh]);
 

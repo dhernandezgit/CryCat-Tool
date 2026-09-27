@@ -361,6 +361,19 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
     ? "M" + polys.map(([x, y]) => `${x - offX},${y - offY}`).join(" L") + " Z"
     : "";
 
+  // al TERMINAR una optimización se ajusta la vista sola: 1 página -> 1,
+  // 2 -> 2 y 3 o más -> 4. Después se puede alternar a mano sin problema.
+  const ultimoPaginas = useRef(0);
+  useEffect(() => {
+    if (!result) return;
+    const n = result.pages || 0;
+    if (n > 0 && n !== ultimoPaginas.current) {
+      ultimoPaginas.current = n;
+      setUi((u) => ({ ...u, viewMode: n <= 1 ? 1 : n === 2 ? 2 : 4 }));
+      setLargePage(null);
+    }
+  }, [result?.pages, result?.placed, result?.minis]);
+
   // solo visual: en el modo horizontal la hoja se enseña girada 90º para
   // aprovechar el ancho (no se recalcula absolutamente nada)
   const girada = ui.hojaGirada === true;
@@ -487,6 +500,11 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
 
   return (
     <div className="viewer" data-testid="viewer">
+      {pages > 1 && (
+        <div className="aviso-paginas-flotante" data-testid="aviso-paginas">
+          {t("No cabe en una página: {n} páginas", { n: pages })}
+        </div>
+      )}
       <div className="viewer-top">
         <div className="group">
           <button
