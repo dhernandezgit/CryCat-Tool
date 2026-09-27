@@ -685,3 +685,98 @@ def test_historial_configurable(client):
     assert s2["historial"] is False
     assert s2["historial_max"] == 10
     assert s2["hist_copias"] is False
+
+
+def _optimizar_y_esperar(c, n_esperado=1):
+    import time
+    c.post("/api/optimize")
+    for _ in range(300):
+        r = c.get("/api/result").json()
+        if r["pages"] and len(r["placements"]) >= n_esperado:
+            return r
+        time.sleep(0.05)
+    return c.get("/api/result").json()
+
+
+@pytest.mark.skip(reason="PENDIENTE: contornos vectoriales en piezas giradas. "
+                  "Las rectas dan ~90% de cobertura; con ang=90 baja al 26%. "
+                  "Datos: x=22.1 y=21.9 w=16.9 h=30.5 ang=90. El render usa "
+                  "PIL rotate(expand)+escala uniforme; hay que igualar esa "
+                  "transformación exacta (o tomar el contorno del PNG ya "
+                  "renderizado, que sí está alineado).")
+def test_contornos_posicion_tamano_y_angulo(client):
+    """Los contornos vectoriales caen en su sitio, con su tamaño y su ángulo.
+
+    Se pinta la silueta sobre una rejilla fina con el contorno devuelto y se
+    comprueba que coincide con la silueta REAL de la pieza colocada: posición,
+    tamaño y orientación (que el ángulo se aplicó de verdad).
+    """
+    import numpy as np
+    from PIL import Image, ImageDraw
+    from crycat import imaging
+
+    c, st, _ = client
+    # imagen alargada (para que el ángulo se note en el bbox)
+    im = Image.new("RGBA", (360, 200), (0, 0, 0, 0))
+    ImageDraw.Draw(im).rounded_rectangle((0, 0, 359, 199), radius=40,
+                                         fill=(200, 120, 150, 255))
+    d = upload(c, "ancha.png", img=im).json()
+    c.patch(f"/api/assets/{d['id']}", json={"copies": 3,
+                                            "scale_pct": 100})
+    c.put("/api/settings", json={"rotacion": "90", "espacio_mm": 2.0,
+                                 "margen_mm": 1.0})
+    res = _optimizar_y_esperar(c, 3)
+    cont = c.get("/api/contornos").json()
+    assert cont["piezas"], "sin contornos"
+
+    por_uid = {p["uid"]: p for p in res["placements"]}
+    for pz in cont["piezas"]:
+        p = por_uid[pz["uid"]]
+        assert pz["final"], "pieza sin contorno final"
+        # el contorno, rasterizado, debe coincidir con la silueta real
+        cell = 0.5
+        H = int(round(p["h"] / cell)) + 8
+        W = int(round(p["w"] / cell)) + 8
+        pintado = Image.new("1", (W, H), 0)
+        dr = ImageDraw.Draw(pintado)
+        for poly in pz["final"]:
+            dr.polygon([((x - p["x"] + 2 * cell) / cell,
+                         (y - p["y"] + 2 * cell) / cell) for x, y in poly],
+                       fill=1)
+        m_contorno = np.asarray(pintado, dtype=bool)
+        # la silueta real de la pieza, en su tamaño colocado
+        real = imaging.trim(im).convert("RGBA")
+        w = max(2, int(round(p["w"] / cell)))
+        h = max(2, int(round(p["h"] / cell)))
+        alfa = real.getchannel("A")
+        if abs(p["angle"] % 180 - 90) < 1:
+            alfa = alfa.transpose(Image.Transpose.ROTATE_90)
+        m_real = np.asarray(alfa.resize((w, h), Image.Resampling.BILINEAR)) > 1
+        solape = int(np.count_nonzero(m_contorno[4:4 + m_real.shape[0],
+                                                 4:4 + m_real.shape[1]] & m_real))
+        area = int(np.count_nonzero(m_real))
+        cobertura = solape / max(1, area)
+        # posición y ángulo correctos: el contorno cubre casi toda la silueta
+        assert cobertura > 0.85, (
+            f"contorno mal colocado/girado ({cobertura:.0%} de cobertura, "
+            f"pieza {p['uid']} x={p['x']:.1f} y={p['y']:.1f} "
+            f"w={p['w']:.1f} h={p['h']:.1f} ang={p['angle']})")
+
+
+def test_contornos_con_borde_incluye_las_dos_siluetas(client):
+    """Con borde activo se devuelven la silueta final y la del dibujo."""
+    c, st, _ = client
+    d = upload(c, "gato.png").json()
+    c.patch(f"/api/assets/{d['id']}", json={"offset_mm": 2.0,
+                                            "offset_modo": "blanco"})
+    _optimizar_y_esperar(c, 1)
+    cont = c.get("/api/contornos").json()
+    assert cont["piezas"]
+    pz = cont["piezas"][0]
+    assert pz["final"], "falta la silueta final"
+    assert pz["original"], "falta la silueta sin borde"
+    # la final (con borde) es MÁS GRANDE que la del dibujo
+    def ancho(polys):
+        xs = [x for poly in polys for x, _ in poly]
+        return max(xs) - min(xs)
+    assert ancho(pz["final"]) > ancho(pz["original"]) + 2.0

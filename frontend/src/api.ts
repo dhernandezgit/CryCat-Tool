@@ -292,6 +292,11 @@ export const api = {
     fd.append("file", blob, name);
     return req<Asset>(`/api/assets/${id}/reemplazar`, { method: "POST", body: fd });
   },
+  /** Contornos vectoriales de las piezas para la vista animada. */
+  contornos: () =>
+    req<{ piezas: { uid: string; page: number;
+                    final: number[][][]; original: number[][][] }[] }>(
+      "/api/contornos"),
   blobs: (id: string) =>
     req<{ blobs: { id: number; area_px: number; bbox: number[]; principal: boolean }[];
           w: number; h: number; union_mm: number;

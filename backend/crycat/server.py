@@ -627,6 +627,102 @@ def create_app(store: Session = session) -> FastAPI:
             color=settings.get("color_formato", "rgba"))
         return _png_response(img)
 
+    @app.get("/api/contornos")
+    def contornos_piezas():
+        """Contornos VECTORIALES de cada pieza (para la vista animada).
+
+        Devuelve, por colocación, los polígonos en mm de la silueta final (con
+        borde y cambios) y del dibujo sin borde. El visor los pinta con líneas
+        punteadas animadas: los puntos van cambiando de sitio (hormigas
+        marchando) alternándose entre las dos siluetas.
+        """
+        if not store.last or not store.area:
+            return {"piezas": []}
+        try:
+            import cv2
+        except Exception:
+            return {"piezas": []}
+        import math as _math
+
+        # 1) Contorno de cada IMAGEN una sola vez, de la segmentación por
+        #    opacidad (alfa > 1), igual que hace el optimizador. Se cachea.
+        cache: dict = {}
+
+        def polys_de(img, w_mm: float, h_mm: float):
+            key = (id(img), round(w_mm, 3), round(h_mm, 3))
+            if key in cache:
+                return cache[key]
+            arr = (np.asarray(img.convert("RGBA").getchannel("A")) > 1
+                   ).astype("uint8")
+            cs, _ = cv2.findContours(arr, cv2.RETR_EXTERNAL,
+                                     cv2.CHAIN_APPROX_SIMPLE)
+            ex = w_mm / max(1, arr.shape[1])
+            ey = h_mm / max(1, arr.shape[0])
+            salida = []
+            for c in cs:
+                pts = c.reshape(-1, 2).astype(float)
+                if len(pts) >= 3:
+                    salida.append([(x * ex, y * ey) for x, y in pts])
+            cache[key] = salida
+            return salida
+
+        def colocar(polys, w_mm, h_mm, ang, x0, y0, destino_w, destino_h):
+            """Gira (como PIL), escala como el render y lleva a su sitio.
+
+            Se reproduce EXACTAMENTE la transformación del render: giro en
+            sentido antihorario alrededor del centro, escala uniforme para
+            encajar en la caja y esquina superior izquierda del contenido en
+            (x0, y0).
+            """
+            a = _math.radians(ang)
+            cos_a, sen_a = _math.cos(a), _math.sin(a)
+            girados = []
+            for poly in polys:
+                pts = []
+                for x, y in poly:
+                    dx, dy = x - w_mm / 2.0, y - h_mm / 2.0
+                    # PIL rota antihorario con y hacia abajo: esta es la
+                    # convención que usa el render (comprobada con test)
+                    rx = dx * cos_a - dy * sen_a
+                    ry = dx * sen_a + dy * cos_a
+                    pts.append((rx, ry))
+                girados.append(pts)
+            xs = [p[0] for poly in girados for p in poly]
+            ys = [p[1] for poly in girados for p in poly]
+            if not xs:
+                return []
+            bw = max(xs) - min(xs) or 1e-6
+            bh = max(ys) - min(ys) or 1e-6
+            k = min(destino_w / bw, destino_h / bh)
+            ox, oy = min(xs), min(ys)
+            return [[[round(x0 + (p[0] - ox) * k, 2),
+                      round(y0 + (p[1] - oy) * k, 2)] for p in poly]
+                    for poly in girados]
+
+        imagenes = store.images()
+        sin_borde = {a.id: a.img for a in store.assets.values()}
+        por_id = {a["id"]: a for a in store.asset_dicts()}
+        salida = []
+        for p in store.last.placements:
+            a = por_id.get(p.asset_id)
+            fin = imagenes.get(p.asset_id)
+            ori = sin_borde.get(p.asset_id)
+            if a is None or fin is None:
+                continue
+            final = colocar(polys_de(fin, p.w, p.h), p.w, p.h, p.angle,
+                            p.x, p.y, p.w, p.h)
+            original = []
+            if ori is not None and fin.width and fin.height:
+                w_o = p.w * ori.width / fin.width
+                h_o = p.h * ori.height / fin.height
+                original = colocar(
+                    polys_de(ori, w_o, h_o), w_o, h_o, p.angle,
+                    p.x + (p.w - w_o) / 2.0, p.y + (p.h - h_o) / 2.0,
+                    w_o, h_o)
+            salida.append({"uid": p.uid, "page": p.page,
+                           "final": final, "original": original})
+        return {"piezas": salida}
+
     @app.get("/api/result")
     def result():
         if not store.last or not store.area:

@@ -49,6 +49,9 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
   const [pickerOpen, setPickerOpen] = useState(false);
   // --- editor de contorno (blobs) ---
   const [unionMm, setUnionMm] = useState(2);
+  const [contornos, setContornos] = useState<
+    { uid: string; page: number; final: number[][][];
+      original: number[][][] }[]>([]);
   const [blobs, setBlobs] = useState<
     { id: number; area_px: number; bbox: number[]; principal: boolean }[]
   >([]);
@@ -195,6 +198,27 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
     const j = await api.unpin(uid);
     onJob(j);
   };
+
+  // Contornos vectoriales animados: PENDIENTE de cuadrar en piezas giradas
+  // (en las rectas van perfectos, en las de 90º/libres se desalinean). Hasta
+  // entonces se usan los contornos punteados del PNG, que sí están alineados.
+  const CONTORNOS_ANIMADOS = false;
+  useEffect(() => {
+    if (!CONTORNOS_ANIMADOS || !ui.verBordes || !result
+        || !result.placements.length) {
+      setContornos([]);
+      return;
+    }
+    let vivo = true;
+    api.contornos()
+      .then((r) => {
+        if (vivo) setContornos(r.piezas ?? []);
+      })
+      .catch(() => undefined);
+    return () => {
+      vivo = false;
+    };
+  }, [ui.verBordes, result?.placed, result?.minis, version]);
 
   // --- editor de contorno (blobs) ---------------------------------
   useEffect(() => {
@@ -379,6 +403,24 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
               strokeDasharray={`${sheetW / 55} ${sheetW / 85}`}
               opacity={0.85}
             />
+            {/* contornos de cada pieza, punteados y animados (hormigas
+                marchando: los puntos cambian de sitio continuamente) */}
+            {CONTORNOS_ANIMADOS && ui.verBordes && contornos
+              .filter((c) => c.page === i)
+              .map((c) => (
+                <g key={c.uid} className="marcha">
+                  {c.final.map((poly, k) => (
+                    <path key={`f${k}`} className="marcha-final"
+                          d={"M" + poly.map(([x, y]) =>
+                            `${x - offX},${y - offY}`).join(" L") + " Z"} />
+                  ))}
+                  {c.original.map((poly, k) => (
+                    <path key={`o${k}`} className="marcha-orig"
+                          d={"M" + poly.map(([x, y]) =>
+                            `${x - offX},${y - offY}`).join(" L") + " Z"} />
+                  ))}
+                </g>
+              ))}
           </svg>
         )}
         {pls.map((p) => {

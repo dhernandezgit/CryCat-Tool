@@ -149,6 +149,16 @@ input::placeholder { color: #cbbfc8; opacity: 1; font-style: italic; }
 
 /* ---------------- visor ---------------- */
 .viewer { flex: 1; display: flex; flex-direction: column; padding: 8px 6px; min-height: 0; }
+.overlay-svg .marcha path { fill: none; vector-effect: non-scaling-stroke; }
+.overlay-svg .marcha-final {
+  stroke: #e2125e; stroke-width: 1.6px; stroke-dasharray: 5 4;
+  animation: hormigas 1.4s linear infinite;
+}
+.overlay-svg .marcha-orig {
+  stroke: #0094d3; stroke-width: 1.2px; stroke-dasharray: 2 7;
+  animation: hormigas 1.4s linear infinite reverse;
+}
+@keyframes hormigas { to { stroke-dashoffset: -18; } }
 .viewer { position: relative; }
 .viewer-flotantes {
   position: absolute; inset: auto 10px 10px 10px; display: flex;
