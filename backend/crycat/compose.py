@@ -28,7 +28,7 @@ def marcas_mm() -> dict[str, tuple[float, float]]:
         except Exception:
             continue
     return salida
-MARCAS_PPP = 6.239   # resolución de los recortes (px/mm)
+MARCAS_PPP = 11.811  # px/mm de las marcas (300 ppp)
 
 
 @lru_cache(maxsize=1)
