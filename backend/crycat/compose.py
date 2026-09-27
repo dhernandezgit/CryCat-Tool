@@ -15,6 +15,19 @@ from .imaging import trim
 from .packer import Placement
 
 MARCAS_DIR = Path(__file__).parent / "web" / "marcas"
+
+
+def marcas_mm() -> dict[str, tuple[float, float]]:
+    """Tamaño REAL (mm) de cada marca de Cricut, según la hoja oficial."""
+    salida: dict[str, tuple[float, float]] = {}
+    for nombre in ("esquina_flecha", "esquina_sd", "esquina_ii", "esquina_id"):
+        try:
+            with Image.open(MARCAS_DIR / f"{nombre}.png") as im:
+                salida[nombre] = (im.width / MARCAS_PPP,
+                                  im.height / MARCAS_PPP)
+        except Exception:
+            continue
+    return salida
 MARCAS_PPP = 6.239   # resolución de los recortes (px/mm)
 
 
@@ -183,7 +196,7 @@ def contornos_bordes(canvas: Image.Image, placements: list[Placement],
                      area: CutArea, dpi: float,
                      color_final: tuple[int, int, int] = (226, 18, 94),
                      color_sin: tuple[int, int, int] = (0, 148, 211),
-                     grosor_px: int = 12,
+                     grosor_px: int = 22,
                      fase: int = 0,
                      ) -> Image.Image:
     """Vista de comprobación: contorno REAL de cada pieza.

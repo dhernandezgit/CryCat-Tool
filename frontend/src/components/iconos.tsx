@@ -129,6 +129,18 @@ export function IconoFosforito({ size }: P) {
   );
 }
 
+export function IconoDisposicion({ size }: P) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"
+      strokeLinejoin="round" aria-hidden="true">
+      <rect x="3" y="3" width="8" height="18" rx="1.5" />
+      <rect x="13" y="7" width="8" height="10" rx="1.5" />
+      <path d="M17 3v2.5M17 18.5V21" strokeDasharray="1.5 2.5" />
+    </svg>
+  );
+}
+
 export function IconoCentrar({ size }: P) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none"

@@ -67,6 +67,8 @@ export default function App() {
       const horizontal = (ev as CustomEvent<boolean>).detail;
       setLeftW(horizontal ? 19 : 33.3);
       setCenterW(horizontal ? 62 : 33.3);
+      // solo visual: la hoja se muestra girada 90° para aprovechar el ancho
+      setUi((u) => ({ ...u, hojaGirada: horizontal }));
     };
     window.addEventListener("crycat:disposicion", alCambiar);
     return () => window.removeEventListener("crycat:disposicion", alCambiar);
@@ -330,6 +332,7 @@ export default function App() {
             saveSettings={saveSettings}
             onEditarContorno={(a) => setEditando(a)}
             onAntesDeCambiar={recordar}
+            verBordes={ui.verBordes}
           />
         </div>
         <div className="splitter" data-testid="splitter-left" onMouseDown={() => startDrag("left")} />

@@ -43,6 +43,7 @@ export interface Result {
   placements: Placement[];
   efficiency: number;
   densidad?: number;         // densidad media de las siluetas (complejidad)
+  marcas?: Record<string, [number, number]>;   // tamaño real en mm
   bbox_mm: [number, number];
   bbox_offset_mm: [number, number];
   poly_mm: [number, number][];
@@ -225,6 +226,7 @@ export interface UiState {
   eyeFosforito: boolean;      // tercer modo: fondo verde fosforito
   guidesVisible: boolean;
   verBordes: boolean;         // contornos reales (con y sin borde)
+  hojaGirada?: boolean;       // solo visual: hoja girada 90º
   viewMode: 1 | 2 | 4;
   saveName: string;
 }

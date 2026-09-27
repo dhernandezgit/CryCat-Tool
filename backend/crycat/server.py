@@ -731,6 +731,7 @@ def create_app(store: Session = session) -> FastAPI:
         if not store.last or not store.area:
             return {"pages": 0, "placements": [], "efficiency": 0.0,
                     "bbox_mm": [0, 0], "bbox_offset_mm": [0, 0], "poly_mm": [],
+                    "marcas": {},
                     "page_mm": [settings.get("pagina_w"), settings.get("pagina_h")],
                     "warnings": [], "method": "", "minis": 0, "placed": 0}
         r, area = store.last, store.area
@@ -740,6 +741,8 @@ def create_app(store: Session = session) -> FastAPI:
             "placements": [_pl_dict(p) for p in r.placements],
             "efficiency": r.efficiency,
             "densidad": getattr(r, "densidad", 0.75),
+            "marcas": {k: [round(w, 2), round(h, 2)]
+                       for k, (w, h) in compose.marcas_mm().items()},
             "bbox_mm": [bw, bh],
             "bbox_offset_mm": [bx, by],
             "poly_mm": [[round(x, 3), round(y, 3)] for x, y in area.poly],

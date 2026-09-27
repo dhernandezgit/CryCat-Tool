@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { assetUrl } from "../recursos";
 import { api, NAME_SUGGESTIONS, NAME_SUGGESTIONS_EN, type AppSettings, type Asset, type Job, type Placement, type Result, type UiState } from "../api";
 import FolderPicker from "./FolderPicker";
 import SaveDialog from "./SaveDialog";
 import { IconoGuias, IconoBordes, IconoRecalcular, IconoOjo,
-         IconoFosforito, IconoCentrar,
+         IconoFosforito, IconoCentrar, IconoDisposicion,
          IconoZoomMas, IconoZoomMenos, IconoAjustar,
          IconoGuardar, IconoImprimir, IconoCarpeta, IconoDeshacer,
          IconoRehacer } from "./iconos";
@@ -397,16 +398,29 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
                     : null;
                 })}
             </g>
-            {/* esquinas negras de registro de Cricut (solo vista previa) */}
-            <g stroke="#111" strokeWidth={Math.max(0.5, sheetW / 320)}
-               fill="none" opacity={0.9}>
-              {[[bx, by, 1, 1], [bx + bw, by, -1, 1],
-                [bx, by + bh, 1, -1], [bx + bw, by + bh, -1, -1]].map(
-                ([cx, cy, sx, sy], k) => (
-                  <path key={k}
-                    d={`M ${cx - offX + 9 * sx} ${cy - offY} L ${cx - offX} ${cy - offY} L ${cx - offX} ${cy - offY + 9 * sy}`} />
-                ))}
-            </g>
+            {/* MARCAS REALES de Cricut (las mismas del PDF, tomadas de la
+                hoja oficial) con su tamaño físico real, ancladas igual que al
+                imprimir: en su esquina del área recortable */}
+            {result?.marcas && (
+              <g>
+                {[
+                  ["esquina_flecha", bx, by, false, false],
+                  ["esquina_sd", bx + bw, by, true, false],
+                  ["esquina_ii", bx, by + bh, false, true],
+                  ["esquina_id", bx + bw, by + bh, true, true],
+                ].map(([nombre, cx, cy, der, abajo]: any) => {
+                  const tw = result.marcas![nombre as string];
+                  if (!tw) return null;
+                  const x = (cx as number) - offX - (der ? tw[0] : 0);
+                  const y = (cy as number) - offY - (abajo ? tw[1] : 0);
+                  return (
+                    <image key={nombre} href={assetUrl(`/marcas/${nombre}.png`)}
+                           x={x} y={y} width={tw[0]} height={tw[1]}
+                           preserveAspectRatio="none" />
+                  );
+                })}
+              </g>
+            )}
             <path
               d={guidePath} fill="none" stroke="var(--guide)"
               strokeWidth={Math.max(0.6, sheetW / 250)}
@@ -535,7 +549,7 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
                 { detail: horizontal }));
             }}
           >
-            <IconoCentrar size={16} />
+            <IconoDisposicion size={16} />
           </button>
         </div>
       </div>
