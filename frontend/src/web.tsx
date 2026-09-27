@@ -98,7 +98,7 @@ const FRASES_CARGA = [
   "Untando el dedo en el mat para que pegue…",
 ];
 
-const TOTAL_PASOS = 7;
+const TOTAL_PASOS = 8;
 
 // colector de errores: los últimos fallos del navegador se adjuntan al
 // informe de bug (sin datos personales: solo el mensaje y dónde pasó)
@@ -396,7 +396,20 @@ async function main() {
       /* si falla, se queda el tema por defecto */
     }
 
-    estado("Abriendo la aplicación…", 7);
+    // PASO 8: la muestra inicial se optimiza AQUÍ, dentro de la carga, para
+    // que al abrir ya esté colocada y no haya que esperar (y no parezca que
+    // se ha quedado colgada)
+    estado("Optimizando la muestra inicial…", 8);
+    try {
+      const previos = await fetch(apiBase() + "api/assets").then((r) => r.json());
+      if (Array.isArray(previos) && previos.length === 0) {
+        await fetch(apiBase() + "api/demo?n=16", { method: "POST" });
+      }
+    } catch (e) {
+      /* si algo falla, la app arranca igual y lo genera luego */
+    }
+
+    estado("Abriendo la aplicación…", 8);
     window.clearTimeout(rotarFrases);
     createRoot(raiz).render(<App />);
   } catch (e: any) {
