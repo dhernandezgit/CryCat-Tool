@@ -4,6 +4,9 @@ import { api, MACHINE_LABELS, PAPER_DIMS, type AppSettings,
 import { useT } from "../i18n";
 import { THEMES } from "../themes";
 import FolderPicker from "./FolderPicker";
+import { IconoAjustar, IconoMini, IconoRecalcular, IconoFondo, IconoBordes,
+         IconoGuias, IconoGuardar, IconoImprimir, IconoRotar,
+         IconoVolumen } from "./iconos";
 
 interface Props {
   settings: AppSettings;
@@ -62,16 +65,18 @@ function FilaMini({ i, valor, refBase, onPct, onQuitar, t }: {
   );
 }
 
-function Section({ id, title, open, toggle, children }: {
+function Section({ id, title, open, toggle, children, icon }: {
   id: string;
   title: string;
   open: boolean;
   toggle: (id: string) => void;
   children: React.ReactNode;
+  icon?: React.ReactNode;
 }) {
   return (
     <div className={`sect ${open ? "open" : ""}`} data-testid={`sect-${id}`}>
       <div className="sect-head" onClick={() => toggle(id)}>
+        {icon && <span className="sect-icono">{icon}</span>}
         <span>{title}</span>
         <span className="arrow">▼</span>
       </div>
@@ -126,10 +131,19 @@ export default function SettingsPanel({ settings, saveSettings,
   const set = (p: Partial<AppSettings>) => saveSettings(p);
   const iconInput = useRef<HTMLInputElement>(null);
 
+  const Grupo = ({ titulo, children }: { titulo: string;
+                                          children: React.ReactNode }) => (
+    <>
+      <div className="ctl-grupo">{t(titulo)}</div>
+      {children}
+    </>
+  );
+
   const num = (label: string, key: keyof AppSettings, min: number, max: number,
-               step = 1, unit = "", extra?: React.ReactNode) => (
+               step = 1, unit = "", extra?: React.ReactNode,
+               tip?: string) => (
     <div className="ctl">
-      <label>{t(label)}</label>
+      <label {...(tip ? { "data-tip": t(tip) } : {})}>{t(label)}</label>
       <div className="row">
         <input
           type="number" min={min} max={max} step={step}
@@ -147,9 +161,9 @@ export default function SettingsPanel({ settings, saveSettings,
   );
 
   const sel = (label: string, key: keyof AppSettings, opts: [string, string][],
-               testid?: string) => (
+               testid?: string, tip?: string) => (
     <div className="ctl">
-      <label>{t(label)}</label>
+      <label {...(tip ? { "data-tip": t(tip) } : {})}>{t(label)}</label>
       <select
         data-testid={testid ?? `set-${key}`}
         value={String(settings[key])}
@@ -177,14 +191,20 @@ export default function SettingsPanel({ settings, saveSettings,
         </div>
       )}
       {/* -------- General -------- */}
-      <Section id="general" title={t("General")} open toggle={() => undefined}>
-        {num("Espacio entre elementos", "espacio_mm", 0, 20, 0.5, "mm")}
-        {num("Margen de seguridad a los límites", "margen_mm", 0, 20, 0.5, "mm")}
+      <Section id="general" title={t("General")} open toggle={() => undefined}
+               icon={<IconoAjustar size={15} />}>
+        <Grupo titulo="Colocación">
+        {num("Espacio entre elementos", "espacio_mm", 0, 20, 0.5, "mm", undefined,
+             "Separación mínima entre piezas al colocarlas. Para chapa, 0,5; para pegatinas que se recortan una a una, 2 mm.")}
+        {num("Margen de seguridad a los límites", "margen_mm", 0, 20, 0.5, "mm", undefined,
+             "Cuánto se separan las piezas del borde del área recortable. Súbelo si tu Cricut corta justo al límite.")}
         {sel("Rotación admitida", "rotacion", [
           ["no", "No girar"],
           ["90", "Giros de 0º / 90º / 180º / 270º"],
           ["libre", "Cualquier ángulo"],
         ])}
+        </Grupo>
+        <Grupo titulo="Hoja y máquina">
         <Av>{num("Resolución de salida", "dpi_salida", 72, 1200, 1, "ppp")}</Av>
         <div className="ctl">
           <label>{t("Tamaño de salida (vertical)")}</label>
@@ -245,10 +265,12 @@ export default function SettingsPanel({ settings, saveSettings,
             {t("Si lo desactivas, solo se recolocará al pulsar «Recalcular».")}
           </div>
         </div>
+        </Grupo>
       </Section>
 
       {/* -------- Minis -------- */}
-      <Section id="minis" title={t("Minis")} open={open.minis} toggle={toggle}>
+      <Section id="minis" title={t("Minis")} open={open.minis} toggle={toggle}
+               icon={<IconoMini size={15} />}>
         <div className="hint">
           {t("Los minis rellenan huecos (no cuentan como copias): dan eficiencia y " +
              "pegatinas extra. La cuota de cada elemento decide cuántos recibe " +
@@ -256,10 +278,15 @@ export default function SettingsPanel({ settings, saveSettings,
              "significa el triple. El tamaño lo elige el optimizador, siempre más " +
              "pequeño que el original.")}
         </div>
-        {num("Tamaño mínimo", "mini_min_mm", 1, 50, 0.5, "mm")}
-        <Av>{num("Tamaño máximo del mini (% del original)", "mini_max_rescale",
-             10, 100, 5, "%")}
-        {sel("Rotaciones admitidas", "mini_rotacion", [
+        <Grupo titulo="Tamaños">
+        {num("Tamaño mínimo", "mini_min_mm", 1, 50, 0.5, "mm", undefined,
+             "Ningún mini bajará de este tamaño: evita piezas imposibles de recortar (15 mm va bien para pegatinas).")}
+        {num("Tamaño máximo del mini (% del original)", "mini_max_rescale",
+             10, 100, 5, "%", undefined,
+             "Tope de tamaño de los minis. Siempre son algo más pequeños que el original (99 % como máximo).")}
+        </Grupo>
+        <Grupo titulo="Comportamiento">
+        <Av>{sel("Rotaciones admitidas", "mini_rotacion", [
           ["no", "No girar"],
           ["90", "Giros de 0º / 90º / 180º / 270º"],
           ["libre", "Cualquier ángulo"],
@@ -320,10 +347,12 @@ export default function SettingsPanel({ settings, saveSettings,
             </div>
           </div>
         )}</Av>
+        </Grupo>
       </Section>
 
       {/* -------- Optimización -------- */}
-      <Section id="optimizacion" title={t("Optimización")} open={open.optimizacion} toggle={toggle}>
+      <Section id="optimizacion" title={t("Optimización")} open={open.optimizacion} toggle={toggle}
+               icon={<IconoRecalcular size={15} />}>
         {sel("Método", "opt_metodo", [
           ["greedy", "Greedy / Bottom-Left (rápido)"],
           ["largest", "Largest First (mayor primero)"],
@@ -356,8 +385,11 @@ export default function SettingsPanel({ settings, saveSettings,
       </Section>
 
       {/* -------- Imagen -------- */}
-      <Section id="imagen" title={t("Imagen")} open={open.imagen} toggle={toggle}>
-        {num("Sangrado de impresión", "bleed_mm", 0, 5, 0.2, "mm")}
+      <Section id="imagen" title={t("Imagen")} open={open.imagen} toggle={toggle}
+               icon={<IconoFondo size={15} />}>
+        <Grupo titulo="Impresión">
+        {num("Sangrado de impresión", "bleed_mm", 0, 5, 0.2, "mm", undefined,
+             "Repite el color hacia fuera para que no salga reborde blanco si la impresora no está alineada al 100 %.")}
         <div className="hint">
           {t("Repite el color del borde hacia fuera para que no salga reborde blanco si la impresora no está perfectamente alineada (0 = sin sangrado).")}
         </div>
@@ -391,6 +423,8 @@ export default function SettingsPanel({ settings, saveSettings,
           ["rgba", "PNG con transparencia (recomendado)"],
           ["rgb", "PNG con fondo blanco"],
         ])}
+        </Grupo>
+        <Grupo titulo="Origen y exportación">
         <div className="ctl">
           <label className="row">
             <input type="checkbox" data-testid="set-chequear-lineas"
@@ -425,10 +459,12 @@ export default function SettingsPanel({ settings, saveSettings,
           </div>
           <div className="hint">{t("Se guarda para la próxima vez que abras CryCat.")}</div>
         </div>
+        </Grupo>
       </Section>
 
       {/* -------- Offset / borde -------- */}
-      <Section id="offset" title={t("Offset / borde")} open={open.offset} toggle={toggle}>
+      <Section id="offset" title={t("Offset / borde")} open={open.offset} toggle={toggle}
+               icon={<IconoBordes size={15} />}>
         <div className="ctl">
           <label className="row">
             <input type="checkbox" data-testid="set-offset-activo"
@@ -439,7 +475,8 @@ export default function SettingsPanel({ settings, saveSettings,
         </div>
         {settings.offset_activo && (
           <>
-            {num("Grosor del borde", "offset_mm", 0.1, 20, 0.1, "mm")}
+            {num("Grosor del borde", "offset_mm", 0.1, 20, 0.1, "mm", undefined,
+             "Borde en milímetros DEL RESULTADO (no se agranda al escalar). Sirve para unir trozos flotantes o para dejar margen al recortar.")}
             {sel("Tipo de borde", "offset_modo", [
               ["extender", "Extender el color del borde (suave)"],
               ["blanco", "Blanco"],
@@ -530,7 +567,8 @@ export default function SettingsPanel({ settings, saveSettings,
       </Section>}
 
       {/* -------- Visualización -------- */}
-      <Section id="visualizacion" title={t("Visualización")} open={open.visualizacion} toggle={toggle}>
+      <Section id="visualizacion" title={t("Visualización")} open={open.visualizacion} toggle={toggle}
+               icon={<IconoGuias size={15} />}>
         <div className="ctl">
           <label>{t("Tema")}</label>
           <div className="theme-grid" data-testid="theme-grid">

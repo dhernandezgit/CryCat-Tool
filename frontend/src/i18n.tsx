@@ -70,6 +70,24 @@ export const EN: Record<string, string> = {
   "Siguiente": "Next",
   "Aplicar cambios": "Apply changes",
   "Reportar": "Report",
+  "Colocación": "Placement",
+  "Hoja y máquina": "Sheet and machine",
+  "Tamaños": "Sizes",
+  "Comportamiento": "Behaviour",
+  "Impresión": "Printing",
+  "Separación mínima entre piezas al colocarlas. Para chapa, 0,5; para pegatinas que se recortan una a una, 2 mm.":
+    "Minimum gap between pieces when placing them. For badges, 0.5; for stickers cut one by one, 2 mm.",
+  "Cuánto se separan las piezas del borde del área recortable. Súbelo si tu Cricut corta justo al límite.":
+    "How far pieces stay from the cut-area edge. Raise it if your Cricut cuts right at the limit.",
+  "Ningún mini bajará de este tamaño: evita piezas imposibles de recortar (15 mm va bien para pegatinas).":
+    "No mini will go below this size: avoids pieces that can't be cut (15 mm works well for stickers).",
+  "Tope de tamaño de los minis. Siempre son algo más pequeños que el original (99 % como máximo).":
+    "Size cap for minis. They are always a bit smaller than the original (99% at most).",
+  "Repite el color hacia fuera para que no salga reborde blanco si la impresora no está alineada al 100 %.":
+    "Repeats the colour outwards so no white fringe appears if the printer isn't perfectly aligned.",
+  "Borde en milímetros DEL RESULTADO (no se agranda al escalar). Sirve para unir trozos flotantes o para dejar margen al recortar.":
+    "Border in millimetres OF THE RESULT (it doesn't grow when scaling). Use it to join loose pieces or to leave a cutting margin.",
+
   "1 · Suelta tus imágenes":
     "1 · Drop your images",
   "PNG, JPG, WEBP, PSD, AI, SVG… se recortan solas.":
