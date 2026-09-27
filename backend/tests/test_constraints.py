@@ -299,3 +299,34 @@ def test_metodo_segura_rotacion_libre_y_a3():
     _caso_cajas(assets, {"e": est},
                 dict(BASE, opt_metodo="segura"), page=(297.0, 420.0),
                 paper="A3")
+
+
+def test_metodo_automatico_cumple_restricciones():
+    """El método AUTOMÁTICO (por defecto) también respeta todo.
+
+    Con poco espacio elegirá la pasada rápida; lleno, voronoi. En los dos
+    casos: nada fuera del área, nada solapado y separación respetada.
+    """
+    circ = trim(_circulo(300))          # 25,4 mm
+    est = trim(_estrella(360))          # 30,5 mm
+    # caso holgado: el automático usará la pasada rápida
+    _caso([{"id": "c", "name": "c", "w_mm": 25.4, "h_mm": 25.4,
+            "copies": 3, "mini_enabled": False}],
+          {"c": circ}, dict(BASE, opt_metodo="auto"))
+    # caso lleno: el automático pasará a voronoi y aun así todo válido
+    _caso([{"id": "c", "name": "c", "w_mm": 25.4, "h_mm": 25.4,
+            "copies": 30, "mini_enabled": True, "mini_quota": 2.0},
+           {"id": "e", "name": "e", "w_mm": 30.5, "h_mm": 30.5,
+            "copies": 12, "mini_enabled": False}],
+          {"c": circ, "e": est},
+          dict(BASE, opt_metodo="auto", usar_minis=True, mini_min_mm=10.0,
+               mini_max_rescale=70.0, mini_lista_modo="mm",
+               mini_tamanos_lista=[20.0], mini_usar_lista=True))
+
+
+def test_metodo_rapido_cumple_restricciones():
+    """La pasada rápida (celda gruesa) tampoco se sale ni solapa."""
+    circ = trim(_circulo(300))
+    _caso([{"id": "c", "name": "c", "w_mm": 25.4, "h_mm": 25.4,
+            "copies": 8, "mini_enabled": False}],
+          {"c": circ}, dict(BASE, opt_metodo="rapido"))
