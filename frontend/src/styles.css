@@ -248,6 +248,23 @@ input::placeholder { color: #cbbfc8; opacity: 1; font-style: italic; }
   resize: vertical; min-height: 60px;
 }
 .modal textarea:focus { outline: none; border-color: var(--accent); }
+.ayuda-cards {
+  display: flex; flex-direction: column; gap: 8px;
+  max-height: 52vh; overflow-y: auto; padding-right: 4px;
+}
+.ayuda-card {
+  display: flex; gap: 10px; align-items: flex-start;
+  padding: 9px 11px; border-radius: 12px;
+  border: 2px solid var(--border); background: var(--panel);
+}
+.ayuda-icono {
+  flex: 0 0 auto; display: grid; place-items: center;
+  width: 30px; height: 30px; border-radius: 9px;
+  background: var(--panel2); color: var(--accent3);
+}
+.ayuda-titulo { font-size: 13.5px; font-weight: 800; color: var(--text); }
+.ayuda-texto { font-size: 12.5px; color: var(--textSoft); line-height: 1.45; }
+.editor-pie { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
 .seg { display: flex; gap: 6px; margin-bottom: 8px; }
 .seg button {
   flex: 1; font: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer;
@@ -265,6 +282,25 @@ input::placeholder { color: #cbbfc8; opacity: 1; font-style: italic; }
   text-overflow: ellipsis; white-space: nowrap; max-width: 100%;
 }
 .import-lista .import-datos { font-size: 11px; color: var(--textSoft); }
+/* tooltips propios: caja con el color de acento fuerte */
+[data-tip] { position: relative; }
+[data-tip]:hover::after {
+  content: attr(data-tip);
+  position: absolute; left: 50%; bottom: calc(100% + 9px);
+  transform: translateX(-50%);
+  background: var(--accent3); color: #fff;
+  font-size: 12px; font-weight: 600; line-height: 1.35;
+  padding: 7px 11px; border-radius: 10px; z-index: 60;
+  max-width: 300px; width: max-content; text-align: left;
+  box-shadow: 0 8px 22px rgba(60, 20, 40, .22);
+  pointer-events: none;
+}
+[data-tip]:hover::before {
+  content: ""; position: absolute; left: 50%; bottom: calc(100% + 3px);
+  transform: translateX(-50%);
+  border: 6px solid transparent; border-top-color: var(--accent3);
+  z-index: 61; pointer-events: none;
+}
 .acciones-rapidas { display: flex; gap: 6px; margin: 8px 0 6px; }
 .perfiles-barra { display: flex; flex-direction: column; gap: 6px; margin: 0 0 10px; }
 .perfiles-barra .row { display: flex; gap: 6px; align-items: center; }

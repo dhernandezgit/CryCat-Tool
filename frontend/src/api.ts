@@ -107,6 +107,7 @@ export interface AppSettings {
   dpi_importacion: number;
   lienzo: "recortable" | "pagina";
   tema: string;
+  modo?: "rapido" | "experto";
   ver_guias: boolean;
   fondo_transparente: boolean;
   idioma: "es" | "en";
@@ -291,7 +292,8 @@ export const api = {
   },
   blobs: (id: string) =>
     req<{ blobs: { id: number; area_px: number; bbox: number[]; principal: boolean }[];
-          w: number; h: number; preview_png: string }>(`/api/assets/${id}/blobs`),
+          w: number; h: number; union_mm: number;
+          preview_png: string }>(`/api/assets/${id}/blobs`),
   limpiarContorno: (id: string, quitar: number[]) =>
     req<Asset>(`/api/assets/${id}/limpiar-contorno`, {
       method: "POST",

@@ -136,6 +136,7 @@ DEFAULTS: dict = {
     "lienzo": "pagina",          # recortable | pagina (con márgenes)
     # Visualización
     "tema": "wiwi",
+    "modo": "rapido",             # rapido | experto (interfaz simplificada)
     "ver_guias": True,
     "fondo_transparente": False, # ojo: blanco (False) por defecto
     # Idioma y versiones

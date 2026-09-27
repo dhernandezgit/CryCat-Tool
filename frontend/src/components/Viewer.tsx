@@ -46,6 +46,7 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
   const [ghost, setGhost] = useState<{ uid: string; x: number; y: number } | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
   // --- editor de contorno (blobs) ---
+  const [unionMm, setUnionMm] = useState(2);
   const [blobs, setBlobs] = useState<
     { id: number; area_px: number; bbox: number[]; principal: boolean }[]
   >([]);
@@ -204,6 +205,7 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
     api.blobs(editando.id)
       .then((r) => {
         setBlobs(r.blobs);
+        setUnionMm(r.union_mm ?? 2);
         setPreviewBlobs(r.preview_png);
         // por defecto se marcan para quitar los NO principales
         setSelBlobs(new Set(r.blobs.filter((b) => !b.principal).map((b) => b.id)));
@@ -474,8 +476,32 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
               })}
             </div>
           </div>
-          <div className="hint">
-            {t("Pulsa los trozos sueltos para marcarlos (se quitarán al guardar). El contorno principal nunca se elimina. El archivo original no se toca.")}
+          <div className="editor-pie">
+            <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
+              <button
+                className="primary"
+                data-testid="btn-unir-contorno"
+                title={t("Une todos los trozos en una sola forma con un borde de {mm} mm (curvo)", { mm: unionMm })}
+                onClick={async () => {
+                  if (!editando) return;
+                  await api.patchAsset(editando.id, {
+                    offset_mm: unionMm,
+                    offset_modo: "unir_curvo",
+                  });
+                  await onFinEdicion?.();
+                }}
+              >
+                {t("Unir todo en una pieza")}
+              </button>
+              <button data-testid="btn-quitar-marcados"
+                      onClick={guardarContorno}>
+                {t("Quitar marcados ({n})",
+                   { n: selBlobs.size })}
+              </button>
+            </div>
+            <div className="hint">
+              {t("Toca un trozo para marcarlo. El principal nunca se borra.")}
+            </div>
           </div>
         </div>
       ) : (

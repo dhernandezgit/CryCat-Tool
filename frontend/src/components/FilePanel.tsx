@@ -309,6 +309,7 @@ export default function FilePanel({ assets, result, settings, onChange,
   const t = useT();
   const inputRef = useRef<HTMLInputElement>(null);
   const [over, setOver] = useState(false);
+  const [minimizado, setMinimizado] = useState(false);
 
   const [importados, setImportados] = useState<Asset[] | null>(null);
 
@@ -335,20 +336,34 @@ export default function FilePanel({ assets, result, settings, onChange,
     "90": "90°", libre: t("libre"), no: t("fijo"),
   };
   const hayDemo = assets.some((a) => a.demo);
+  const experto = settings.modo === "experto";
 
   return (
     <div className="file-panel">
       <div className="file-head">
+        <button
+          className="icon-btn"
+          data-testid="btn-minimizar-imagenes"
+          data-tip={minimizado ? t("Desplegar el panel de imágenes")
+                               : t("Minimizar el panel de imágenes")}
+          onClick={() => setMinimizado(!minimizado)}
+        >
+          <span className={`chev ${minimizado ? "open" : ""}`}>›</span>
+        </button>
         <h2>{t("Imágenes")}</h2>
         <span className="count-badge" data-testid="total-assets">{assets.length}</span>
       </div>
+      {minimizado && (
+        <div className="hint">{t("Pulsa la flecha para desplegar el panel.")}</div>
+      )}
+      {!minimizado && (<>
 
       {/* botones siempre a la vista: minis, recálculo automático y rotación */}
       <div className="acciones-rapidas">
         <button
           className={`chip${usarMinis ? " on" : ""}`}
           data-testid="chip-minis"
-          title={t("Generar minis: rellenar los huecos con copias pequeñas")}
+          data-tip={t("Generar minis: rellenar los huecos con copias pequeñas")}
           onClick={() => saveSettings({
             usar_minis: !usarMinis,
             // al activarlos se desactiva el recálculo automático (solo ahora)
@@ -360,15 +375,25 @@ export default function FilePanel({ assets, result, settings, onChange,
         <button
           className={`chip${settings.auto_recalcular ? " on" : ""}`}
           data-testid="chip-auto"
-          title={t("Recalcular automáticamente con cada cambio")}
+          data-tip={t("Recalcular automáticamente con cada cambio")}
           onClick={() => saveSettings({ auto_recalcular: !settings.auto_recalcular })}
         >
           <IconoRecalcular size={15} /> {t("Auto")}
         </button>
         <button
+          className={`chip${experto ? " on" : ""}`}
+          data-testid="chip-modo"
+          data-tip={t("Modo rápido (lo esencial) o experto (todo el control)")}
+          onClick={() => saveSettings({
+            modo: experto ? "rapido" : "experto",
+          })}
+        >
+          {experto ? t("Experto") : t("Rápido")}
+        </button>
+        <button
           className="chip"
           data-testid="chip-rotacion"
-          title={t("Rotación admitida: pulsa para cambiar entre 90°, libre y fijo")}
+          data-tip={t("Rotación admitida: pulsa para cambiar entre 90°, libre y fijo")}
           onClick={() => saveSettings({
             rotacion: ROT_SIGUIENTE[settings.rotacion] ?? "90",
           })}
@@ -445,6 +470,7 @@ export default function FilePanel({ assets, result, settings, onChange,
         onClose={() => setImportados(null)}
         onDone={async () => { await onChange(); }}
       />
+      </>)}
     </div>
   );
 }

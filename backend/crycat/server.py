@@ -449,7 +449,23 @@ def create_app(store: Session = session) -> FastAPI:
         from io import BytesIO
         buf = BytesIO()
         vista.save(buf, "PNG")
+        # ancho sugerido para UNIR todo en una pieza: la mitad del hueco
+        # mayor entre el contorno principal y los trozos, con un mínimo
+        union_mm = 2.0
+        principales = [b for b in lista if b["principal"]]
+        sueltos = [b for b in lista if not b["principal"]]
+        if principales and sueltos:
+            px_mm = a.dpi_origen / 25.4
+            px, py, px1, py1 = principales[0]["bbox"]
+            hueco = 0.0
+            for b in sueltos:
+                x0, y0, x1, y1 = b["bbox"]
+                dx = max(0.0, max(px - x1, x0 - px1))
+                dy = max(0.0, max(py - y1, y0 - py1))
+                hueco = max(hueco, (dx * dx + dy * dy) ** 0.5 / max(1.0, px_mm))
+            union_mm = max(1.5, min(10.0, hueco / 2.0 + 1.0))
         return {"blobs": lista, "w": a.img.width, "h": a.img.height,
+                "union_mm": round(union_mm, 1),
                 "preview_png": "data:image/png;base64,"
                 + __import__("base64").b64encode(buf.getvalue()).decode("ascii")}
 

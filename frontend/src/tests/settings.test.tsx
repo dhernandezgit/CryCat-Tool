@@ -10,7 +10,7 @@ const settings: AppSettings = {
   mini_min_mm: 5, mini_max_rescale: 100, mini_rotacion: "no",
   mini_tamanos: "grandes", opt_metodo: "greedy", opt_calidad: "normal", opt_tiempo_max_s: 8, mini_usar_lista: false, mini_tamanos_lista: [50], auto_recalcular: true, corte_velocidad_mm_s: 50, corte_viaje_mm_s: 120, corte_extra_forma_s: 0.4, corte_factor: 1, pikmin_activo: true, pikmin_frecuencia_min: 1, pikmin_sonido: true, pikmin_sonido_morir: true, pikmin_fiesta: false, volumen: 0.5, mute: false, offset_activo: false, offset_mm: 2, offset_modo: "extender", offset_color: "#ffffff",
    espacio_color: "srgb", bleed_mm: 0, historial: true, historial_max: 40, hist_tamano: true, hist_copias: true, hist_borde: true, hist_minis: true, simular_impresion: false, sim_cmyk: false, sim_saturacion: 1, sim_contraste: 1, sim_brillo: 1, color_formato: "rgba", chequear_lineas: true, carpeta_export: "",
-  dpi_importacion: 300, lienzo: "recortable", tema: "wiwi",
+  dpi_importacion: 300, lienzo: "recortable", tema: "wiwi", modo: "experto",
   ver_guias: true, fondo_transparente: false,
   idioma: "es", comprobar_versiones: true,
 };
@@ -57,6 +57,18 @@ describe("Panel de ajustes", () => {
     expect(screen.getByTestId("set-mini_min_mm")).toHaveValue(5);
     // tope de tamaño del mini (% del original): siempre menor que 100
     expect(screen.getByTestId("set-mini_max_rescale")).toHaveValue(100);
+  });
+
+  it("el modo rápido deja solo lo esencial (y el experto lo enseña todo)", () => {
+    const rapido = { ...settings, modo: "rapido" as const };
+    const { rerender } = render(
+      <SettingsPanel settings={rapido} saveSettings={saveSettings} />);
+    expect(screen.queryByTestId("set-dpi_salida")).toBeNull();
+    expect(screen.queryByTestId("sect-corte")).toBeNull();
+    expect(screen.getByTestId("modo-rapido-aviso")).toBeInTheDocument();
+    rerender(<SettingsPanel settings={settings} saveSettings={saveSettings} />);
+    expect(screen.getByTestId("set-dpi_salida")).toBeInTheDocument();
+    expect(screen.getByTestId("sect-corte")).toBeInTheDocument();
   });
 
   it("la sección imagen incluye la detección de líneas anómalas", async () => {

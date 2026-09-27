@@ -224,7 +224,7 @@ export default function StatusBar({ job, backendOk, result, estimate,
         <button
           className="app-info"
           data-testid="btn-info"
-          title={t("Cómo usar CryCat (vuelve a mostrar la ayuda)")}
+          data-tip={t("Cómo usar CryCat (vuelve a mostrar la ayuda)")}
           onClick={() => onAyuda?.()}
         >
           <IconoAyuda size={15} /> {t("Cómo usar")}
@@ -232,7 +232,7 @@ export default function StatusBar({ job, backendOk, result, estimate,
         <button
           className="app-info reportar"
           data-testid="btn-reportar"
-          title={t("Reportar un bug: abre un issue en GitHub ya rellenado")}
+          data-tip={t("Reportar un bug: abre un issue en GitHub ya rellenado")}
           onClick={() => onReportar?.()}
         >
           <IconoAviso size={15} /> {t("Reportar")}
@@ -240,7 +240,7 @@ export default function StatusBar({ job, backendOk, result, estimate,
         <button
           className="app-info apoyar"
           data-testid="btn-apoyar"
-          title={t("Apoyar el proyecto (PayPal)")}
+          data-tip={t("Apoyar el proyecto (PayPal)")}
           onClick={() => window.open("https://paypal.me/Darkniel42",
                                      "_blank", "noopener")}
         >

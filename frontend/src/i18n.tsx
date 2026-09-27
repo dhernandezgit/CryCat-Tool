@@ -70,6 +70,88 @@ export const EN: Record<string, string> = {
   "Siguiente": "Next",
   "Aplicar cambios": "Apply changes",
   "Reportar": "Report",
+  "1 · Suelta tus imágenes":
+    "1 · Drop your images",
+  "PNG, JPG, WEBP, PSD, AI, SVG… se recortan solas.":
+    "PNG, JPG, WEBP, PSD, AI, SVG… they get trimmed automatically.",
+  "2 · Ajusta el tamaño":
+    "2 · Set the size",
+  "Escala o milímetros exactos, por lado mayor o menor.":
+    "Scale or exact millimetres, by longer or shorter side.",
+  "3 · Minis (opcional)":
+    "3 · Minis (optional)",
+  "Actívalos en lo que quieras repetir rellenando huecos.":
+    "Turn them on for whatever you want repeated to fill gaps.",
+  "4 · Se coloca solo":
+    "4 · It lays itself out",
+  "Automático; «Recalcular» afina la colocación cuando quieras.":
+    "Automatic; “Recalculate” fine-tunes the layout whenever you want.",
+  "5 · Guarda":
+    "5 · Save",
+  "PNG a 300 ppp listo para imprimir. Nunca sobrescribe nada.":
+    "A 300 dpi PNG ready to print. It never overwrites anything.",
+  "Guía detallada: todo lo que puedes hacer":
+    "Detailed guide: everything you can do",
+  "Guía detallada":
+    "Detailed guide",
+  "Pasos en Cricut":
+    "Cricut steps",
+  "Fondo y trozos sueltos":
+    "Background and loose pieces",
+  "Quita el fondo de un clic. Si quedan trozos sueltos, el aviso del elemento abre «limpiar contorno»: puedes quitarlos o UNIRLOS en una sola forma con «Unir todo en una pieza».":
+    "Remove the background in one click. If loose pieces remain, the item's warning opens “clean outline”: delete them or JOIN them into a single shape with “Join everything into one piece”.",
+  "Bordes (offset)":
+    "Borders (offset)",
+  "Borde por elemento o global, en mm del resultado: extender el color, blanco, color a elegir, o unir trozos con borde recto o curvo. El original nunca se modifica.":
+    "Per-item or global border, in mm of the result: extend the colour, white, custom colour, or join pieces with a straight or round border. The original is never modified.",
+  "Minis con cuota":
+    "Minis with quota",
+  "La cuota decide cuántos minis recibe cada elemento respecto a los demás (1 = reparto justo, 3 = el triple). El tamaño lo elige el optimizador dentro del mínimo y el tope.":
+    "The quota decides how many minis each item gets compared to the others (1 = fair share, 3 = triple). The size is chosen by the optimiser within the minimum and the cap.",
+  "Optimización a tu gusto":
+    "Optimisation your way",
+  "Métodos (Greedy, Largest, Voronoi, Genético), calidad, tiempo (recomendado por método), espacio, márgenes, rotaciones y papel (A4, A3, A5, Letter o el que quieras).":
+    "Methods (Greedy, Largest, Voronoi, Genetic), quality, time (recommended per method), spacing, margins, rotations and paper (A4, A3, A5, Letter or whatever you want).",
+  "Modo rápido y experto":
+    "Quick and expert modes",
+  "Arriba a la derecha de las imágenes: Rápido deja solo lo esencial; Experto enseña todos los controles finos.":
+    "Top right of the images panel: Quick leaves only the essentials; Expert shows every fine control.",
+  "Perfiles":
+    "Profiles",
+  "Arriba del panel: aplica un perfil de fábrica (chapa, pegatina, hoja, imán, vinilo) o guarda el tuyo con un nombre y recupéralo cuando quieras.":
+    "At the top of the panel: apply a factory profile (badge, sticker, sheet, magnet, vinyl) or save your own with a name and load it anytime.",
+  "Deshacer y rehacer":
+    "Undo and redo",
+  "Ctrl+Z y Ctrl+Y (configurable): puedes elegir qué se guarda en el historial (tamaño, copias, borde, minis).":
+    "Ctrl+Z and Ctrl+Y (configurable): choose what goes into the history (size, copies, border, minis).",
+  "Imprimir con marcas de Cricut":
+    "Print with Cricut marks",
+  "Guarda primero y genera un PDF a 300 ppp con las marcas negras reales: imprime y corta sin pasar por Design Space.":
+    "Saves first and produces a 300 dpi PDF with the real black marks: print and cut without going through Design Space.",
+  "Vista previa":
+    "Preview",
+  "Guías del área recortable, contornos reales (con y sin borde en dos colores), fondo transparente, zoom y mover o fijar piezas a mano.":
+    "Cut-area guides, real outlines (with and without border in two colours), transparent background, zoom and move or pin pieces by hand.",
+  "Temas y mascota":
+    "Themes and pet",
+  "12 temas pastel. La mascota Pikmin aparece de vez en cuando; con 5 clics seguidos en el gato hay sorpresa.":
+    "12 pastel themes. The Pikmin pet shows up now and then; click the cat 5 times in a row for a surprise.",
+
+  "Minimizar el panel de imágenes": "Minimise the images panel",
+  "Desplegar el panel de imágenes": "Expand the images panel",
+  "Pulsa la flecha para desplegar el panel.": "Press the arrow to expand the panel.",
+  "Rápido": "Quick",
+  "Experto": "Expert",
+  "Modo rápido (lo esencial) o experto (todo el control)":
+    "Quick mode (the essentials) or expert (full control)",
+  "Modo rápido: solo lo esencial. Cambia a Experto para verlo todo.":
+    "Quick mode: only the essentials. Switch to Expert to see everything.",
+  "Unir todo en una pieza": "Join everything into one piece",
+  ["Une todos los trozos en una sola forma con un borde de {mm} mm (curvo)"]:
+    "Joins all the pieces into a single shape with a {mm} mm border (round)",
+  ["Quitar marcados ({n})"]: "Remove marked ({n})",
+  "Toca un trozo para marcarlo. El principal nunca se borra.":
+    "Tap a piece to mark it. The main one is never deleted.",
   "Unir recto": "Join straight",
   "Unir curvo": "Join round",
   "Extender el color del borde (suave)": "Extend the border colour (smooth)",

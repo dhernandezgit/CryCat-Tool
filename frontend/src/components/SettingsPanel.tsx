@@ -117,6 +117,10 @@ export default function SettingsPanel({ settings, saveSettings,
       Math.min(b.w_mm, b.h_mm) - Math.min(a.w_mm, a.h_mm))[0] ?? null;
   }, [assets]);
   const refBase = refMini ? Math.min(refMini.w_mm, refMini.h_mm) : 0;
+  // modo rápido (por defecto): se ocultan los controles finos
+  const experto = settings.modo === "experto";
+  const Av = ({ children }: { children: React.ReactNode }) =>
+    experto ? <>{children}</> : null;
   const toggle = (id: string) => setOpen((o) => ({ ...o, [id]: !o[id] }));
   // el servidor relanza la optimización con los ajustes que la afectan
   const set = (p: Partial<AppSettings>) => saveSettings(p);
@@ -167,6 +171,11 @@ export default function SettingsPanel({ settings, saveSettings,
       {!panelAbierto && <div className="hint">{t("Pulsa para desplegar los ajustes")}</div>}
       {panelAbierto && (
       <>
+      {!experto && (
+        <div className="hint" data-testid="modo-rapido-aviso">
+          {t("Modo rápido: solo lo esencial. Cambia a Experto para verlo todo.")}
+        </div>
+      )}
       {/* -------- General -------- */}
       <Section id="general" title={t("General")} open toggle={() => undefined}>
         {num("Espacio entre elementos", "espacio_mm", 0, 20, 0.5, "mm")}
@@ -176,7 +185,7 @@ export default function SettingsPanel({ settings, saveSettings,
           ["90", "Giros de 0º / 90º / 180º / 270º"],
           ["libre", "Cualquier ángulo"],
         ])}
-        {num("Resolución de salida", "dpi_salida", 72, 1200, 1, "ppp")}
+        <Av>{num("Resolución de salida", "dpi_salida", 72, 1200, 1, "ppp")}</Av>
         <div className="ctl">
           <label>{t("Tamaño de salida (vertical)")}</label>
           <select
@@ -199,7 +208,7 @@ export default function SettingsPanel({ settings, saveSettings,
             <option value="custom">{t("Personalizado")}</option>
           </select>
         </div>
-        {settings.pagina === "custom" && (
+        <Av>{settings.pagina === "custom" && (
           <div className="ctl">
             <label>{t("Ancho × alto (mm)")}</label>
             <div className="row">
@@ -209,7 +218,7 @@ export default function SettingsPanel({ settings, saveSettings,
                 onChange={(e) => set({ pagina_h: Number(e.target.value) })} />
             </div>
           </div>
-        )}
+        )}</Av>
         {sel("Máquina Cricut", "maquina", [
           ["maker3", "Cricut Maker 3"],
           ["maker", "Cricut Maker"],
@@ -248,7 +257,7 @@ export default function SettingsPanel({ settings, saveSettings,
              "pequeño que el original.")}
         </div>
         {num("Tamaño mínimo", "mini_min_mm", 1, 50, 0.5, "mm")}
-        {num("Tamaño máximo del mini (% del original)", "mini_max_rescale",
+        <Av>{num("Tamaño máximo del mini (% del original)", "mini_max_rescale",
              10, 100, 5, "%")}
         {sel("Rotaciones admitidas", "mini_rotacion", [
           ["no", "No girar"],
@@ -310,7 +319,7 @@ export default function SettingsPanel({ settings, saveSettings,
                     "verlo. Cada valor es el tamaño del mini respecto al original.")}
             </div>
           </div>
-        )}
+        )}</Av>
       </Section>
 
       {/* -------- Optimización -------- */}
@@ -326,7 +335,7 @@ export default function SettingsPanel({ settings, saveSettings,
           ["normal", "Normal (equilibrada)"],
           ["rapida", "Rápida (más gruesa, para bocetos)"],
         ])}
-        <label className="row">
+        <Av><label className="row">
           <input type="checkbox" data-testid="set-opt_tiempo_auto"
             checked={settings.opt_tiempo_auto !== false}
             onChange={(e) => set({ opt_tiempo_auto: e.target.checked })} />
@@ -340,7 +349,7 @@ export default function SettingsPanel({ settings, saveSettings,
           </div>
         ) : (
           num("Tiempo máximo", "opt_tiempo_max_s", 0.5, 120, 0.5, "s")
-        )}
+        )}</Av>
         <div className="hint">
           {t("La eficiencia del último cálculo se muestra en la barra de estado.")}
         </div>
@@ -356,7 +365,7 @@ export default function SettingsPanel({ settings, saveSettings,
           ["srgb", "sRGB (estándar, el más seguro)"],
           ["adobergb", "AdobeRGB (más gamas verdes/azules)"],
         ])}
-        <label className="row">
+        <Av><label className="row">
           <input type="checkbox" data-testid="set-simular_impresion"
             checked={settings.simular_impresion === true}
             onChange={(e) => set({ simular_impresion: e.target.checked })} />
@@ -377,7 +386,7 @@ export default function SettingsPanel({ settings, saveSettings,
               {t("Sube saturación/contraste para compensar lo que apaga la impresión. El archivo no se modifica: solo la vista previa.")}
             </div>
           </>
-        )}
+        )}</Av>
         {sel("Formato de color de salida", "color_formato", [
           ["rgba", "PNG con transparencia (recomendado)"],
           ["rgb", "PNG con fondo blanco"],
@@ -458,7 +467,7 @@ export default function SettingsPanel({ settings, saveSettings,
       </Section>
 
       {/* -------- Estimación de corte -------- */}
-      <Section id="corte" title={t("Estimación de corte")} open={open.corte} toggle={toggle}>
+      {experto && <Section id="corte" title={t("Estimación de corte")} open={open.corte} toggle={toggle}>
         <div className="hint">
           {destacar(
             t("Tiempo estimado de corte de la {maquina}, calculado a partir " +
@@ -475,10 +484,10 @@ export default function SettingsPanel({ settings, saveSettings,
           {t("Ajusta el factor para corregir con tu máquina y material reales; se " +
              "guarda para la próxima vez.")}
         </div>
-      </Section>
+      </Section>}
 
       {/* -------- Historial -------- */}
-      <Section id="historial" title={t("Historial (deshacer/rehacer)")}
+      {experto && <Section id="historial" title={t("Historial (deshacer/rehacer)")}
                open={open.historial} toggle={toggle}>
         <div className="hint">
           {t("Guarda los cambios en tu equipo para poder deshacer y rehacer (Ctrl+Z / Ctrl+Y). Elige qué se guarda.")}
@@ -518,7 +527,7 @@ export default function SettingsPanel({ settings, saveSettings,
             </label>
           </>
         )}
-      </Section>
+      </Section>}
 
       {/* -------- Visualización -------- */}
       <Section id="visualizacion" title={t("Visualización")} open={open.visualizacion} toggle={toggle}>
@@ -567,7 +576,7 @@ export default function SettingsPanel({ settings, saveSettings,
         </div>
       </Section>
 
-      <Section id="extras" title={t("Extras")} open={open.extras} toggle={toggle}>
+      {experto && <Section id="extras" title={t("Extras")} open={open.extras} toggle={toggle}>
         <div className="ctl">
           <label className="row">
             <input type="checkbox" data-testid="set-pikmin-activo"
@@ -604,7 +613,7 @@ export default function SettingsPanel({ settings, saveSettings,
         <div className="hint">
           {t("Las imágenes rotan entre las del proyecto y las de Pikmin Bloom.")}
         </div>
-      </Section>
+      </Section>}
 
       <div className="creditos" data-testid="creditos">
         {destacar(
