@@ -27,6 +27,7 @@ export default function Perfiles({ saveSettings }: Props) {
   const [gestion, setGestion] = useState(false);
   const [nombre, setNombre] = useState("");
   const [aviso, setAviso] = useState("");
+  const [seleccionado, setSeleccionado] = useState("");
 
   const recargar = () =>
     api.presets()
@@ -61,13 +62,18 @@ export default function Perfiles({ saveSettings }: Props) {
   };
 
   const guardar = async () => {
-    const n = nombre.trim();
+    // si hay un perfil guardado seleccionado, se ACTUALIZA con lo actual;
+    // si no, se pide nombre para uno nuevo
+    const guardado = seleccionado.startsWith("guardado:")
+      ? seleccionado.slice(9) : "";
+    const n = guardado || nombre.trim();
     if (!n) return;
     try {
       const r = await api.savePreset(n);
       setGuardados(Array.isArray(r.names) ? r.names : []);
       setNombre("");
       setGuardando(false);
+      setSeleccionado(`guardado:${n}`);
       setAviso(t("Perfil «{n}» guardado", { n }));
     } catch {
       setAviso(t("No se pudo guardar el perfil"));
@@ -89,9 +95,12 @@ export default function Perfiles({ saveSettings }: Props) {
         <select
           className="perfil-select"
           data-testid="perfil-select"
-          value=""
+          value={seleccionado}
           title={t("Aplicar un perfil de fábrica o uno guardado")}
-          onChange={(e) => aplicar(e.target.value)}
+          onChange={(e) => {
+            setSeleccionado(e.target.value);
+            void aplicar(e.target.value);
+          }}
         >
           <option value="">{t("Perfil…")}</option>
           <optgroup label={t("De fábrica")}>

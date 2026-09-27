@@ -338,19 +338,18 @@ async function main() {
     const espera = document.createElement("div");
     espera.id = "crycat-espera";
     const c2 = temaRecordado().colors;
+    // barra ABAJO (como la de escritorio), no una pantalla que lo tapa todo
     espera.style.cssText =
-      "position:fixed;inset:0;display:none;z-index:9999;" +
-      "align-items:center;justify-content:center;flex-direction:column;" +
-      "gap:12px;background:" + c2.bg + "f2;font:16px system-ui;" +
-      "color:" + c2.textSoft + ";text-align:center;padding:24px";
+      "position:fixed;left:0;right:0;bottom:0;display:none;z-index:9999;" +
+      "align-items:center;gap:12px;padding:10px 18px;font:14px system-ui;" +
+      "color:#fff;background:" + c2.accent3 +
+      ";box-shadow:0 -4px 18px rgba(60,20,40,.28)";
     espera.innerHTML =
-      '<img src="./app/icono.png" alt="" ' +
-      'style="width:72px;height:72px;border-radius:20px" />' +
-      '<div id="espera-frase" style="font-size:20px;font-weight:800;color:' +
-      c2.text + ';max-width:620px;line-height:1.25"></div>' +
-      '<div style="font-size:13px">' +
-      'Optimizando de verdad: el cálculo se hace en tu equipo y puede ' +
-      'tardar unos segundos.</div>';
+      '<img src="./app/piensa.gif" alt="" style="height:34px;width:auto" />' +
+      '<div id="espera-frase" style="font-size:14.5px;font-weight:800;' +
+      'flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>' +
+      '<div style="font-size:12.5px;opacity:.9">' +
+      'Optimizando en tu equipo…</div>';
     document.body.appendChild(espera);
     const original = window.fetch.bind(window);
     const fetchConAviso = async (input: RequestInfo | URL,
