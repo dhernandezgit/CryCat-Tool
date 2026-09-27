@@ -46,11 +46,25 @@ interface Pet {
   estado: Estado;
 }
 
-/** Catálogo global de imágenes de Pikmin (base + muestra de Pikmin Bloom). */
+/** Catálogo global de imágenes de Pikmin (base + muestra de Pikmin Bloom).
+
+ * El índice (`/pikmin/indice.json`) lo escribe el script de la web con las
+ * imágenes que de verdad se han subido; en el escritorio están todas. Si no
+ * existe, se usa la lista de siempre.
+ */
 export function usePikminFuentes(extra?: string[]): string[] {
+  const [base, setBase] = useState<string[]>(BASE_IMGS);
   const [bloom, setBloom] = useState<string[]>([]);
   useEffect(() => {
-    fetch("/pikmin_bloom/indice.json")
+    fetch(assetUrl("/pikmin/indice.json"))
+      .then((r) => (r.ok ? r.json() : null))
+      .then((nombres: string[] | null) => {
+        if (Array.isArray(nombres) && nombres.length) {
+          setBase(nombres.map((n) => "/pikmin/" + n));
+        }
+      })
+      .catch(() => undefined);
+    fetch(assetUrl("/pikmin_bloom/indice.json"))
       .then((r) => (r.ok ? r.json() : []))
       .then((nombres: string[]) => {
         if (!Array.isArray(nombres)) return;
@@ -67,8 +81,8 @@ export function usePikminFuentes(extra?: string[]): string[] {
   return useMemo(
     () => (extra && extra.length
       ? [...extra, ...bloom].map(assetUrl)
-      : [...BASE_IMGS, ...bloom].map(assetUrl)),
-    [extra, bloom]
+      : [...base, ...bloom].map(assetUrl)),
+    [extra, base, bloom]
   );
 }
 

@@ -12,15 +12,15 @@ let _py = null;
 
 export async function cargarCryCat(onEstado) {
   if (_py) return _py;
-  const di = (t) => onEstado && onEstado(t);
+  const di = (t, paso) => onEstado && onEstado(t, paso);
 
-  di("Cargando Python en el navegador (WebAssembly)…");
+  di("Cargando Python en el navegador (WebAssembly)…", 1);
   await cargarScript("https://cdn.jsdelivr.net/pyodide/v0.26.2/full/pyodide.js");
   const pyodide = await globalThis.loadPyodide({
     indexURL: "https://cdn.jsdelivr.net/pyodide/v0.26.2/full/",
   });
 
-  di("Cargando Pillow, NumPy, SciPy, micropip y pydantic…");
+  di("Cargando Pillow, NumPy, SciPy, micropip y pydantic…", 2);
   // pydantic viene compilado en Pyodide (pydantic-core en WebAssembly): hay
   // que cargarlo ANTES para que micropip no intente bajarlo de PyPI
   // ssl: anyio (dependencia de starlette/fastapi) lo importa al cargar
@@ -30,7 +30,7 @@ export async function cargarCryCat(onEstado) {
   const hayMicropip = await pyodide.runPythonAsync(
     "import importlib.util as u\nbool(u.find_spec('micropip'))");
   if (!hayMicropip) {
-    di("Instalando micropip…");
+    di("Instalando micropip…", 2);
     await pyodide.loadPackage("micropip");
   }
 
@@ -38,19 +38,19 @@ export async function cargarCryCat(onEstado) {
   // Si fallara (conexión lenta), se sigue con la máscara alfa: misma silueta,
   // solo sin simplificar el contorno.
   try {
-    di("Cargando OpenCV (contornos exactos)…");
+    di("Cargando OpenCV (contornos exactos)…", 3);
     await pyodide.loadPackage(["opencv-python"]);
   } catch (e) {
-    di("OpenCV no disponible: se usará la silueta directa");
+    di("OpenCV no disponible: se usará la silueta directa", 3);
   }
 
-  di("Descargando el motor de CryCat (misma versión que la app)…");
+  di("Descargando el motor de CryCat (misma versión que la app)…", 4);
   // sin caché: el motor cambia con cada versión y son solo ~270 KB
   const zip = await (await fetch(`${BASE}crycat.zip`,
                                  { cache: "no-cache" })).arrayBuffer();
   pyodide.FS.writeFile("/crycat.zip", new Uint8Array(zip));
 
-  di("Preparando el motor…");
+  di("Preparando el motor…", 5);
   await pyodide.runPythonAsync(`
 import zipfile, sys, os
 # el zip trae el paquete tal cual: crycat/… → se extrae a /motor
@@ -60,7 +60,7 @@ with zipfile.ZipFile("/crycat.zip") as z:
 sys.path.insert(0, "/motor")
 `);
   _py = pyodide;
-  di("Motor listo");
+  di("Motor listo", 5);
   return _py;
 }
 

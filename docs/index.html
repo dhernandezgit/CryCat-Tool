@@ -18,10 +18,24 @@
     font:16px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   }
   .wrap{max-width:1000px;margin:0 auto;padding:32px 20px 80px}
-  header{display:flex;align-items:center;gap:16px;margin-bottom:8px}
+  header{display:flex;align-items:center;gap:16px;margin-bottom:8px;flex-wrap:wrap}
   header img.icono{width:72px;height:72px;border-radius:20px}
   h1{font-size:2.1rem;margin:0;letter-spacing:.3px}
   .sub{color:var(--soft);margin:2px 0 0}
+  .idioma{margin-left:auto;display:flex;gap:6px}
+  .idioma button{
+    font:inherit;font-weight:700;cursor:pointer;padding:8px 14px;border-radius:999px;
+    border:2px solid var(--border);background:var(--panel);color:var(--soft);
+  }
+  .idioma button.activo{background:var(--accent2);border-color:var(--accent2);color:#fff}
+  .acciones{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin:18px 0 26px}
+  .acciones a{
+    display:inline-flex;align-items:center;gap:8px;text-decoration:none;
+    font-weight:800;padding:14px 22px;border-radius:14px;transition:.15s;
+  }
+  .acciones a.principal{background:var(--accent2);color:#fff;border:2px solid var(--accent2)}
+  .acciones a.secundario{background:var(--panel);color:var(--accent2);border:2px solid var(--accent2)}
+  .acciones a:hover{filter:brightness(1.06);transform:translateY(-1px)}
   .descargas{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin:10px 0 34px}
   .card{
     background:var(--panel);border:2px solid var(--border);border-radius:var(--radius);
@@ -48,6 +62,7 @@
   }
   code{background:var(--panel2);padding:2px 7px;border-radius:6px;font-size:.92em}
   footer{text-align:center;color:var(--soft);margin-top:40px;font-size:.9rem}
+  footer a{color:var(--accent2)}
   .aviso{font-size:.86rem;color:var(--soft)}
 </style>
 </head>
@@ -57,85 +72,118 @@
     <img class="icono" src="icono.png" alt="CryCat" />
     <div>
       <h1>CryCat</h1>
-      <p class="sub">Coloca tus imágenes de forma óptima para Cricut —
+      <p class="sub"
+         data-en="Lay out your images optimally for Cricut — fully local, offline and without touching your originals.">
+        Coloca tus imágenes de forma óptima para Cricut —
         todo local, sin conexión a Internet y sin tocar tus originales.</p>
+    </div>
+    <div class="idioma">
+      <button id="btn-es" class="activo" onclick="ponerIdioma('es')">ES</button>
+      <button id="btn-en" onclick="ponerIdioma('en')">EN</button>
     </div>
   </header>
 
-
-  <div style="text-align:center;margin:6px 0 18px">
-    <a class="btn" href="web/" style="display:inline-block;text-decoration:none;
-       font-weight:800;font-size:1.05rem;padding:14px 26px;border-radius:14px;
-       background:var(--accent2);color:#fff;border:2px solid var(--accent2)">
+  <div class="acciones">
+    <a class="principal" href="web/"
+       data-en="▶ Use CryCat in your browser (no install)">
       ▶ Usar CryCat en el navegador (sin instalar)
     </a>
-    <p class="aviso" style="margin-top:8px">
-      Se ejecuta en tu equipo: tus imágenes no se suben a ningún servidor.
-    </p>
+    <a class="secundario" href="https://github.com/dhernandezgit/CryCat-Tool"
+       data-en="⭐ View it on GitHub">
+      ⭐ Verlo en GitHub
+    </a>
   </div>
+  <p class="aviso" style="text-align:center;margin-top:-16px"
+     data-en="It runs on your own machine: your images are never uploaded.">
+    Se ejecuta en tu equipo: tus imágenes no se suben a ningún servidor.
+  </p>
 
   <div class="descargas">
     <div class="card">
-      <h3>Windows — instalador</h3>
-      <p>Descarga, doble clic y listo: accesos directos y desinstalador.</p>
-      <a class="btn" id="dl-setup" href="https://github.com/dhernandezgit/CryCat-Tool/releases/latest/download/crycat-setup.exe">Descargar instalador</a>
+      <h3 data-en="Windows — installer">Windows — instalador</h3>
+      <p data-en="Download, double-click and done: shortcuts and uninstaller.">
+        Descarga, doble clic y listo: accesos directos y desinstalador.</p>
+      <a class="btn" id="dl-setup"
+         href="https://github.com/dhernandezgit/CryCat-Tool/releases/latest/download/crycat-setup.exe"
+         data-en="Download installer">Descargar instalador</a>
     </div>
     <div class="card">
-      <h3>Windows — un archivo</h3>
-      <p>Sin instalación: un único <code>CryCat.exe</code> portable.</p>
-      <a class="btn alt" id="dl-exe" href="https://github.com/dhernandezgit/CryCat-Tool/releases/latest/download/CryCat.exe">Descargar CryCat.exe</a>
+      <h3 data-en="Windows — single file">Windows — un archivo</h3>
+      <p data-en="No installation: a single portable CryCat.exe.">
+        Sin instalación: un único <code>CryCat.exe</code> portable.</p>
+      <a class="btn alt" id="dl-exe"
+         href="https://github.com/dhernandezgit/CryCat-Tool/releases/latest/download/CryCat.exe"
+         data-en="Download CryCat.exe">Descargar CryCat.exe</a>
     </div>
     <div class="card">
-      <h3>Linux — un archivo</h3>
-      <p>Ejecutable único; también hay paquete con <code>install.sh</code>.</p>
-      <a class="btn alt" id="dl-lin" href="https://github.com/dhernandezgit/CryCat-Tool/releases/latest/download/crycat-onefile">Descargar para Linux</a>
+      <h3 data-en="Linux — single file">Linux — un archivo</h3>
+      <p data-en="Single executable; there is also a package with install.sh.">
+        Ejecutable único; también hay paquete con <code>install.sh</code>.</p>
+      <a class="btn alt" id="dl-lin"
+         href="https://github.com/dhernandezgit/CryCat-Tool/releases/latest/download/crycat-onefile"
+         data-en="Download for Linux">Descargar para Linux</a>
     </div>
   </div>
 
   <section>
-    <h2>Cómo usar CryCat</h2>
+    <h2 data-en="How to use CryCat">Cómo usar CryCat</h2>
     <ol>
-      <li>Arrastra tus imágenes al panel de la izquierda (PNG, JPG, WEBP, PSD, AI, SVG…).</li>
-      <li>Ajusta el tamaño con la escala o escribiendo el <strong>ancho/alto exacto en mm</strong>.</li>
-      <li>Activa <strong>Mini</strong> en las que quieras repetir rellenando huecos (mínimo 15 mm).</li>
-      <li>Pulsa <strong>Recalcular</strong> si quieres recolocarlo a fondo (o déjalo en automático).</li>
-      <li>Guarda: obtienes un <strong>PNG a 300 ppp</strong>. Nunca sobrescribe nada.</li>
+      <li data-en="Drop your images into the left panel (PNG, JPG, WEBP, PSD, AI, SVG…).">
+        Arrastra tus imágenes al panel de la izquierda (PNG, JPG, WEBP, PSD, AI, SVG…).</li>
+      <li data-en="Set the size with the scale or by typing the exact width/height in mm.">
+        Ajusta el tamaño con la escala o escribiendo el <strong>ancho/alto exacto en mm</strong>.</li>
+      <li data-en="Turn on Mini on the ones you want repeated to fill gaps (15 mm minimum).">
+        Activa <strong>Mini</strong> en las que quieras repetir rellenando huecos (mínimo 15 mm).</li>
+      <li data-en="Hit Recalculate to re-lay everything out (or leave it automatic).">
+        Pulsa <strong>Recalcular</strong> si quieres recolocarlo a fondo (o déjalo en automático).</li>
+      <li data-en="Save: you get a 300 dpi PNG. It never overwrites anything.">
+        Guarda: obtienes un <strong>PNG a 300 ppp</strong>. Nunca sobrescribe nada.</li>
     </ol>
-    <div class="prompt">
+    <div class="prompt"
+         data-en="When you open the app you will see this same summary in a popup; you can bring it back anytime with the “How to use” button in the bottom bar.">
       Al abrir la aplicación verás este mismo resumen en un aviso; puedes
       volver a verlo cuando quieras con el botón <strong>«Cómo usar»</strong> de la barra inferior.
     </div>
   </section>
 
   <section>
-    <h2>Consejos rápidos</h2>
+    <h2 data-en="Quick tips">Consejos rápidos</h2>
     <ul>
-      <li><strong>Espacio y borde:</strong> usa los perfiles listos — <em>chapa</em> (casi sin espacio),
+      <li data-en="Spacing and border: use the ready-made profiles — pin badge (almost no spacing), sticker (spacing + border), sticker sheet (no spacing, no border), magnet or vinyl.">
+        <strong>Espacio y borde:</strong> usa los perfiles listos — <em>chapa</em> (casi sin espacio),
         <em>pegatina</em> (espacio + borde), <em>hoja de pegatinas</em> (sin espacio ni borde), <em>imán</em> o <em>vinilo</em>.</li>
-      <li><strong>Trozos flotantes:</strong> sube el <em>Borde</em> de ese elemento para unirlos en una sola pieza.</li>
-      <li><strong>Muchas imágenes a la vez:</strong> aparece un cuadro para adaptar los tamaños en bloque.</li>
-      <li><strong>Imprimir:</strong> CryCat guarda primero y genera un PDF con las marcas negras de Cricut.</li>
-      <li><strong>Deshacer/Rehacer:</strong> <code>Ctrl+Z</code> y <code>Ctrl+Y</code> (configurable en Ajustes).</li>
-      <li><strong>Sorpresa:</strong> haz clic 5 veces seguidas en el gatito de la barra.</li>
+      <li data-en="Loose pieces: raise that item’s Border to merge them into one piece.">
+        <strong>Trozos flotantes:</strong> sube el <em>Borde</em> de ese elemento para unirlos en una sola pieza.</li>
+      <li data-en="Many images at once: a dialog appears to resize them all together.">
+        <strong>Muchas imágenes a la vez:</strong> aparece un cuadro para adaptar los tamaños en bloque.</li>
+      <li data-en="Print: CryCat saves first and then makes a PDF with the real Cricut marks.">
+        <strong>Imprimir:</strong> CryCat guarda primero y genera un PDF con las marcas negras de Cricut.</li>
+      <li data-en="Undo/Redo: Ctrl+Z and Ctrl+Y (configurable in Settings).">
+        <strong>Deshacer/Rehacer:</strong> <code>Ctrl+Z</code> y <code>Ctrl+Y</code> (configurable en Ajustes).</li>
+      <li data-en="Surprise: click the little cat in the bottom bar 5 times.">
+        <strong>Sorpresa:</strong> haz clic 5 veces seguidas en el gatito de la barra.</li>
     </ul>
   </section>
 
   <section>
-    <h2>¿Y la versión web?</h2>
-    <p class="aviso">
-      Esta página es solo la presentación: CryCat necesita ejecutarse en tu
-      ordenador porque el recorte de siluetas, la optimización y la exportación
-      a 300 ppp se hacen <strong>localmente</strong> (nada sale de tu equipo).
-      Descarga el ejecutable de tu sistema en los botones de arriba.
+    <h2 data-en="And the web version?">¿Y la versión web?</h2>
+    <p class="aviso"
+       data-en="It already exists: press the big button above and CryCat runs in your browser with the very same engine (the real Python package compiled to WebAssembly). Everything is computed on your machine, so your images never leave it. The desktop app is still faster for big batches.">
+      Ya existe: pulsa el botón grande de arriba y CryCat se ejecuta en tu navegador
+      con <strong>el mismo motor</strong> (el paquete Python real compilado a
+      WebAssembly). Todo se calcula en tu equipo, así que tus imágenes no salen de él.
+      Para lotes grandes, la aplicación de escritorio sigue siendo más rápida.
     </p>
   </section>
 
   <footer>
-    CryCat · hecha por <strong>Daniel Hernández Ferrándiz</strong> y
-    <strong>Wivi.eve</strong>, para los artistas.<br />
-    <a href="web/"><b>Versión web</b></a> ·
+    CryCat · <span data-en="made by">hecha por</span>
+    <strong>Daniel Hernández Ferrándiz</strong> y <strong>Wivi.eve</strong>,
+    <span data-en="for artists.">para los artistas.</span><br />
+    <a href="web/" data-en="Web version">Versión web</a> ·
     <a href="https://github.com/dhernandezgit/CryCat-Tool">Repositorio</a> ·
-    <a href="https://github.com/dhernandezgit/CryCat-Tool/releases/latest">Última versión</a>
+    <a href="https://github.com/dhernandezgit/CryCat-Tool/releases/latest"
+       data-en="Latest release">Última versión</a>
   </footer>
 </div>
 
@@ -147,6 +195,23 @@
   document.getElementById("dl-exe").href = `${repo}/releases/${vers}/CryCat.exe`;
   document.getElementById("dl-lin").href = `${repo}/releases/${vers}/crycat-onefile`;
 
+  // conmutador de idioma (ES por defecto; se recuerda)
+  function ponerIdioma(idioma) {
+    document.documentElement.lang = idioma;
+    document.querySelectorAll("[data-en]").forEach((el) => {
+      if (!el.dataset.es) el.dataset.es = el.innerHTML;
+      el.innerHTML = idioma === "en" ? el.dataset.en : el.dataset.es;
+    });
+    document.title = idioma === "en"
+      ? "CryCat — lay out your images for Cricut"
+      : "CryCat — coloca tus imágenes para Cricut";
+    document.getElementById("btn-es").classList.toggle("activo", idioma === "es");
+    document.getElementById("btn-en").classList.toggle("activo", idioma === "en");
+    try { localStorage.setItem("crycat-idioma", idioma); } catch (e) {}
+  }
+  try {
+    if (localStorage.getItem("crycat-idioma") === "en") ponerIdioma("en");
+  } catch (e) {}
 </script>
 </body>
 </html>
