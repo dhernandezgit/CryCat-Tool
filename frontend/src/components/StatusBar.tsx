@@ -113,10 +113,8 @@ export default function StatusBar({ job, backendOk, result, estimate,
     }
     if (job && job.status === "error") return job.message || "Error";
     if (result && result.pages > 0) {
-      const ef = Math.round(result.efficiency * 100);
-      return t("{n} imágenes en {p} página{s} · eficiencia {ef}% · {m} minis",
-               { n: result.placed, p: result.pages,
-                 s: result.pages > 1 ? "s" : "", ef, m: result.minis });
+      // el resumen va en las tarjetas (stat-cards), más visual
+      return t("Listo");
     }
     return t("Listo para empezar");
   }, [aviso, actualizando, running, job, mensajes, idx, result, t, ver]);
@@ -196,7 +194,27 @@ export default function StatusBar({ job, backendOk, result, estimate,
         <span className="nombre">CryCat</span>
       </div>
       <div className="center" data-testid="status-center">
-        <span className="msg">{message}</span>
+        {result && result.pages > 0 && !running && (
+          <div className="stat-cards" data-testid="stat-cards">
+            <div className="stat-card" data-tip={t("Imágenes colocadas en las hojas")}>
+              <b>{result.placed}</b><span>{t("imágenes")}</span>
+            </div>
+            <div className="stat-card" data-tip={t("Páginas que ocupa el trabajo")}>
+              <b>{result.pages}</b>
+              <span>{result.pages > 1 ? t("páginas") : t("página")}</span>
+            </div>
+            <div className="stat-card" data-tip={t("Eficiencia real: superficie de las siluetas sobre el área ÚTIL de la hoja (contando los límites)")}>
+              <b>{Math.round(result.efficiency * 100)}%</b>
+              <span>{t("eficiencia")}</span>
+            </div>
+            <div className="stat-card" data-tip={t("Copias pequeñas extra que rellenan huecos")}>
+              <b>{result.minis}</b><span>{t("minis")}</span>
+            </div>
+          </div>
+        )}
+        {!(result && result.pages > 0 && !running) && (
+          <span className="msg">{message}</span>
+        )}
         {!!result && result.pages > 1 && (
           <span className="aviso-paginas" data-testid="aviso-paginas"
                 title={t("No cabe todo en una página: se usarán varias")}>

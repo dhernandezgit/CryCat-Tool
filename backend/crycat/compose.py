@@ -181,8 +181,9 @@ def contornos_bordes(canvas: Image.Image, placements: list[Placement],
                      con_borde: dict[str, Image.Image],
                      sin_borde: dict[str, Image.Image],
                      area: CutArea, dpi: float,
-                     color_final: tuple[int, int, int] = (217, 79, 106),
-                     color_sin: tuple[int, int, int] = (58, 127, 181),
+                     color_final: tuple[int, int, int] = (226, 18, 94),
+                     color_sin: tuple[int, int, int] = (0, 148, 211),
+                     grosor_px: int = 3,
                      ) -> Image.Image:
     """Vista de comprobación: contorno REAL de cada pieza.
 
@@ -229,6 +230,19 @@ def contornos_bordes(canvas: Image.Image, placements: list[Placement],
             ys, xs = np.where(m)
             ox, oy = int(xs.min()), int(ys.min())
             cont = m & ~ndimage.binary_erosion(m, iterations=1)
+            if not cont.any():
+                continue
+            # trazo GRUESO y PUNTEADO: la silueta final en guiones y la del
+            # dibujo sin borde en puntos complementarios (se alternan)
+            if grosor_px > 1:
+                cont = ndimage.binary_dilation(cont,
+                                               iterations=grosor_px - 1)
+            yy, xx = np.mgrid[0:m.shape[0], 0:m.shape[1]]
+            fase = (xx + yy) % 14
+            if color == color_final:
+                cont = cont & (fase < 9)          # guiones
+            else:
+                cont = cont & (fase >= 9)         # puntos (la otra mitad)
             if not cont.any():
                 continue
             parche = np.zeros((m.shape[0], m.shape[1], 4), dtype=np.uint8)

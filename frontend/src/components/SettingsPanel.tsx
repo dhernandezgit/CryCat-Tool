@@ -4,6 +4,7 @@ import { api, MACHINE_LABELS, PAPER_DIMS, type AppSettings,
 import { useT } from "../i18n";
 import { THEMES } from "../themes";
 import FolderPicker from "./FolderPicker";
+import AccionesRapidas from "./AccionesRapidas";
 import { IconoAjustar, IconoMini, IconoRecalcular, IconoFondo, IconoBordes,
          IconoGuias, IconoGuardar, IconoImprimir, IconoRotar,
          IconoVolumen } from "./iconos";
@@ -176,18 +177,15 @@ export default function SettingsPanel({ settings, saveSettings,
 
   return (
     <div className="file-panel settings-panel">
-      <button className="panel-head" data-testid="panel-ajustes"
-              onClick={() => setPanelAbierto((v) => !v)}>
-        <span className={`chev ${panelAbierto ? "open" : ""}`}>›</span>
+      <div className="file-head">
         <h2>{t("Ajustes")}</h2>
-        <span className="fold-val">{settings.tema}</span>
-      </button>
-      {!panelAbierto && <div className="hint">{t("Pulsa para desplegar los ajustes")}</div>}
-      {panelAbierto && (
+        <span className="count-badge">{settings.tema}</span>
+      </div>
+      <AccionesRapidas settings={settings} saveSettings={saveSettings} />
       <>
       {!experto && (
         <div className="hint" data-testid="modo-rapido-aviso">
-          {t("Modo rápido: solo lo esencial. Cambia a Experto para verlo todo.")}
+          {t("Modo básico: solo lo esencial. Cambia a Modo experto para verlo todo.")}
         </div>
       )}
       {/* -------- General -------- */}
@@ -463,7 +461,7 @@ export default function SettingsPanel({ settings, saveSettings,
       </Section>
 
       {/* -------- Offset / borde -------- */}
-      <Section id="offset" title={t("Offset / borde")} open={open.offset} toggle={toggle}
+{experto &&       <Section id="offset" title={t("Offset / borde")} open={open.offset} toggle={toggle}
                icon={<IconoBordes size={15} />}>
         <div className="ctl">
           <label className="row">
@@ -501,7 +499,7 @@ export default function SettingsPanel({ settings, saveSettings,
             </div>
           </>
         )}
-      </Section>
+      </Section>}
 
       {/* -------- Estimación de corte -------- */}
       {experto && <Section id="corte" title={t("Estimación de corte")} open={open.corte} toggle={toggle}>
@@ -660,9 +658,7 @@ export default function SettingsPanel({ settings, saveSettings,
           ["CryCat", "Daniel Hernández Ferrándiz", "Wivi.eve"],
         )}
       </div>
-
       </>
-      )}
       <FolderPicker
         open={pickerOpen}
         initial={settings.carpeta_export}

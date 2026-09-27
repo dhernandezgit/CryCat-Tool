@@ -31,7 +31,7 @@ export default function App() {
     eyeTransparent: false,
     eyeFosforito: false,
     guidesVisible: true,
-    verBordes: false,
+    verBordes: true,
     viewMode: 1,
     saveName: "",
   });

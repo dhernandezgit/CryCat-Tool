@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import SettingsPanel from "../components/SettingsPanel";
@@ -53,7 +53,7 @@ describe("Panel de ajustes", () => {
     const u = userEvent.setup();
     render(<SettingsPanel settings={settings} saveSettings={saveSettings} />);
     expect(screen.queryByTestId("set-mini_min_mm")).toBeNull();
-    await u.click(screen.getByText("Minis"));
+    await u.click(within(screen.getByTestId("sect-minis")).getByText("Minis"));
     expect(screen.getByTestId("set-mini_min_mm")).toHaveValue(5);
     // tope de tamaño del mini (% del original): siempre menor que 100
     expect(screen.getByTestId("set-mini_max_rescale")).toHaveValue(100);
@@ -90,7 +90,7 @@ describe("Panel de ajustes", () => {
   it("cambiar un valor llama a guardar (el servidor relanza la optimización)", async () => {
     const u = userEvent.setup();
     render(<SettingsPanel settings={settings} saveSettings={saveSettings} />);
-    await u.click(screen.getByText("Minis"));
+    await u.click(within(screen.getByTestId("sect-minis")).getByText("Minis"));
     await u.type(screen.getByTestId("set-mini_min_mm"), "5"); // 5 -> 55
     expect(saveSettings).toHaveBeenCalled();
   });
@@ -150,7 +150,7 @@ describe("Panel de ajustes", () => {
   it("la lista de tamaños de minis permite activarla, añadir y quitar valores", async () => {
     const u = userEvent.setup();
     render(<SettingsPanel settings={settings} saveSettings={saveSettings} />);
-    await u.click(screen.getByText("Minis"));
+    await u.click(within(screen.getByTestId("sect-minis")).getByText("Minis"));
     // por defecto no se usa la lista
     expect(screen.getByTestId("set-mini-usar-lista")).not.toBeChecked();
     expect(screen.queryByTestId("mini-lista")).toBeNull();
@@ -168,7 +168,7 @@ describe("Panel de ajustes", () => {
       <SettingsPanel settings={{ ...settings, mini_usar_lista: true }}
                      saveSettings={saveSettings} assets={assets} />,
     );
-    await u.click(screen.getByText("Minis"));
+    await u.click(within(screen.getByTestId("sect-minis")).getByText("Minis"));
     // 50 % del lado menor (40 mm) = 20 mm
     expect(screen.getByTestId("mini-tamano-0")).toHaveValue(50);
     expect(screen.getByTestId("mini-tamano-mm-0")).toHaveValue(20);

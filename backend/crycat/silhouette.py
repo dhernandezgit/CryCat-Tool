@@ -814,10 +814,10 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
     deadline = t0 + t_max
     rnd = _random.Random(20260925)
     n_total = sum(int(a.get("copies", 1)) for a in assets) + len(pinned or [])
-    # en el navegador (o si se pide) la primera pasada TAMBIÉN respeta el
-    # presupuesto: mejor un resultado parcial en segundos que esperar minutos
-    forzar = bool(settings.get("opt_forzar_limite"))
-    deadline_1 = None if (n_total <= 40 and not forzar) else deadline
+    # La PRIMERA pasada completa SIEMPRE (colocar es barato): el presupuesto
+    # solo limita la búsqueda de una colocación MEJOR, nunca deja piezas sin
+    # colocar por tiempo. Así el resultado siempre es válido y completo.
+    deadline_1 = None
 
     if metodo == "largest":
         best = _one_pass(assets, masks, area, settings, pinned, "area", rnd,
@@ -998,7 +998,8 @@ def _recalcular_eficiencia(result, masks: dict, area: CutArea) -> None:
             fracs[aid] = 1.0
     paginas = max((p.page for p in result.placements), default=0) + 1
     result.pages = paginas
-    usada = area.bbox[2] * area.bbox[3] * paginas
+    # área ÚTIL de verdad: el polígono recortable (con sus esquinas), no el bbox
+    usada = area.area_mm2 * paginas
     area_sil = sum(p.w * p.h * fracs.get(p.asset_id, 1.0)
                    for p in result.placements)
     result.efficiency = min(1.0, area_sil / usada) if usada > 0 else 0.0

@@ -93,11 +93,12 @@ describe("App completa", () => {
     render(<App />);
     await waitFor(() => expect(screen.getByTestId("viewer")).toBeInTheDocument());
     await screen.findByTestId("page-0");
-    expect(screen.getByTestId("btn-guias")).toHaveTextContent(/guías/i);
+    // el botón es un icono con tooltip: se comprueba el estado de las guías
+    expect(screen.getByTestId("page-0").querySelector(".overlay-svg")).not.toBeNull();
     const u = userEvent.setup();
     await u.click(screen.getByTestId("btn-guias"));
-    expect(screen.getByTestId("btn-guias")).toHaveTextContent(/sin guías/i);
-    expect(screen.queryByTestId("page-0")?.querySelector(".overlay-svg")).toBeNull();
+    await waitFor(() =>
+      expect(screen.queryByTestId("page-0")?.querySelector(".overlay-svg")).toBeNull());
   });
 
   it("los separadores arrastrables existen", async () => {
@@ -110,7 +111,7 @@ describe("App completa", () => {
     render(<App />);
     await waitFor(() => expect(screen.getByTestId("btn-recalcular")).toBeInTheDocument());
     const btn = screen.getByTestId("btn-recalcular");
-    expect(btn.textContent).toMatch(/Recalcular (rápido|óptimo)/);
+    expect(btn).toBeInTheDocument();
     const u = userEvent.setup();
     await u.click(btn);
     await waitFor(() =>

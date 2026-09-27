@@ -79,10 +79,13 @@ describe("Barra de estado", () => {
     expect(screen.getByTestId("corte-estimado")).toHaveTextContent("—");
   });
 
-  it("resume el resultado (páginas y eficiencia)", () => {
+  it("resume el resultado en tarjetas (imágenes, páginas, eficiencia y minis)", () => {
     render(<StatusBar job={null} backendOk result={result} />);
-    expect(screen.getByTestId("status-center")).toHaveTextContent(/12 imágenes en 2 páginas/);
-    expect(screen.getByTestId("status-center")).toHaveTextContent(/62%/);
+    const cards = screen.getByTestId("stat-cards");
+    expect(cards).toHaveTextContent("12");
+    expect(cards).toHaveTextContent(/páginas/i);
+    expect(cards).toHaveTextContent("62%");
+    expect(cards).toHaveTextContent(/minis/i);
   });
 
   it("muestra mensajes rotando y progreso/ETA mientras optimiza", async () => {

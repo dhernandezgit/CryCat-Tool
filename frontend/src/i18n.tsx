@@ -159,6 +159,29 @@ export const EN: Record<string, string> = {
   "Desplegar el panel de imágenes": "Expand the images panel",
   "Pulsa la flecha para desplegar el panel.": "Press the arrow to expand the panel.",
   "Rápido": "Quick",
+  "imágenes": "images",
+  "página": "page",
+  "páginas": "pages",
+  "eficiencia": "efficiency",
+  "minis": "minis",
+  "Imágenes colocadas en las hojas": "Images placed on the sheets",
+  "Páginas que ocupa el trabajo": "Pages the job takes",
+  "Eficiencia real: superficie de las siluetas sobre el área ÚTIL de la hoja (contando los límites)":
+    "Real efficiency: silhouette area over the USEFUL area of the sheet (limits included)",
+  "Copias pequeñas extra que rellenan huecos":
+    "Small extra copies that fill gaps",
+  "Contornos punteados: guiones = lo que se corta; puntos = el dibujo sin borde":
+    "Dotted outlines: dashes = what gets cut; dots = the drawing without border",
+  "Guías del área recortable (tecla G): solo en la vista previa":
+    "Cut-area guides (key G): preview only",
+  "Recalcular la colocación (ignora los elementos fijados)":
+    "Recalculate the layout (ignores pinned items)",
+  "Modo básico": "Basic mode",
+  "Modo experto": "Expert mode",
+  "Modo básico (lo esencial) o experto (todos los menús)":
+    "Basic mode (the essentials) or expert (all the menus)",
+  "Modo básico: solo lo esencial. Cambia a Modo experto para verlo todo.":
+    "Basic mode: only the essentials. Switch to Expert mode to see everything.",
   "Experto": "Expert",
   "Modo rápido (lo esencial) o experto (todo el control)":
     "Quick mode (the essentials) or expert (full control)",

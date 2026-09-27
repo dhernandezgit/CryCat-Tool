@@ -300,7 +300,10 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ quitar }),
     }),
-  previewUrl: (id: string) => `/api/assets/${id}/preview.png`,
+  /** Vista previa de la carta: con los contornos punteados (nunca va al PDF). */
+  previewUrl: (id: string, bordes = true) =>
+    `${apiBase()}/api/assets/${id}/preview.png?bordes=${bordes ? 1 : 0}`,
+  previewUrlSinBordes: (id: string) => `/api/assets/${id}/preview.png`,
   optimize: (modo?: "rapido" | "optimo", force = false) =>
     req<Job>("/api/optimize", {
       method: "POST",

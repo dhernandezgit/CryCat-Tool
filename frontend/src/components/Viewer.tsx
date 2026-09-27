@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { api, NAME_SUGGESTIONS, NAME_SUGGESTIONS_EN, type AppSettings, type Asset, type Job, type Placement, type Result, type UiState } from "../api";
 import FolderPicker from "./FolderPicker";
 import SaveDialog from "./SaveDialog";
-import { IconoGuias, IconoBordes, IconoZoomMas, IconoZoomMenos, IconoAjustar,
+import { IconoGuias, IconoBordes, IconoRecalcular,
+         IconoZoomMas, IconoZoomMenos, IconoAjustar,
          IconoGuardar, IconoImprimir, IconoCarpeta, IconoDeshacer,
          IconoRehacer } from "./iconos";
 import { useT, useIdioma } from "../i18n";
@@ -366,47 +367,47 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
         <div className="group hist">
           <button
             data-testid="btn-deshacer"
-            title={t("Deshacer (Ctrl+Z)")}
+            data-tip={t("Deshacer (Ctrl+Z)")}
             onClick={() => onDeshacer()}
             disabled={!puedeDeshacer}
           >
-            <IconoDeshacer size={15} /> {t("Deshacer")}
+            <IconoDeshacer size={16} />
           </button>
           <button
             data-testid="btn-rehacer"
-            title={t("Rehacer (Ctrl+Y / Ctrl+Shift+Z)")}
+            data-tip={t("Rehacer (Ctrl+Y / Ctrl+Shift+Z)")}
             onClick={() => onRehacer()}
             disabled={!puedeRehacer}
           >
-            <IconoRehacer size={15} /> {t("Rehacer")}
+            <IconoRehacer size={16} />
           </button>
         </div>
         <div className="group">
           <button
             data-testid="btn-bordes"
             className={ui.verBordes ? "primary" : ""}
-            title={t("Ver los contornos reales: en un color la silueta que se corta (con borde y cambios) y en otro el dibujo sin borde")}
+            data-tip={t("Contornos punteados: guiones = lo que se corta; puntos = el dibujo sin borde")}
             onClick={() => setUi((u) => ({ ...u, verBordes: !u.verBordes }))}
           >
-            <IconoBordes size={15} /> {ui.verBordes ? t("Bordes") : t("Sin bordes")}
+            <IconoBordes size={16} />
           </button>
         </div>
         <div className="group">
           <button
             data-testid="btn-guias"
-            title={t("Mostrar/ocultar guías de límites Cricut (tecla G) — solo en la vista previa, nunca en el archivo final")}
+            data-tip={t("Guías del área recortable (tecla G): solo en la vista previa")}
             onClick={() => setUi((u) => ({ ...u, guidesVisible: !u.guidesVisible }))}
           >
-            <IconoGuias size={15} /> {ui.guidesVisible ? t("Guías") : t("Sin guías")}
+            <IconoGuias size={16} />
           </button>
         </div>
         <button
           className="recalc-btn"
           data-testid="btn-recalcular"
-          title={t("Forzar la recolocación de todo (ignora los elementos fijados)")}
+          data-tip={t("Recalcular la colocación (ignora los elementos fijados)")}
           onClick={() => onRecalc(sobraEspacio ? "rapido" : "optimo")}
         >
-          {sobraEspacio ? t(" Recalcular rápido") : t(" Recalcular óptimo")}
+          <IconoRecalcular size={16} />
         </button>
         <div className="group">
           {pages > 1 && largePage === null && (

@@ -305,16 +305,33 @@ def create_app(store: Session = session) -> FastAPI:
         if any(not getattr(a, "demo", False) for a in store.assets.values()):
             return {"ok": False, "motivo": "ya hay imágenes"}
         store._quitar_demo()
-        for nombre, img in demo.figuras(max(1, min(60, n))):
+        figuras = demo.figuras(max(3, min(60, n)))
+        for k, (nombre, img) in enumerate(figuras):
             a = Asset(new_id(), nombre, img, b"", demo.DPI, [], "RGBA")
             a.demo = True
-            a.copies = 1
-            # algunos llevan minis: con los minis activados la hoja se llena sola
-            a.mini_enabled = random.random() < 0.45
-            a.mini_quota = 1.0
+            # copias y tamaños variados para que se vea de todo, SIN minis
+            # (salvo UN ejemplo: 0 normales y todos los minis que quepan)
+            a.copies = random.choice([1, 1, 2, 2, 3, 4])
+            a.mini_enabled = False
+            if k == 0:
+                a.copies = 0                 # 0 normales: solo minis
+                a.mini_enabled = True
+                a.mini_quota = 2.0
+            elif k == 1:
+                a.scale_pct = 55.0           # un ejemplo bien pequeño
             store.add(a)
+        # se deja YA optimizada (con los ajustes actuales): al abrir no se espera
+        try:
+            area = store.current_area()
+            assets = store.asset_dicts()
+            res = optimize(assets, area, settings.as_dict(),
+                           pinned=store.pinned(), masks=store.images())
+            store.set_result(res)
+        except Exception:
+            pass
         return {"ok": True, "assets": store.asset_dicts(),
-                "demo": store.hay_demo()}
+                "demo": store.hay_demo(),
+                "pages": store.last.pages if store.last else 0}
 
     @app.get("/api/assets")
     def list_assets():
@@ -490,11 +507,27 @@ def create_app(store: Session = session) -> FastAPI:
         return a.to_dict()
 
     @app.get("/api/assets/{aid}/preview.png")
-    def preview(aid: str):
+    def preview(aid: str, bordes: int = 0):
         a = store.get(aid)
         if not a:
             raise HTTPException(404, tr("asset no encontrado"))
-        return _png_response(imaging.thumbnail(a.img))
+        img = imaging.thumbnail(a.img)
+        if bordes:
+            # contornos punteados de la carta: la silueta final (con borde y
+            # cambios) y el dibujo sin borde. Solo es vista previa.
+            esc = max(img.width, img.height) / max(1, max(a.img.size))
+            img = compose.contornos_bordes(
+                img.convert("RGBA"),
+                [Placement(uid="carta", asset_id=aid, page=0, x=0.0, y=0.0,
+                           w=img.width / max(1e-6, esc) / (a.dpi_origen / 25.4),
+                           h=img.height / max(1e-6, esc) / (a.dpi_origen / 25.4),
+                           angle=0.0, scale=1.0)],
+                {aid: img.convert("RGBA")},
+                {aid: imaging.thumbnail(a.img)},
+                store.current_area(),
+                a.dpi_origen * esc,
+                grosor_px=2)
+        return _png_response(img)
 
     # ----------------------------------------------------------- optimizar --
     @app.post("/api/optimize")
