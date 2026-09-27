@@ -184,6 +184,7 @@ def contornos_bordes(canvas: Image.Image, placements: list[Placement],
                      color_final: tuple[int, int, int] = (226, 18, 94),
                      color_sin: tuple[int, int, int] = (0, 148, 211),
                      grosor_px: int = 12,
+                     fase: int = 0,
                      ) -> Image.Image:
     """Vista de comprobación: contorno REAL de cada pieza.
 
@@ -238,11 +239,11 @@ def contornos_bordes(canvas: Image.Image, placements: list[Placement],
                 cont = ndimage.binary_dilation(cont,
                                                iterations=grosor_px - 1)
             yy, xx = np.mgrid[0:m.shape[0], 0:m.shape[1]]
-            fase = (xx + yy) % 14
+            desfase = (xx + yy + fase) % 14
             if color == color_final:
-                cont = cont & (fase < 9)          # guiones
+                cont = cont & (desfase < 9)       # guiones
             else:
-                cont = cont & (fase >= 9)         # puntos (la otra mitad)
+                cont = cont & (desfase >= 9)      # puntos (la otra mitad)
             if not cont.any():
                 continue
             parche = np.zeros((m.shape[0], m.shape[1], 4), dtype=np.uint8)

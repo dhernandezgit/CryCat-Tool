@@ -508,7 +508,7 @@ def create_app(store: Session = session) -> FastAPI:
         return a.to_dict()
 
     @app.get("/api/assets/{aid}/preview.png")
-    def preview(aid: str, bordes: int = 0):
+    def preview(aid: str, bordes: int = 0, fase: int = 0):
         a = store.get(aid)
         if not a:
             raise HTTPException(404, tr("asset no encontrado"))
@@ -534,14 +534,14 @@ def create_app(store: Session = session) -> FastAPI:
                                         max(0, (ft.height - h_o) // 2)))
             m_orig = np.asarray(capa.getchannel("A")) > 1
             yy, xx = np.mgrid[0:m_final.shape[0], 0:m_final.shape[1]]
-            fase = (xx + yy) % 12
+            desfase = (xx + yy + (int(fase) % 12)) % 12
             for mask, color, es_final in ((m_final, (226, 18, 94), True),
                                           (m_orig, (0, 148, 211), False)):
                 if mask.shape != m_final.shape:
                     continue
                 cont = mask & ~ndimage.binary_erosion(mask, iterations=1)
                 cont = ndimage.binary_dilation(cont, iterations=1)
-                cont = cont & ((fase < 8) if es_final else (fase >= 8))
+                cont = cont & ((desfase < 8) if es_final else (desfase >= 8))
                 arr[cont] = (color[0], color[1], color[2], 255)
             img = Image.fromarray(arr, "RGBA")
         return _png_response(img)
@@ -804,7 +804,8 @@ def create_app(store: Session = session) -> FastAPI:
                 "files": [str(f) for f in written]}
 
     @app.get("/api/pages/{i}.png")
-    def page_png(i: int, v: str = "", sim: int = 0, bordes: int = 0):
+    def page_png(i: int, v: str = "", sim: int = 0, bordes: int = 0,
+                 fase: int = 0):
         """Página renderizada (con simulación de impresión si se pide)."""
         if not store.last or not store.area:
             raise HTTPException(404, tr("sin optimización previa"))
@@ -818,7 +819,7 @@ def create_app(store: Session = session) -> FastAPI:
                 img, [p for p in store.last.placements if p.page == i],
                 store.images(),
                 {a.id: a.img for a in store.assets.values()},
-                store.area, dpi)
+                store.area, dpi, fase=fase)
         if sim:
             img = compose.simular_impresion(
                 img,

@@ -49,6 +49,16 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
   const [pickerOpen, setPickerOpen] = useState(false);
   // --- editor de contorno (blobs) ---
   const [unionMm, setUnionMm] = useState(2);
+  // parpadeo lento de los contornos: se alternan dos fotogramas del PNG (los
+  // puntos pasan a huecos y los huecos a puntos), sin cálculos vectoriales
+  const [faseBordes, setFaseBordes] = useState(0);
+  useEffect(() => {
+    if (!ui.verBordes) return;
+    const t = window.setInterval(
+      () => setFaseBordes((f) => (f + 6) % 12), 1100);
+    return () => window.clearInterval(t);
+  }, [ui.verBordes]);
+
   const [contornos, setContornos] = useState<
     { uid: string; page: number; final: number[][][];
       original: number[][][] }[]>([]);
@@ -364,7 +374,7 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
         }}
         data-testid={`page-${i}`}
       >
-        <img className="sheet" src={api.pageUrl(i, version, settings.simular_impresion === true, ui.verBordes)} alt={t("Página {i}", { i: i + 1 })} draggable={false} />
+        <img className="sheet" src={api.pageUrl(i, version, settings.simular_impresion === true, ui.verBordes, faseBordes)} alt={t("Página {i}", { i: i + 1 })} draggable={false} />
         {ui.guidesVisible && guidePath && (
           <svg className="overlay-svg" viewBox={`0 0 ${sheetW} ${sheetH}`} preserveAspectRatio="none">
             {/* rejilla de centímetros (para medir de un vistazo) */}

@@ -14,14 +14,17 @@ interface Props {
   saveSettings: (p: Partial<AppSettings>) => Promise<void>;
   onEditarContorno?: (a: Asset) => void;
   onAntesDeCambiar?: () => void;
+  faseBordes?: number;
 }
 
 function AssetCard({ a, result, onChange, onEditarContorno,
-                     onAntesDeCambiar, bordeGlobal = false }: {
+                     onAntesDeCambiar, bordeGlobal = false,
+                     faseBordes = 0 }: {
   a: Asset; result: Result | null; onChange: () => Promise<void>;
   onEditarContorno?: (a: Asset) => void;
   onAntesDeCambiar?: () => void;
   bordeGlobal?: boolean;
+  faseBordes?: number;
 }) {
   const t = useT();
   const [local, setLocal] = useState<Asset>(() => normalizeAsset(a));
@@ -315,7 +318,7 @@ function AssetCard({ a, result, onChange, onEditarContorno,
 
 export default function FilePanel({ assets, result, settings, onChange,
                                     saveSettings, onEditarContorno,
-                                    onAntesDeCambiar }: Props) {
+                                    onAntesDeCambiar, faseBordes = 0 }: Props) {
   const t = useT();
   const inputRef = useRef<HTMLInputElement>(null);
   const [over, setOver] = useState(false);
@@ -384,6 +387,7 @@ export default function FilePanel({ assets, result, settings, onChange,
           <AssetCard key={a.id} a={a} result={result} onChange={onChange}
                      onEditarContorno={onEditarContorno}
                      onAntesDeCambiar={onAntesDeCambiar}
+                     faseBordes={faseBordes}
                      bordeGlobal={settings.offset_activo === true} />
         ))}
       </div>

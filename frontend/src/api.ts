@@ -308,8 +308,9 @@ export const api = {
       body: JSON.stringify({ quitar }),
     }),
   /** Vista previa de la carta: con los contornos punteados (nunca va al PDF). */
-  previewUrl: (id: string, bordes = true) =>
-    `${apiBase()}/api/assets/${id}/preview.png?bordes=${bordes ? 1 : 0}`,
+  previewUrl: (id: string, bordes = true, fase = 0) =>
+    `${apiBase()}/api/assets/${id}/preview.png?bordes=${bordes ? 1 : 0}` +
+    `&fase=${fase}`,
   previewUrlSinBordes: (id: string) => `/api/assets/${id}/preview.png`,
   optimize: (modo?: "rapido" | "optimo", force = false) =>
     req<Job>("/api/optimize", {
@@ -334,9 +335,11 @@ export const api = {
       paginas: { pagina: number; formas: number; segundos: number }[];
       desglose: { corte_s?: number; viaje_s?: number; extra_s?: number };
     }>("/api/estimate"),
-  pageUrl: (i: number, v: number, sim = false, bordes = false) =>
+  pageUrl: (i: number, v: number, sim = false, bordes = false,
+            fase = 0) =>
     `${apiBase().replace(/\/$/, "")}/api/pages/${i}.png?v=${v}` +
-    `${sim ? "&sim=1" : ""}${bordes ? "&bordes=1" : ""}`,
+    `${sim ? "&sim=1" : ""}${bordes ? "&bordes=1" : ""}` +
+    `${bordes ? `&fase=${fase}` : ""}`,
   move: (uid: string, x: number, y: number) =>
     req<{ ok: boolean; placement: Placement; job: Job | null }>(
       `/api/placements/move`, {
