@@ -16,52 +16,53 @@ interface Props {
   assets?: Asset[];
 }
 
-/** Una fila de la lista de minis: % y mm en paralelo, sincronizados.
- *  El texto en mm se guarda en local mientras escribes para no pelearse. */
-function FilaMini({ i, valor, refBase, onPct, onQuitar, t }: {
+/** Una fila de la lista de minis: la unidad elegida manda y la otra columna
+ *  se muestra calculada (en gris). Así el valor guardado siempre está en la
+ *  unidad correcta (mm o % del original). */
+function FilaMini({ i, valor, refBase, onValor, onQuitar, t, modo = "mm" }: {
   i: number;
   valor: number;
   refBase: number;
-  onPct: (pct: number) => void;
+  onValor: (v: number) => void;
   onQuitar: () => void;
   t: (s: string, v?: Record<string, string | number>) => string;
+  modo?: "mm" | "pct";
 }) {
-  const [mmTxt, setMmTxt] = useState<string | null>(null);
-  const mm = refBase ? (valor / 100) * refBase : 0;
+  const mm = modo === "mm" ? valor : (valor / 100) * refBase;
+  const pct = modo === "mm"
+    ? (refBase ? (valor / refBase) * 100 : 0)
+    : valor;
   return (
     <div className="mini-fila">
       <input
-        type="number" min={1} max={99} step={5}
+        type="number" min={modo === "mm" ? 1 : 1}
+        max={modo === "mm" ? 200 : 99}
+        step={modo === "mm" ? 1 : 5}
         data-testid={`mini-tamano-${i}`}
-        value={String(valor)}
-        onChange={(e) => onPct(Math.min(99, Math.max(1, Number(e.target.value))))}
-      />
-      <span className="hint">%</span>
-      <input
-        type="number" min={1} step={1}
-        data-testid={`mini-tamano-mm-${i}`}
-        value={mmTxt ?? (refBase ? mm.toFixed(1) : "")}
-        disabled={!refBase}
-        title={t("Tamaño final del mini para la imagen de referencia")}
+        value={String(modo === "mm" ? valor : Math.round(pct * 10) / 10)}
+        title={t("Tamaño del mini")}
         onChange={(e) => {
-          setMmTxt(e.target.value);
-          if (!refBase) return;
-          const x = Number(e.target.value);
-          if (isFinite(x) && x > 0) {
-            onPct(Math.min(99, Math.max(1,
-              Math.round(x / refBase * 1000) / 10)));
-          }
+          const v = Number(e.target.value);
+          if (Number.isFinite(v) && v > 0) onValor(v);
         }}
-        onBlur={() => setMmTxt(null)}
       />
-      <span className="hint">mm</span>
+      <span className="hint">{modo === "mm" ? "mm" : "%"}</span>
+      <input
+        type="number" disabled className="suave"
+        data-testid={`mini-tamano-mm-${i}`}
+        value={modo === "mm"
+          ? (refBase ? pct.toFixed(1) : "")
+          : mm.toFixed(1)}
+        title={t("Equivale a este tamaño en la otra unidad")}
+      />
+      <span className="hint suave">{modo === "mm" ? "%" : "mm"}</span>
       <button
         className="icon-btn danger"
         title={t("Quitar tamaño")}
         data-testid={`mini-tamano-quitar-${i}`}
         onClick={onQuitar}
       >
-        
+        ✕
       </button>
     </div>
   );
@@ -280,11 +281,29 @@ export default function SettingsPanel({ settings, saveSettings,
              "pequeño que el original.")}
         </div>
         <Grupo titulo="Tamaños">
+        <div className="seg">
+          <button
+            type="button" data-testid="mini-modo-lista"
+            className={settings.mini_usar_lista ? "on" : ""}
+            onClick={() => set({ mini_usar_lista: true })}
+          >
+            {t("Lista de tamaños")}
+          </button>
+          <button
+            type="button" data-testid="mini-modo-auto"
+            className={settings.mini_usar_lista ? "" : "on"}
+            onClick={() => set({ mini_usar_lista: false })}
+          >
+            {t("Automático (mínimo + %)")}
+          </button>
+        </div>
         {num("Tamaño mínimo", "mini_min_mm", 1, 50, 0.5, "mm", undefined,
-             "Ningún mini bajará de este tamaño: evita piezas imposibles de recortar (15 mm va bien para pegatinas).")}
-        {num("Tamaño máximo del mini (% del original)", "mini_max_rescale",
-             10, 100, 5, "%", undefined,
-             "Tope de tamaño de los minis. Siempre son algo más pequeños que el original (99 % como máximo).")}
+             "Ningún mini bajará de este tamaño: evita piezas imposibles de recortar (10 mm va bien para pegatinas).")}
+        {!settings.mini_usar_lista && (
+          num("Tamaño máximo del mini (% del original)", "mini_max_rescale",
+              10, 100, 5, "%", undefined,
+              "Tope de tamaño de los minis. Siempre son algo más pequeños que el original (99 % como máximo).")
+        )}
         </Grupo>
         <Grupo titulo="Comportamiento">
         <Av>{sel("Rotaciones admitidas", "mini_rotacion", [
@@ -296,24 +315,33 @@ export default function SettingsPanel({ settings, saveSettings,
           ["iguales", "Priorizar que sean iguales"],
           ["grandes", "Priorizar grandes"],
         ])}
-        <div className="ctl">
-          <label className="row">
-            <input type="checkbox" data-testid="set-mini-usar-lista"
-              checked={settings.mini_usar_lista === true}
-              onChange={(e) => set({ mini_usar_lista: e.target.checked })} />
-            {t("Usar lista de tamaños (en vez de los automáticos)")}
-          </label>
-        </div>
         {settings.mini_usar_lista && (
           <div className="ctl">
-            <label>{t("Tamaños deseados (% y tamaño final)")}</label>
+            <label>{t("Tamaños deseados")}</label>
+            <div className="seg" style={{ maxWidth: 260 }}>
+              <button
+                type="button" data-testid="lista-modo-mm"
+                className={(settings.mini_lista_modo ?? "mm") === "mm" ? "on" : ""}
+                onClick={() => set({ mini_lista_modo: "mm" })}
+              >
+                {t("En milímetros")}
+              </button>
+              <button
+                type="button" data-testid="lista-modo-pct"
+                className={settings.mini_lista_modo === "pct" ? "on" : ""}
+                onClick={() => set({ mini_lista_modo: "pct" })}
+              >
+                {t("En % del original")}
+              </button>
+            </div>
             <div className="size-list" data-testid="mini-lista">
               {(settings.mini_tamanos_lista ?? []).map((v, i) => (
                 <FilaMini
                   key={i} i={i} valor={v} refBase={refBase} t={t}
-                  onPct={(pct) => {
+                  modo={(settings.mini_lista_modo ?? "mm") as "mm" | "pct"}
+                  onValor={(v) => {
                     const l = [...(settings.mini_tamanos_lista ?? [])];
-                    l[i] = pct;
+                    l[i] = v;
                     set({ mini_tamanos_lista: l });
                   }}
                   onQuitar={() =>

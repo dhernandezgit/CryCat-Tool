@@ -176,6 +176,11 @@ export const EN: Record<string, string> = {
     "Cut-area guides (key G): preview only",
   "Recalcular la colocación (ignora los elementos fijados)":
     "Recalculate the layout (ignores pinned items)",
+  "Lista de tamaños": "Size list",
+  "Automático (mínimo + %)": "Automatic (minimum + %)",
+  "En milímetros": "In millimetres",
+  "En % del original": "As % of the original",
+  "Tamaños deseados": "Desired sizes",
   "Auto optimizar": "Auto-optimise",
   "Optimizar": "Optimise",
   "Optimizar: vuelve a colocar todo (ignora los fijados)":

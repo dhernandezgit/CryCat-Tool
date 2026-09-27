@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { api, assetSizeMm, normalizeAsset, prepareFile, type AppSettings, type Asset, type Result } from "../api";
 import { useT } from "../i18n";
 import { IconoCarpeta, IconoReemplazar, IconoLimpiar, IconoFondo,
-         IconoDeshacerFondo, IconoBorrar, IconoMini, IconoAviso } from "./iconos";
+         IconoDeshacerFondo, IconoBorrar, IconoMini, IconoAviso,
+         IconoBordes } from "./iconos";
 import ImportDialog from "./ImportDialog";
 
 interface Props {
@@ -16,10 +17,11 @@ interface Props {
 }
 
 function AssetCard({ a, result, onChange, onEditarContorno,
-                     onAntesDeCambiar }: {
+                     onAntesDeCambiar, bordeGlobal = false }: {
   a: Asset; result: Result | null; onChange: () => Promise<void>;
   onEditarContorno?: (a: Asset) => void;
   onAntesDeCambiar?: () => void;
+  bordeGlobal?: boolean;
 }) {
   const t = useT();
   const [local, setLocal] = useState<Asset>(() => normalizeAsset(a));
@@ -157,10 +159,18 @@ function AssetCard({ a, result, onChange, onEditarContorno,
           <button
             className={`mini-toggle ${local.mini_enabled ? "on" : ""}`}
             data-testid={`mini-${a.id}`}
-            title={t("Incluir como mini (rellena huecos)")}
+            data-tip={t("Incluir como mini (rellena huecos)")}
             onClick={() => patch({ mini_enabled: !local.mini_enabled })}
           >
             <IconoMini size={15} /> {t("Mini")}
+          </button>
+          <button
+            className={`mini-toggle ${local.offset_mm > 0 ? "on" : ""}`}
+            data-testid={`borde-${a.id}`}
+            data-tip={t("Borde adicional para este elemento (unir trozos, margen al cortar)")}
+            onClick={() => setAbierto((o) => ({ ...o, borde: !o.borde }))}
+          >
+            <IconoBordes size={15} /> {t("Borde")}
           </button>
         </div>
 
@@ -206,7 +216,8 @@ function AssetCard({ a, result, onChange, onEditarContorno,
           )}
         </div>
 
-        {/* ---- Borde (plegable) ---- */}
+        {/* ---- Borde (plegable, solo si hay borde: propio o global) ---- */}
+        {(local.offset_mm > 0 || bordeGlobal) && (
         <div className="fold">
           <button className="fold-head" data-testid={`fold-borde-${a.id}`}
                   onClick={() => setAbierto((o) => ({ ...o, borde: !o.borde }))}>
@@ -250,6 +261,7 @@ function AssetCard({ a, result, onChange, onEditarContorno,
             </div>
           )}
         </div>
+        )}
 
         {/* ---- Mini (plegable, solo si está activo) ---- */}
         {local.mini_enabled && (
@@ -371,7 +383,8 @@ export default function FilePanel({ assets, result, settings, onChange,
         {assets.map((a) => (
           <AssetCard key={a.id} a={a} result={result} onChange={onChange}
                      onEditarContorno={onEditarContorno}
-                     onAntesDeCambiar={onAntesDeCambiar} />
+                     onAntesDeCambiar={onAntesDeCambiar}
+                     bordeGlobal={settings.offset_activo === true} />
         ))}
       </div>
 

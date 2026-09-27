@@ -8,7 +8,7 @@ const settings: AppSettings = {
   espacio_mm: 2, margen_mm: 1, rotacion: "no", dpi_salida: 300, pagina: "A4",
   pagina_w: 297, pagina_h: 210, maquina: "estandar", usar_minis: false,
   mini_min_mm: 5, mini_max_rescale: 100, mini_rotacion: "no",
-  mini_tamanos: "grandes", opt_metodo: "greedy", opt_calidad: "normal", opt_tiempo_max_s: 8, mini_usar_lista: false, mini_tamanos_lista: [50], auto_recalcular: true, corte_velocidad_mm_s: 50, corte_viaje_mm_s: 120, corte_extra_forma_s: 0.4, corte_factor: 1, pikmin_activo: true, pikmin_frecuencia_min: 1, pikmin_sonido: true, pikmin_sonido_morir: true, pikmin_fiesta: false, volumen: 0.5, mute: false, offset_activo: false, offset_mm: 2, offset_modo: "extender", offset_color: "#ffffff",
+  mini_tamanos: "grandes", opt_metodo: "greedy", opt_calidad: "normal", opt_tiempo_max_s: 8, mini_usar_lista: true, mini_lista_modo: "mm", mini_tamanos_lista: [20], auto_recalcular: true, corte_velocidad_mm_s: 50, corte_viaje_mm_s: 120, corte_extra_forma_s: 0.4, corte_factor: 1, pikmin_activo: true, pikmin_frecuencia_min: 1, pikmin_sonido: true, pikmin_sonido_morir: true, pikmin_fiesta: false, volumen: 0.5, mute: false, offset_activo: false, offset_mm: 2, offset_modo: "extender", offset_color: "#ffffff",
    espacio_color: "srgb", bleed_mm: 0, historial: true, historial_max: 40, hist_tamano: true, hist_copias: true, hist_borde: true, hist_minis: true, simular_impresion: false, sim_cmyk: false, sim_saturacion: 1, sim_contraste: 1, sim_brillo: 1, color_formato: "rgba", chequear_lineas: true, carpeta_export: "",
   dpi_importacion: 300, lienzo: "recortable", tema: "wiwi", modo: "experto",
   ver_guias: true, fondo_transparente: false,
@@ -55,8 +55,9 @@ describe("Panel de ajustes", () => {
     expect(screen.queryByTestId("set-mini_min_mm")).toBeNull();
     await u.click(within(screen.getByTestId("sect-minis")).getByText("Minis"));
     expect(screen.getByTestId("set-mini_min_mm")).toHaveValue(5);
-    // tope de tamaño del mini (% del original): siempre menor que 100
-    expect(screen.getByTestId("set-mini_max_rescale")).toHaveValue(100);
+    // con la lista activada (por defecto) NO se enseña el tope en %: se
+    // cambia al modo automático y entonces sí aparece
+    expect(screen.queryByTestId("set-mini_max_rescale")).toBeNull();
   });
 
   it("el modo rápido deja solo lo esencial (y el experto lo enseña todo)", () => {
@@ -152,11 +153,12 @@ describe("Panel de ajustes", () => {
     render(<SettingsPanel settings={settings} saveSettings={saveSettings} />);
     await u.click(within(screen.getByTestId("sect-minis")).getByText("Minis"));
     // por defecto no se usa la lista
-    expect(screen.getByTestId("set-mini-usar-lista")).not.toBeChecked();
-    expect(screen.queryByTestId("mini-lista")).toBeNull();
-    // al activarla aparece la lista con el valor por defecto (50)
-    await u.click(screen.getByTestId("set-mini-usar-lista"));
-    expect(saveSettings).toHaveBeenCalledWith({ mini_usar_lista: true });
+    // por defecto manda la LISTA (segmentado), así que se ve el selector de modo
+    expect(screen.getByTestId("mini-modo-lista")).toHaveClass("on");
+    expect(screen.getByTestId("mini-lista")).toBeInTheDocument();
+    // se puede pasar a automático
+    await u.click(screen.getByTestId("mini-modo-auto"));
+    expect(saveSettings).toHaveBeenCalledWith({ mini_usar_lista: false });
   });
 
   it("la lista de minis muestra % y mm en paralelo y se sincronizan", async () => {
@@ -169,14 +171,15 @@ describe("Panel de ajustes", () => {
                      saveSettings={saveSettings} assets={assets} />,
     );
     await u.click(within(screen.getByTestId("sect-minis")).getByText("Minis"));
-    // 50 % del lado menor (40 mm) = 20 mm
-    expect(screen.getByTestId("mini-tamano-0")).toHaveValue(50);
-    expect(screen.getByTestId("mini-tamano-mm-0")).toHaveValue(20);
-    // escribir en mm actualiza el porcentaje
-    await u.clear(screen.getByTestId("mini-tamano-mm-0"));
-    await u.type(screen.getByTestId("mini-tamano-mm-0"), "30");
+    // por defecto la lista va en mm: el valor es el propio mm
+    expect(screen.getByTestId("mini-tamano-0")).toHaveValue(20);
+    // y al cambiarlo se guarda en mm (la columna % se calcula sola)
+    fireEvent.change(screen.getByTestId("mini-tamano-0"),
+                     { target: { value: "30" } });
     await waitFor(() =>
-      expect(saveSettings).toHaveBeenLastCalledWith({ mini_tamanos_lista: [75] }));
+      expect(saveSettings.mock.calls.some(
+        (c) => (c[0] as { mini_tamanos_lista?: number[] })
+          ?.mini_tamanos_lista?.[0] === 30)).toBe(true));
   });
 
   it("la sección de estimación de corte tiene sus parámetros y factor", async () => {

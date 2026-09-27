@@ -67,6 +67,7 @@ export interface AppSettings {
   mini_rotacion: "no" | "90" | "libre";
   mini_tamanos: "iguales" | "grandes";
   mini_usar_lista: boolean;
+  mini_lista_modo?: "mm" | "pct";
   mini_tamanos_lista: number[];
   opt_metodo: string;
   opt_calidad: "exacta" | "normal" | "rapida";

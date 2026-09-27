@@ -343,6 +343,36 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
         <img className="sheet" src={api.pageUrl(i, version, settings.simular_impresion === true, ui.verBordes)} alt={t("Página {i}", { i: i + 1 })} draggable={false} />
         {ui.guidesVisible && guidePath && (
           <svg className="overlay-svg" viewBox={`0 0 ${sheetW} ${sheetH}`} preserveAspectRatio="none">
+            {/* rejilla de centímetros (para medir de un vistazo) */}
+            <g stroke="var(--guide)" strokeWidth={Math.max(0.15, sheetW / 1400)}
+               opacity={0.28}>
+              {Array.from({ length: Math.floor((bx - offX + bw) / 10) + 1 },
+                (_, k) => {
+                  const x = k * 10 - (offX - bx);
+                  return x >= bx - offX - 0.01 && x <= bx - offX + bw + 0.01
+                    ? <line key={`v${k}`} x1={x} y1={by - offY}
+                            x2={x} y2={by - offY + bh} />
+                    : null;
+                })}
+              {Array.from({ length: Math.floor((by - offY + bh) / 10) + 1 },
+                (_, k) => {
+                  const y = k * 10 - (offY - by);
+                  return y >= by - offY - 0.01 && y <= by - offY + bh + 0.01
+                    ? <line key={`h${k}`} x1={bx - offX} y1={y}
+                            x2={bx - offX + bw} y2={y} />
+                    : null;
+                })}
+            </g>
+            {/* esquinas negras de registro de Cricut (solo vista previa) */}
+            <g stroke="#111" strokeWidth={Math.max(0.5, sheetW / 320)}
+               fill="none" opacity={0.9}>
+              {[[bx, by, 1, 1], [bx + bw, by, -1, 1],
+                [bx, by + bh, 1, -1], [bx + bw, by + bh, -1, -1]].map(
+                ([cx, cy, sx, sy], k) => (
+                  <path key={k}
+                    d={`M ${cx - offX + 9 * sx} ${cy - offY} L ${cx - offX} ${cy - offY} L ${cx - offX} ${cy - offY + 9 * sy}`} />
+                ))}
+            </g>
             <path
               d={guidePath} fill="none" stroke="var(--guide)"
               strokeWidth={Math.max(0.6, sheetW / 250)}

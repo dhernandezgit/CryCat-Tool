@@ -319,6 +319,7 @@ def create_app(store: Session = session) -> FastAPI:
                 a.mini_quota = 2.0
             elif k == 1:
                 a.scale_pct = 55.0           # un ejemplo bien pequeño
+            _avisar_blobs(a)
             store.add(a)
         # se deja YA optimizada (con los ajustes actuales): al abrir no se espera
         try:

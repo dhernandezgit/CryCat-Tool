@@ -255,6 +255,7 @@ input::placeholder { color: #cbbfc8; opacity: 1; font-style: italic; }
   resize: vertical; min-height: 60px;
 }
 .modal textarea:focus { outline: none; border-color: var(--accent); }
+.hint.suave, input.suave { opacity: .45; }
 .ctl-grupo {
   margin: 12px 0 6px; font-size: 11px; font-weight: 800;
   letter-spacing: .07em; text-transform: uppercase; color: var(--accent3);
