@@ -92,6 +92,13 @@ def _una_pagina(area, pagina, masks, assets_por_id, spacing):
     from scipy import ndimage
     solido = ndimage.binary_erosion(pintado > 0, iterations=1)
     peor_solape = int(np.count_nonzero(solido & (pintado > 1)))
+    # SEPARACIÓN: dilatar cada pieza media separación (menos el filo) no puede
+    # tocar a otra; si se tocan, no se respetó el espacio pedido
+    if spacing > 1.0:
+        medio = max(1, int(round((spacing / 2.0 - 0.3) / CELL)))
+        dil = ndimage.binary_dilation(pintado > 0, iterations=medio)
+        peor_solape = max(peor_solape, int(np.count_nonzero(
+            ndimage.binary_erosion(dil & (pintado > 1), iterations=1))))
     return fuera_total, peor_solape, pintado
 
 

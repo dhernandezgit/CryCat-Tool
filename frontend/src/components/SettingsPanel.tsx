@@ -97,10 +97,11 @@ function destacar(texto: string, partes: string[]): React.ReactNode[] {
 
 /** Tiempo máximo recomendado por método (igual que en el backend). */
 const OPT_TIEMPOS: Record<string, number> = {
-  greedy: 6, largest: 3, voronoi: 6, genetic: 25,
+  auto: 6, rapido: 3, greedy: 6, largest: 3, voronoi: 6, genetic: 25,
 };
 
 const METODO_NOMBRE: Record<string, string> = {
+  auto: "Automático", rapido: "Silueta rápida",
   greedy: "Greedy / Bottom-Left", largest: "Largest First",
   voronoi: "Voronoi", genetic: "Genético",
 };

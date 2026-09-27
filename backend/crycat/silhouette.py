@@ -875,12 +875,25 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
 
     t0 = time.time()
     t_max = max(0.5, tiempo_optimo(settings))
-    metodo = str(settings.get("opt_metodo", "greedy")).lower()
+    metodo = str(settings.get("opt_metodo", "auto")).lower()
     # compatibilidad con los nombres antiguos
-    if metodo in ("silueta_rapido", "silueta", "maxrects", "skyline", "auto"):
+    if metodo in ("silueta_rapido", "silueta", "maxrects", "skyline"):
         metodo = "greedy"
     elif metodo == "silueta_optimo":
         metodo = "genetic"
+    # AUTOMÁTICO: se elige según el ESPACIO DISPONIBLE. Si sobra sitio, la
+    # pasada rápida de silueta basta (instantánea); si se va llenando, greedy
+    # con contacto; y si está muy lleno, voronoi (aprovecha los huecos).
+    if metodo == "auto":
+        total = 0.0
+        for a in assets:
+            n = max(0, int(a.get("copies", 1)))
+            extra = 3 if (a.get("mini_enabled")
+                          and settings.get("usar_minis")) else 0
+            total += a["w_mm"] * a["h_mm"] * max(0, n + extra)
+        ratio = total / max(1.0, area.area_mm2)
+        metodo = "rapido" if ratio < 0.45 else (
+            "greedy" if ratio < 0.85 else "voronoi")
     deadline = t0 + t_max
     rnd = _random.Random(20260925)
     n_total = sum(int(a.get("copies", 1)) for a in assets) + len(pinned or [])
@@ -907,6 +920,12 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
     best = _one_pass(assets, masks, area, semilla, pinned, "area", rnd,
                      progress, (0.02, 0.15), deadline=None, contacto=False,
                      **extra)
+
+    if metodo == "rapido":
+        # la semilla (celda gruesa, completa) ya es válida y rapidísima
+        best.method = "rapido"
+        best.elapsed_s = time.time() - t0
+        return best
 
     if metodo == "largest":
         res_l = _one_pass(assets, masks, area, settings, pinned, "area", rnd,

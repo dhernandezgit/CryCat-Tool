@@ -8443,11 +8443,15 @@ function Ks(e, t) {
   return e.split(new RegExp(`(${t.join("|")})`)).map((n, r) => t.includes(n) ? /* @__PURE__ */ i.jsx("strong", { children: n }, r) : n);
 }
 const Dm = {
+  auto: 6,
+  rapido: 3,
   greedy: 6,
   largest: 3,
   voronoi: 6,
   genetic: 25
 }, $m = {
+  auto: "Automático",
+  rapido: "Silueta rápida",
   greedy: "Greedy / Bottom-Left",
   largest: "Largest First",
   voronoi: "Voronoi",

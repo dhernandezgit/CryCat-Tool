@@ -19,6 +19,8 @@ CONFIG_VERSION = 25  # subir para migrar configuraciones antiguas
 # Tiempo máximo RECOMENDADO por método (segundos). El usuario puede
 # desactivar el automático y fijar su propio presupuesto.
 OPT_TIEMPOS: dict[str, float] = {
+    "auto": 6.0,         # elige solo según el espacio disponible
+    "rapido": 3.0,       # una pasada de silueta (celda gruesa)
     "greedy": 6.0,       # silueta real: multi-arranque en paralelo
     "largest": 3.0,      # silueta real: una sola pasada
     "voronoi": 6.0,      # silueta real: huecos grandes
@@ -91,7 +93,7 @@ DEFAULTS: dict = {
     "mini_lista_modo": "mm",     # la lista en mm (por defecto) o en %
     "mini_tamanos_lista": [20.0],  # tamaños deseados (mm del lado menor, o %)
     # Optimización
-    "opt_metodo": "greedy",      # greedy | largest | voronoi | genetic (SIEMPRE silueta)
+    "opt_metodo": "auto",        # auto | rapido | greedy | largest | voronoi | genetic
     "opt_calidad": "normal",     # exacta | normal | rapida (resolución de siluetas)
     "opt_tiempo_max_s": 8.0,
     "auto_recalcular": True,     # recalcular con cada cambio (si no, con el botón)
