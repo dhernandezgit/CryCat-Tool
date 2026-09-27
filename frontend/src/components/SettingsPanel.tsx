@@ -5,6 +5,7 @@ import { useT } from "../i18n";
 import { THEMES } from "../themes";
 import FolderPicker from "./FolderPicker";
 import AccionesRapidas from "./AccionesRapidas";
+import Toggle from "./Toggle";
 import { IconoAjustar, IconoMini, IconoRecalcular, IconoFondo, IconoBordes,
          IconoGuias, IconoGuardar, IconoImprimir, IconoRotar,
          IconoVolumen } from "./iconos";

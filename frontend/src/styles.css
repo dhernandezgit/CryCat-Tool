@@ -309,6 +309,37 @@ input::placeholder { color: #cbbfc8; opacity: 1; font-style: italic; }
   text-overflow: ellipsis; white-space: nowrap; max-width: 100%;
 }
 .import-lista .import-datos { font-size: 11px; color: var(--textSoft); }
+/* Checkbox → interruptor On/Off bonito (dos posiciones, colores del tema) */
+.ctl input[type="checkbox"],
+.sect-body input[type="checkbox"],
+.panel input[type="checkbox"] {
+  appearance: none; -webkit-appearance: none;
+  width: 40px; height: 22px; border-radius: 999px;
+  border: 2px solid var(--border); background: var(--panel);
+  position: relative; cursor: pointer; flex: none; transition: .18s;
+  margin: 0 2px;
+}
+.ctl input[type="checkbox"]::after,
+.sect-body input[type="checkbox"]::after,
+.panel input[type="checkbox"]::after {
+  content: ""; position: absolute; top: 2px; left: 2px;
+  width: 14px; height: 14px; border-radius: 50%;
+  background: var(--textSoft); transition: .18s;
+}
+.ctl input[type="checkbox"]:checked,
+.sect-body input[type="checkbox"]:checked,
+.panel input[type="checkbox"]:checked {
+  background: linear-gradient(135deg, var(--accent2), var(--accent));
+  border-color: var(--accent2);
+}
+.ctl input[type="checkbox"]:checked::after,
+.sect-body input[type="checkbox"]:checked::after,
+.panel input[type="checkbox"]:checked::after {
+  left: 20px; background: #fff;
+}
+.ctl input[type="checkbox"]:hover,
+.sect-body input[type="checkbox"]:hover { border-color: var(--accent); }
+
 /* tooltips propios: caja con el color de acento fuerte */
 [data-tip] { position: relative; }
 [data-tip]:hover::after {

@@ -10407,10 +10407,10 @@ async function rh() {
   try {
     if (Ks("Preparando el entorno…"), "serviceWorker" in navigator)
       try {
-        const n = new URL("../", location.href).pathname;
+        const o = new URL("../", location.href).pathname;
         await Promise.race([
-          navigator.serviceWorker.register("../sw.js", { scope: n }).then(() => navigator.serviceWorker.ready),
-          new Promise((r) => setTimeout(r, 6e3))
+          navigator.serviceWorker.register("../sw.js", { scope: o }).then(() => navigator.serviceWorker.ready),
+          new Promise((l) => setTimeout(l, 6e3))
         ]);
       } catch {
       }
@@ -10418,30 +10418,42 @@ async function rh() {
       `import asyncio
 from crycat import webapi
 await webapi.iniciar()`
-    ), navigator.serviceWorker.addEventListener("message", async (n) => {
-      const r = n.data;
-      if (!r || r.tipo !== "api") return;
-      const a = n.ports && n.ports[0];
-      if (a)
+    ), navigator.serviceWorker.addEventListener("message", async (o) => {
+      const l = o.data;
+      if (!l || l.tipo !== "api") return;
+      const u = o.ports && o.ports[0];
+      if (u)
         try {
-          const o = `import json
+          const s = `import json
 from crycat import webapi
-await webapi.peticion(` + JSON.stringify(r.method) + ", " + JSON.stringify(r.path) + ", " + JSON.stringify(JSON.stringify(r.headers || {})) + ", " + JSON.stringify(r.body || "") + ")", l = await pr.runPythonAsync(o);
-          a.postMessage(JSON.parse(l));
-        } catch (o) {
-          a.postMessage({
+await webapi.peticion(` + JSON.stringify(l.method) + ", " + JSON.stringify(l.path) + ", " + JSON.stringify(JSON.stringify(l.headers || {})) + ", " + JSON.stringify(l.body || "") + ")", d = await pr.runPythonAsync(s);
+          u.postMessage(JSON.parse(d));
+        } catch (s) {
+          u.postMessage({
             status: 500,
             headers: { "content-type": "text/plain; charset=utf-8" },
-            body: btoa("error: " + (o && o.message ? o.message : o))
+            body: btoa("error: " + (s && s.message ? s.message : s))
           });
         }
     }), globalThis.__crycatBase = new URL("./", location.href).pathname, globalThis.__crycatAssets = new URL("./app", location.href).pathname, nh();
+    const n = document.createElement("div");
+    n.id = "crycat-espera", n.style.cssText = "position:fixed;inset:0;display:none;z-index:9999;align-items:center;justify-content:center;flex-direction:column;gap:12px;background:rgba(255,250,252,.88);font:16px system-ui", n.innerHTML = '<div style="font-size:20px;font-weight:800">Optimizando…</div><div style="font-size:13px;color:#8a7480">El cálculo se hace en tu equipo; puede tardar unos segundos.</div>', document.body.appendChild(n);
+    const r = window.fetch.bind(window), a = async (o, l) => {
+      const u = String((o == null ? void 0 : o.url) ?? o ?? ""), s = u.includes("/api/optimize") || u.includes("/api/demo");
+      s && (n.style.display = "flex");
+      try {
+        return await r(o, l);
+      } finally {
+        s && (n.style.display = "none");
+      }
+    };
+    window.fetch = a;
     try {
-      const n = dd().key;
-      n && n !== "wiwi" && await fetch(cr() + "/api/settings", {
+      const o = dd().key;
+      o && o !== "wiwi" && await fetch(cr() + "/api/settings", {
         method: "PUT",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ tema: n })
+        body: JSON.stringify({ tema: o })
       });
     } catch {
     }

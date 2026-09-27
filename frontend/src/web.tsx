@@ -332,6 +332,34 @@ async function main() {
 
     instalarPuente();          // reserva: la API funciona sin service worker
 
+    // Aviso durante la optimización: en la web el cálculo bloquea el hilo, así
+    // que se pinta el estado ANTES para que no parezca colgado.
+    const espera = document.createElement("div");
+    espera.id = "crycat-espera";
+    espera.style.cssText =
+      "position:fixed;inset:0;display:none;z-index:9999;" +
+      "align-items:center;justify-content:center;flex-direction:column;" +
+      "gap:12px;background:rgba(255,250,252,.88);font:16px system-ui";
+    espera.innerHTML =
+      '<div style="font-size:20px;font-weight:800">Optimizando…</div>' +
+      '<div style="font-size:13px;color:#8a7480">' +
+      'El cálculo se hace en tu equipo; puede tardar unos segundos.</div>';
+    document.body.appendChild(espera);
+    const original = window.fetch.bind(window);
+    const fetchConAviso = async (input: RequestInfo | URL,
+                                 init?: RequestInit) => {
+      const url = String((input as Request)?.url ?? input ?? "");
+      const esOptimizar = url.includes("/api/optimize") ||
+        url.includes("/api/demo");
+      if (esOptimizar) espera.style.display = "flex";
+      try {
+        return await original(input, init);
+      } finally {
+        if (esOptimizar) espera.style.display = "none";
+      }
+    };
+    window.fetch = fetchConAviso as typeof window.fetch;
+
     // en la web los ajustes viven en memoria: se recupera el último tema
     // elegido (guardado en el navegador) para que no se pierda al recargar
     try {
