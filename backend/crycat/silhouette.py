@@ -32,15 +32,9 @@ FREE_ANGLES = (45, 30, 60, 15, 75, 135, 120, 150, 105, 165)
 
 
 # --------------------------------------------------------------- utilidades --
-def _grid(area: CutArea, cell: float):
-    x0, y0, bw, bh = area.bbox
-    W = max(1, int(math.ceil(bw / cell)))
-    H = max(1, int(math.ceil(bh / cell)))
-    xs = x0 + (np.arange(W) + 0.5) * cell
-    ys = y0 + (np.arange(H) + 0.5) * cell
-    X, Y = np.meshgrid(xs, ys)
+def _dentro_poly(poly, X: np.ndarray, Y: np.ndarray) -> np.ndarray:
+    """Punto en polígono (ray casting) vectorizado."""
     inside = np.zeros(X.shape, dtype=bool)
-    poly = area.poly
     n = len(poly)
     j = n - 1
     for i in range(n):
@@ -50,6 +44,28 @@ def _grid(area: CutArea, cell: float):
         xint = (xj - xi) * (Y - yi) / (yj - yi + 1e-12) + xi
         inside ^= cond & (X < xint)
         j = i
+    return inside
+
+
+def _grid(area: CutArea, cell: float):
+    """Rejilla de celdas PERMITIDAS (conservadora).
+
+    Una celda solo cuenta si TODA ella está dentro del polígono (se prueban
+    sus cuatro esquinas). Así la silueta nunca puede asomar por el borde del
+    área recortable: el resultado jamás pisa los límites de la Cricut.
+    """
+    x0, y0, bw, bh = area.bbox
+    W = max(1, int(math.ceil(bw / cell)))
+    H = max(1, int(math.ceil(bh / cell)))
+    xs = x0 + (np.arange(W) + 0.5) * cell
+    ys = y0 + (np.arange(H) + 0.5) * cell
+    X, Y = np.meshgrid(xs, ys)
+    h = cell / 2.0
+    poly = area.poly
+    inside = (_dentro_poly(poly, X - h, Y - h) &
+              _dentro_poly(poly, X + h, Y - h) &
+              _dentro_poly(poly, X - h, Y + h) &
+              _dentro_poly(poly, X + h, Y + h))
     return inside, W, H
 
 
