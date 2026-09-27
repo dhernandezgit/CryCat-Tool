@@ -7139,11 +7139,6 @@ function Im({
         )
       ] }),
       /* @__PURE__ */ i.jsxs("div", { className: "card-actions", children: [
-        /* @__PURE__ */ i.jsxs("div", { className: "copies-row", title: u("Copias"), children: [
-          /* @__PURE__ */ i.jsx("button", { "data-testid": `resta-${e.id}`, onClick: () => S({ copies: l.copies - 1 }), children: "−" }),
-          /* @__PURE__ */ i.jsx("span", { className: "n", "data-testid": `copias-${e.id}`, children: l.copies }),
-          /* @__PURE__ */ i.jsx("button", { "data-testid": `suma-${e.id}`, onClick: () => S({ copies: l.copies + 1 }), children: "+" })
-        ] }),
         /* @__PURE__ */ i.jsxs(
           "button",
           {
@@ -7171,7 +7166,12 @@ function Im({
               u("Borde")
             ]
           }
-        )
+        ),
+        /* @__PURE__ */ i.jsxs("div", { className: "copies-row", title: u("Copias"), children: [
+          /* @__PURE__ */ i.jsx("button", { "data-testid": `resta-${e.id}`, onClick: () => S({ copies: l.copies - 1 }), children: "−" }),
+          /* @__PURE__ */ i.jsx("span", { className: "n", "data-testid": `copias-${e.id}`, children: l.copies }),
+          /* @__PURE__ */ i.jsx("button", { "data-testid": `suma-${e.id}`, onClick: () => S({ copies: l.copies + 1 }), children: "+" })
+        ] })
       ] }),
       /* @__PURE__ */ i.jsxs("div", { className: "fold", children: [
         /* @__PURE__ */ i.jsxs(

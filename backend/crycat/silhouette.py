@@ -612,6 +612,11 @@ def _one_pass(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
         ctx.allowed, ctx.W, ctx.H = grid_cache[k]
     result = PackResult(method="silueta")
     by_id = {a["id"]: a for a in assets}
+    # Si solo hay minis (elementos con 0 copias normales), hay que abrir ya la
+    # primera hoja: sin ella los minis no tendrían dónde colocarse (bug real)
+    if (settings.get("usar_minis")
+            and any(a.get("mini_enabled") for a in assets) and not ctx.pages):
+        ctx.new_page()
     rot_norm = settings.get("rotacion", "90")
     rot_mini = settings.get("mini_rotacion", "90")
 
@@ -722,7 +727,8 @@ def _one_pass(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
                         break
                     img = masks[a["id"]]
                     base = max(min(a["w_mm"], a["h_mm"]), 1e-6)
-                    s_floor = min_mm / base
+                    # Con lista activa, el mínimo se IGNORA: manda la lista.
+                    s_floor = (1e-6 if usar_lista else min_mm / base)
                     if s_floor > max_res:
                         continue
                     colocado = False

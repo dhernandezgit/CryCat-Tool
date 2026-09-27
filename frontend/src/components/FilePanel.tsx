@@ -154,11 +154,6 @@ function AssetCard({ a, result, onChange, onEditarContorno,
           </button>
         </div>
         <div className="card-actions">
-          <div className="copies-row" title={t("Copias")}>
-            <button data-testid={`resta-${a.id}`} onClick={() => patch({ copies: local.copies - 1 })}>−</button>
-            <span className="n" data-testid={`copias-${a.id}`}>{local.copies}</span>
-            <button data-testid={`suma-${a.id}`} onClick={() => patch({ copies: local.copies + 1 })}>+</button>
-          </div>
           <button
             className={`mini-toggle ${local.mini_enabled ? "on" : ""}`}
             data-testid={`mini-${a.id}`}
@@ -175,6 +170,11 @@ function AssetCard({ a, result, onChange, onEditarContorno,
           >
             <IconoBordes size={15} /> {t("Borde")}
           </button>
+          <div className="copies-row" title={t("Copias")}>
+            <button data-testid={`resta-${a.id}`} onClick={() => patch({ copies: local.copies - 1 })}>−</button>
+            <span className="n" data-testid={`copias-${a.id}`}>{local.copies}</span>
+            <button data-testid={`suma-${a.id}`} onClick={() => patch({ copies: local.copies + 1 })}>+</button>
+          </div>
         </div>
 
         {/* ---- Tamaño (plegable) ---- */}
