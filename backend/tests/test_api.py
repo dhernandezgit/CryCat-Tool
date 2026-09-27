@@ -352,7 +352,11 @@ def test_defaults_extras_pikmin(client):
     s = c.get("/api/settings").json()["settings"]
     assert s["pikmin_activo"] is True
     assert s["pikmin_frecuencia_min"] == 5.0  # 5 minutos de media
-    assert s["mini_min_mm"] == 15.0  # los minis no bajan de 15 mm
+    assert s["mini_min_mm"] == 10.0  # los minis no bajan de 10 mm
+    assert s["mini_max_rescale"] == 70.0
+    assert s["mini_usar_lista"] is True
+    assert s["mini_lista_modo"] == "mm"
+    assert s["mini_tamanos_lista"] == [20.0]
     assert s["pikmin_sonido"] is True
     assert s["pikmin_sonido_morir"] is True
     assert s["volumen"] == 0.5

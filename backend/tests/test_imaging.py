@@ -197,3 +197,57 @@ def test_thumbnail_no_supera_max():
     img = sticker_rgba((900, 600))
     th = imaging.thumbnail(img, max_side=200)
     assert max(th.size) == 200
+
+
+def test_aplicar_offset_une_trozos():
+    """Los modos unir_recto/unir_curvo fusionan los trozos en una forma."""
+    from PIL import ImageDraw
+    from crycat.imaging import aplicar_offset
+
+    im = Image.new("RGBA", (300, 160), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    d.rectangle((20, 40, 110, 120), fill=(220, 120, 150, 255))
+    d.rectangle((190, 50, 280, 110), fill=(120, 160, 220, 255))
+    from crycat.imaging import trim as _trim
+    base = _trim(im)
+    for modo in ("unir_recto", "unir_curvo"):
+        out = aplicar_offset(im, 12, modo, (90, 190, 120))
+        assert out.width > base.width and out.height > base.height
+        alpha = out.convert("RGBA").getchannel("A")
+        mx = int(150 / 300 * out.width)
+        my = int(80 / 160 * out.height)
+        assert alpha.getpixel((mx, my)) > 0, modo
+    # extender NO une: el hueco sigue vacío
+    out = aplicar_offset(im, 12, "extender", (90, 190, 120))
+    alpha = out.convert("RGBA").getchannel("A")
+    mx = int(150 / 300 * out.width)
+    my = int(80 / 160 * out.height)
+    assert alpha.getpixel((mx, my)) == 0
+
+
+def test_borde_independiente_de_la_escala(tmp_path, monkeypatch):
+    """El borde mide lo mismo (mm del resultado) al 100 % y al 200 %."""
+    from crycat import config as cfg
+    from crycat.store import Asset, Session
+
+    monkeypatch.setattr(cfg, "SESSION_FILE", tmp_path / "s.json")
+    monkeypatch.setattr(cfg, "ASSETS_DIR", tmp_path / "assets")
+    ses = Session()
+    img = sticker_rgba((300, 300))          # 25,4 mm @300 dpi
+    a = Asset("a1", "a", img, b"", 300.0, [], "RGBA")
+    a.offset_mm = 2.0
+    a.offset_modo = "blanco"
+    ses.add(a)
+    from crycat.imaging import trim as _trim
+    base_px = _trim(img).width
+    medidos = []
+    for escala in (1.0, 2.0):
+        a.scale_pct = escala * 100
+        out = ses.images()["a1"]
+        crecido_mm = (out.width - base_px) / 2 / 300.0 * 25.4 * escala
+        medidos.append(crecido_mm)
+        assert abs(crecido_mm - 2.0) < 0.15, f"al {escala:.0%}: {crecido_mm:.2f} mm"
+        d = [x for x in ses.asset_dicts() if x["id"] == "a1"][0]
+        assert abs(d["w_mm"] - (25.4 * escala + 4.0)) < 0.2
+    # lo importante: el borde NO cambia al escalar el elemento
+    assert abs(medidos[0] - medidos[1]) < 0.1

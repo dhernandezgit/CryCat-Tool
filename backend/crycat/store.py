@@ -142,13 +142,15 @@ class Session:
                 out[a.id] = a.img
                 continue
             mm, modo, color = off
-            # el borde es un valor en mm del RESULTADO: se aplica a la escala
-            # final (si no, un elemento al 200 % vería el borde al doble)
+            # El borde es SIEMPRE un valor en mm DEL RESULTADO, independiente
+            # de la escala del elemento. Para lograrlo, en los píxeles
+            # originales se aplica mm/escala: al colocar la pieza (que se
+            # reescala por `escala`) el borde vuelve a medir exactamente mm.
             escala = max(0.05, a.scale_pct / 100.0)
             clave = (round(mm, 3), modo, color, round(escala, 4))
             cache = getattr(a, "_cache_offset", None)
             if cache is None or cache[0] != clave:
-                radio_px = (mm * escala) / 25.4 * a.dpi_origen
+                radio_px = (mm / escala) / 25.4 * a.dpi_origen
                 from .imaging import aplicar_offset
                 img = aplicar_offset(a.img, radio_px, modo, color)
                 a._cache_offset = (clave, img)  # type: ignore[attr-defined]

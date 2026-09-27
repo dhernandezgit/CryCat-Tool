@@ -245,7 +245,8 @@ def test_minis_usan_lista_de_tamanos():
                "mini_enabled": True, "mini_quota": 1.0}]
     st = dict(SET, usar_minis=True, mini_min_mm=5.0, mini_max_rescale=100.0,
               mini_tamanos="grandes", mini_rotacion="90",
-              mini_usar_lista=True, mini_tamanos_lista=[50.0, 25.0])
+              mini_usar_lista=True, mini_lista_modo="pct",
+              mini_tamanos_lista=[50.0, 25.0])
     res = sil_pack(assets, {"c": circle}, area_a4(), st)
     minis = [p for p in res.placements if p.mini]
     assert minis, "deben colocarse minis"

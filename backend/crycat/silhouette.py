@@ -442,6 +442,20 @@ def _try_place_voronoi(ctx: _Ctx, aid: str, name: str, w_mm: float,
 
 
 
+def _escalas_lista(valores: list[float], modo: str, w_mm: float,
+                   h_mm: float) -> list[float]:
+    """Lista de tamaños deseados → escalas del elemento.
+
+    En modo "mm" cada valor es el tamaño del LADO MENOR del mini (igual que el
+    mínimo): la escala sale de dividir por el lado menor del original. En modo
+    "pct" el valor ya es el porcentaje respecto al original.
+    """
+    if modo == "mm":
+        base = max(min(w_mm, h_mm), 1e-6)
+        return [v / base for v in valores]
+    return [v / 100.0 for v in valores]
+
+
 def _escalas_candidatas(s_floor: float, max_res: float, usar_lista: bool,
                         lista: list[float]) -> list[float]:
     """Escalas a probar para un mini: la lista dada (mayor a menor) o,
@@ -640,8 +654,9 @@ def _one_pass(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
             settings.get("mini_max_rescale", 100.0))) / 100.0)
         policy = settings.get("mini_tamanos", "grandes")
         usar_lista = bool(settings.get("mini_usar_lista"))
-        lista = [max(0.01, min(0.99, float(v) / 100.0))
-                 for v in (settings.get("mini_tamanos_lista") or [])]
+        lista_modo = str(settings.get("mini_lista_modo", "mm"))
+        lista_mm = [max(0.5, float(v)) for v in
+                    (settings.get("mini_tamanos_lista") or [])]
         angles_m = _angles(rot_mini)
         cand = [a for a in assets if a.get("mini_enabled") and a["id"] in masks]
         if cand:
@@ -673,8 +688,10 @@ def _one_pass(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
                             new_page_ok=False)
                     else:
                         # lista de tamaños deseada o mayor que quepa (desc.)
+                        escala_lista = _escalas_lista(lista_mm, lista_modo,
+                                                       a["w_mm"], a["h_mm"])
                         for s in _escalas_candidatas(s_floor, max_res, usar_lista,
-                                                     lista):
+                                                     escala_lista):
                             if _try_place(ctx, a["id"], a.get("name", ""),
                                           a["w_mm"] * s, a["h_mm"] * s, s,
                                           True, img, angles_m,

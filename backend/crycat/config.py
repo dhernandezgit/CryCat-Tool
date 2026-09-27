@@ -14,7 +14,7 @@ APP_NAME = "CryCat"
 APP_W = 210.0
 APP_H = 297.0
 
-CONFIG_VERSION = 24  # subir para migrar configuraciones antiguas
+CONFIG_VERSION = 25  # subir para migrar configuraciones antiguas
 
 # Tiempo máximo RECOMENDADO por método (segundos). El usuario puede
 # desactivar el automático y fijar su propio presupuesto.
@@ -83,12 +83,13 @@ DEFAULTS: dict = {
     "maquina": "maker3",         # maker3 | maker | maker5 | estandar | joy
     "usar_minis": True,        # activado: solo genera minis de los elementos marcados
     # Minis
-    "mini_min_mm": 15.0,
-    "mini_max_rescale": 100.0,   # tamaño máximo del mini (% del original, < 100)
+    "mini_min_mm": 10.0,
+    "mini_max_rescale": 70.0,    # tamaño máximo del mini (% del original)
     "mini_rotacion": "90",       # no | 90 (0/90/180/270) | libre
     "mini_tamanos": "grandes",   # iguales | grandes
-    "mini_usar_lista": False,    # usar la lista de tamaños en vez de automáticos
-    "mini_tamanos_lista": [50.0],  # tamaños deseados (% del original)
+    "mini_usar_lista": True,     # por defecto manda la LISTA de tamaños
+    "mini_lista_modo": "mm",     # la lista en mm (por defecto) o en %
+    "mini_tamanos_lista": [20.0],  # tamaños deseados (mm del lado menor, o %)
     # Optimización
     "opt_metodo": "greedy",      # greedy | largest | voronoi | genetic
     "opt_calidad": "normal",     # exacta | normal | rapida (resolución de siluetas)
@@ -162,7 +163,15 @@ class Settings:
                 if CONFIG_FILE.exists():
                     saved = json.loads(CONFIG_FILE.read_text("utf-8"))
                     if saved.get("_v") != CONFIG_VERSION:
-                        if saved.get("_v") == 23:
+                        if saved.get("_v") == 24:
+                            # nuevos valores de minis: lista en mm por defecto
+                            saved.update({"mini_min_mm": 10.0,
+                                          "mini_max_rescale": 70.0,
+                                          "mini_usar_lista": True,
+                                          "mini_lista_modo": "mm",
+                                          "mini_tamanos_lista": [20.0]})
+                            saved["_v"] = CONFIG_VERSION
+                        elif saved.get("_v") == 23:
                             # los minis pasan a estar activados por defecto
                             saved["usar_minis"] = True
                             saved["_v"] = CONFIG_VERSION

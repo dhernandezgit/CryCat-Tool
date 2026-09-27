@@ -292,8 +292,9 @@ def _place_minis(bins: list[Bin], requests: list[dict], settings: dict,
     policy = settings.get("mini_tamanos", "grandes")
     rot_mode = settings.get("mini_rotacion", "no")
     usar_lista = bool(settings.get("mini_usar_lista"))
-    lista = [max(0.01, min(0.99, float(v) / 100.0))
-             for v in (settings.get("mini_tamanos_lista") or [])]
+    lista_modo = str(settings.get("mini_lista_modo", "mm"))
+    lista_base = [max(0.5, float(v)) for v in
+                  (settings.get("mini_tamanos_lista") or [])]
     peso_total = sum(r["weight"] for r in requests)
     counts = {r["asset_id"]: 0 for r in requests}
     comunes: dict[str, float] = {}
@@ -316,6 +317,10 @@ def _place_minis(bins: list[Bin], requests: list[dict], settings: dict,
                                         comunes[req["asset_id"]], min_mm,
                                         rot_mode)
             else:
+                base_lado = max(min(req["w"], req["h"]), 1e-6)
+                lista = ([v / base_lado for v in lista_base]
+                         if lista_modo == "mm"
+                         else [v / 100.0 for v in lista_base])
                 for s in _escalas_mini(s_floor, max_res, usar_lista, lista):
                     got = _try_place_scaled(bins, req["w"], req["h"], s,
                                             min_mm, rot_mode)
