@@ -62,6 +62,20 @@ def _poligono_mask(area, H: int, W: int, x0: float, y0: float) -> np.ndarray:
     return inside
 
 
+def _volcar_solape(area, pagina, masks, assets_por_id, msg):
+    """Imprime los datos de las piezas implicadas si el checker ve solape.
+
+    Sirve para diagnosticar la discrepancia conocida entre este comprobador y
+    los scripts independientes (que dan 0 solapes en los mismos casos).
+    """
+    print("\n=== VOLCADO DE SOLAPE ===")
+    print("área bbox:", area.bbox)
+    for p in pagina[:12]:
+        print(f"  {p.uid} página={p.page} x={p.x:.2f} y={p.y:.2f} "
+              f"w={p.w:.2f} h={p.h:.2f} ang={p.angle} escala={p.scale}")
+    print(msg)
+
+
 def _una_pagina(area, pagina, masks, assets_por_id, spacing):
     """(fuera, solape, pintado) de una página, reconstruido desde cero."""
     bx, by, bw, bh = area.bbox
@@ -97,8 +111,16 @@ def _una_pagina(area, pagina, masks, assets_por_id, spacing):
     if spacing > 1.0:
         medio = max(1, int(round((spacing / 2.0 - 0.3) / CELL)))
         dil = ndimage.binary_dilation(pintado > 0, iterations=medio)
-        peor_solape = max(peor_solape, int(np.count_nonzero(
-            ndimage.binary_erosion(dil & (pintado > 1), iterations=1))))
+        por_separacion = int(np.count_nonzero(
+            ndimage.binary_erosion(dil & (pintado > 1), iterations=1)))
+        if por_separacion > 4:
+            _volcar_solape(area, pagina, masks, assets_por_id,
+                           f"separación: {por_separacion} celdas")
+        peor_solape = max(peor_solape, por_separacion)
+    if peor_solape > 4:
+        _volcar_solape(area, pagina, masks, assets_por_id,
+                       f"solape: {peor_solape} celdas "
+                       f"({peor_solape * CELL * CELL:.2f} mm²)")
     return fuera_total, peor_solape, pintado
 
 
@@ -220,7 +242,10 @@ def test_muchas_copias_no_deja_ninguna_sin_colocar():
     circ = trim(_circulo(300))
     assets = [{"id": "c", "name": "c", "w_mm": 25.4, "h_mm": 25.4,
                "copies": 60, "mini_enabled": False}]
-    # el solape de este caso lo cubren los demás (y el script independiente)
+    # NOTA: este caso y el de espacio 0 tienen una discrepancia conocida entre
+    # este comprobador y dos scripts independientes (que dan 0 solapes). El
+    # volcado de _volcar_solape ayuda a diagnosticarla; hasta entonces, aquí
+    # se comprueban límites y que no quede nada sin colocar.
     res = _caso(assets, {"c": circ}, dict(BASE, opt_tiempo_max_s=1.0),
                 solape_activo=False)
     assert len(res.placements) >= 60

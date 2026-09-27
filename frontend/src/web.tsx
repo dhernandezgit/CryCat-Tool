@@ -176,6 +176,7 @@ const estado = (t: string, paso?: number) => {
 };
 
 let py: any = null;
+let esperaTimer: number | undefined;
 
 // ---------------------------------------------------------------- puente --
 const b64DeArray = (buf: ArrayBuffer) => {
@@ -336,14 +337,20 @@ async function main() {
     // que se pinta el estado ANTES para que no parezca colgado.
     const espera = document.createElement("div");
     espera.id = "crycat-espera";
+    const c2 = temaRecordado().colors;
     espera.style.cssText =
       "position:fixed;inset:0;display:none;z-index:9999;" +
       "align-items:center;justify-content:center;flex-direction:column;" +
-      "gap:12px;background:rgba(255,250,252,.88);font:16px system-ui";
+      "gap:12px;background:" + c2.bg + "f2;font:16px system-ui;" +
+      "color:" + c2.textSoft + ";text-align:center;padding:24px";
     espera.innerHTML =
-      '<div style="font-size:20px;font-weight:800">Optimizando…</div>' +
-      '<div style="font-size:13px;color:#8a7480">' +
-      'El cálculo se hace en tu equipo; puede tardar unos segundos.</div>';
+      '<img src="./app/icono.png" alt="" ' +
+      'style="width:72px;height:72px;border-radius:20px" />' +
+      '<div id="espera-frase" style="font-size:20px;font-weight:800;color:' +
+      c2.text + ';max-width:620px;line-height:1.25"></div>' +
+      '<div style="font-size:13px">' +
+      'Optimizando de verdad: el cálculo se hace en tu equipo y puede ' +
+      'tardar unos segundos.</div>';
     document.body.appendChild(espera);
     const original = window.fetch.bind(window);
     const fetchConAviso = async (input: RequestInfo | URL,
@@ -351,11 +358,25 @@ async function main() {
       const url = String((input as Request)?.url ?? input ?? "");
       const esOptimizar = url.includes("/api/optimize") ||
         url.includes("/api/demo");
-      if (esOptimizar) espera.style.display = "flex";
+      if (esOptimizar) {
+        espera.style.display = "flex";
+        // frases graciosas rotando mientras el hilo está ocupado
+        const el = document.getElementById("espera-frase");
+        let k = Math.floor(Math.random() * FRASES_CARGA.length);
+        if (el) el.textContent = FRASES_CARGA[k++ % FRASES_CARGA.length];
+        window.clearInterval(esperaTimer);
+        esperaTimer = window.setInterval(() => {
+          const e2 = document.getElementById("espera-frase");
+          if (e2) e2.textContent = FRASES_CARGA[k++ % FRASES_CARGA.length];
+        }, 1200);
+      }
       try {
         return await original(input, init);
       } finally {
-        if (esOptimizar) espera.style.display = "none";
+        if (esOptimizar) {
+          window.clearInterval(esperaTimer);
+          espera.style.display = "none";
+        }
       }
     };
     window.fetch = fetchConAviso as typeof window.fetch;

@@ -300,7 +300,7 @@ function AssetCard({ a, result, onChange, onEditarContorno,
         {local.warnings.length > 0 && (
           <div className="warn">
             <IconoAviso size={14} /> {local.warnings[0]}{" "}
-            {/blob|trozos sueltos/i.test(local.warnings[0]) && (
+            {local.warnings.some((w) => /blob|trozos sueltos/i.test(w)) && (
               <button className="warn-link" data-testid={`limpiar-aviso-${a.id}`}
                       onClick={() => onEditarContorno?.(a)}>
                 {t("limpiar contorno")}
