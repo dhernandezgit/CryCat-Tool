@@ -546,7 +546,9 @@ def optimize(assets: list[dict], area: CutArea, settings: dict,
     # En cualquier otro caso manda la SILUETA, que es la funcionalidad normal.
     ocupa = sum(float(a.get("w_mm", 0)) * float(a.get("h_mm", 0))
                 * max(0, int(a.get("copies", 1))) for a in assets)
-    holgado = ocupa < 0.45 * max(1.0, area.area_mm2)
+    # cajas SOLO si la hoja está casi vacía (la excepción que pediste): con
+    # más carga manda SIEMPRE la silueta, que encaja y aprovecha de verdad
+    holgado = ocupa < 0.15 * max(1.0, area.area_mm2)
     if masks and (settings.get("usar_minis") or not holgado
                   or best.unplaced or best.pages > 1):
         # el intento por cajas no basta: el método de verdad decide

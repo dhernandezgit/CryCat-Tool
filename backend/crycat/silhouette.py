@@ -972,8 +972,11 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
                           and settings.get("usar_minis")) else 0
             total += a["w_mm"] * a["h_mm"] * max(0, n + extra)
         ratio = total / max(1.0, area.area_mm2)
-        metodo = "rapido" if ratio < 0.45 else (
-            "greedy" if ratio < 0.85 else "voronoi")
+        # NUNCA se devuelve solo la semilla: los trabajos holgados también se
+        # refinan (greedy con el presupuesto restante). Antes se quedaba en la
+        # semilla, que fuerza 0/90 y sin contacto → eficiencia mínima y sin
+        # girar. Ese era el bug.
+        metodo = "greedy" if ratio < 0.85 else "voronoi"
     deadline = t0 + t_max
     rnd = _random.Random(20260925)
     n_total = sum(int(a.get("copies", 1)) for a in assets) + len(pinned or [])
@@ -995,8 +998,8 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
     #    copias sin colocar; las pasadas finas de después solo pueden mejorar.
     semilla = dict(settings)
     semilla["opt_calidad"] = "rapida"
-    if str(settings.get("rotacion", "90")) != "no":
-        semilla["rotacion"] = "90"
+    # la semilla usa la MISMA rotación que se ha pedido (libre = todos los
+    # ángulos); antes la forzaba a 90 y se perdían los giros
     best = _one_pass(assets, masks, area, semilla, pinned, "area", rnd,
                      progress, (0.02, 0.15), deadline=None, contacto=False,
                      **extra)
