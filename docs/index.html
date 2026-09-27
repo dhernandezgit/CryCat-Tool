@@ -9,7 +9,7 @@
 <style>
   :root{
     --bg:#fdf7f9; --panel:#ffffff; --panel2:#fbeff4; --text:#43303a;
-    --soft:#8a7480; --accent:#e08bb0; --accent2:#d94f6a; --accent3:#c98cc0;
+    --soft:#8a7480; --accent:#e277a4; --accent2:#d9425f; --accent3:#c473ba;
     --border:#f1d9e4; --radius:18px;
   }
   *{box-sizing:border-box}
@@ -29,7 +29,7 @@
   }
   .idioma button.activo{background:var(--accent2);border-color:var(--accent2);color:#fff}
   .acciones{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin:18px 0 26px}
-  .acciones a{
+  .acciones a{ max-width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
     display:inline-flex;align-items:center;gap:8px;text-decoration:none;
     font-weight:800;padding:14px 22px;border-radius:14px;transition:.15s;
   }

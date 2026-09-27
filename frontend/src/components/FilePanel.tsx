@@ -173,7 +173,7 @@ function AssetCard({ a, result, onChange, onEditarContorno,
             <span className={`chev ${abierto.tamano ? "open" : ""}`}>›</span>
             {t("Tamaño")}
             <span className="fold-val" data-testid={`tamano-${a.id}`}>
-              {size.w.toFixed(1)}×{size.h.toFixed(1)} mm · {Math.round(local.scale_pct)}%
+              {size.w.toFixed(1)}×{size.h.toFixed(1)} · {Math.round(local.scale_pct)} %
             </span>
           </button>
           {abierto.tamano && (

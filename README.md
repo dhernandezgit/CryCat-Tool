@@ -93,8 +93,15 @@ PNG ready for *Print Then Cut*. Everything runs **on your own machine**.
   **sangrado (bleed)** para evitar rebordes blancos.
 - **Historial local** (Ctrl+Z / Ctrl+Y) configurable, **6 presets de fábrica**
   (chapa, pegatina, hoja, imán, pegatina grande, vinilo) y **perfiles** propios.
-- **Temas pastel**, **Pikmin** animado con sonidos, modo fiesta oculto
-  (**5 clics en el gato**) y todo en **español e inglés**.
+- **Temas pastel**, **Pikmin** animado con sonidos (subidos a la web: 2 al azar
+  por tipo, reducidos), modo fiesta oculto (**5 clics en el gato**) y todo en
+  **español e inglés**.
+- **Modo rápido y experto**: rápido (por defecto) deja solo lo esencial;
+  experto enseña todos los controles finos. Ajustes con iconos, grupos por
+  tarea y **descripciones al pasar por encima**.
+- **Contornos reales en el visor** (con borde y sin borde, en dos colores),
+  **figuras de ejemplo** al abrir sin imágenes (desaparecen solas al añadir
+  las tuyas) y **botón de reportar bugs** que rellena el issue por ti.
 - **Nunca modifica tus originales** y **nunca sobrescribe** una exportación.
 - **Aviso y actualización automática** desde la propia app, sin perder ajustes.
 
@@ -168,8 +175,8 @@ scripts/          utilidades (recursos, web, verificación de siluetas)
 ```
 
 ```bash
-cd backend && .venv/bin/python -m pytest tests/   # 135 tests
-cd frontend && npm test                            # 67 tests
+cd backend && .venv/bin/python -m pytest tests/   # 136 tests
+cd frontend && npm test                            # 70 tests
 backend/.venv/bin/python scripts/verificar_siluetas.py   # imagen de control
 ```
 
@@ -221,8 +228,15 @@ las wikis de Pikmin por el material de referencia.
   **bleed** to avoid white fringes.
 - **Local history** (Ctrl+Z / Ctrl+Y), **6 factory presets** (pin badge, sticker,
   sheet, magnet, big sticker, vinyl) and your own named **profiles**.
-- **Pastel themes**, an animated **Pikmin** with sounds, a hidden party mode
-  (**5 clicks on the cat**) and everything in **Spanish and English**.
+- **Pastel themes**, an animated **Pikmin** with sounds (uploaded to the web:
+  2 random per type, downscaled), a hidden party mode (**5 clicks on the cat**)
+  and everything in **Spanish and English**.
+- **Quick and expert modes**: quick (default) keeps only the essentials;
+  expert shows every fine control. Settings with icons, task groups and
+  **hover descriptions**.
+- **Real outlines in the viewer** (with and without border, two colours),
+  **sample shapes** when you open it with no images (they vanish on their own
+  when you add yours) and a **bug report button** that fills the issue for you.
 - **Never touches your originals** and **never overwrites** an export.
 - **Update checks** and one-click updating from inside the app, keeping your
   settings, profiles and images.
@@ -296,8 +310,8 @@ scripts/          utilities (assets, web, silhouette verification)
 ```
 
 ```bash
-cd backend && .venv/bin/python -m pytest tests/   # 135 tests
-cd frontend && npm test                            # 67 tests
+cd backend && .venv/bin/python -m pytest tests/   # 136 tests
+cd frontend && npm test                            # 70 tests
 backend/.venv/bin/python scripts/verificar_siluetas.py   # control image
 ```
 

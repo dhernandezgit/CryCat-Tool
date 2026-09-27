@@ -113,12 +113,12 @@ describe("Panel de archivos", () => {
     const u = userEvent.setup();
     render(<FilePanel assets={[asset()]} result={result} settings={settings} onChange={onChange} saveSettings={saveSettings} />);
     // el dato se ve plegado; para el control hay que abrir «Tamaño»
-    expect(screen.getByTestId("tamano-a1")).toHaveTextContent("8.5×6.8 mm");
+    expect(screen.getByTestId("tamano-a1")).toHaveTextContent("8.5×6.8");
     await u.click(screen.getByTestId("fold-tamano-a1"));
     const slider = screen.getByTestId("escala-a1") as HTMLInputElement;
     fireEvent.change(slider, { target: { value: "200" } });
     // el tamaño se recalcula en vivo (200%)
-    expect(screen.getByTestId("tamano-a1")).toHaveTextContent("16.9×13.5 mm");
+    expect(screen.getByTestId("tamano-a1")).toHaveTextContent("16.9×13.5");
     await waitFor(() =>
       expect(global.fetch).toHaveBeenCalledWith(
         "/api/assets/a1",
@@ -138,13 +138,13 @@ describe("Panel de archivos", () => {
     // fijando el ancho, el alto se ajusta solo (proporción)
     fireEvent.focus(ancho);
     fireEvent.change(ancho, { target: { value: "16.94" } });
-    expect(screen.getByTestId("tamano-a1")).toHaveTextContent("16.9×13.5 mm");
+    expect(screen.getByTestId("tamano-a1")).toHaveTextContent("16.9×13.5");
     expect(alto.value).toBe("13.5");
     expect(screen.getByText("200%")).toBeInTheDocument();
     // y fijando el alto, el ancho se ajusta solo
     fireEvent.focus(alto);
     fireEvent.change(alto, { target: { value: "20.31" } });
-    expect(screen.getByTestId("tamano-a1")).toHaveTextContent("25.4×20.3 mm");
+    expect(screen.getByTestId("tamano-a1")).toHaveTextContent("25.4×20.3");
     expect(ancho.value).toBe("25.4");
     expect(screen.getByText("300%")).toBeInTheDocument();
     await waitFor(() =>
@@ -162,7 +162,7 @@ describe("Panel de archivos", () => {
       bg_removed: false,
     } as unknown as Asset;   // sin scale_pct ni w_mm_base
     render(<FilePanel assets={[viejo]} result={null} settings={settings} onChange={onChange} saveSettings={saveSettings} />);
-    expect(screen.getByTestId("tamano-v1")).toHaveTextContent("5.0×3.3 mm");
+    expect(screen.getByTestId("tamano-v1")).toHaveTextContent("5.0×3.3");
     await userEvent.setup().click(screen.getByTestId("fold-tamano-v1"));
     expect(screen.getByText("100%")).toBeInTheDocument();
     expect(screen.queryByText(/NaN/)).toBeNull();

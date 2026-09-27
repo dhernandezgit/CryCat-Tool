@@ -116,7 +116,7 @@ export default function Perfiles({ saveSettings }: Props) {
             title={t("Guardar los ajustes actuales como perfil")}
             onClick={() => setGuardando(true)}
           >
-            <IconoGuardar size={15} /> {t("Guardar perfil")}
+            <IconoGuardar size={15} /> {t("Guardar")}
           </button>
         )}
         {guardados.length > 0 && (
