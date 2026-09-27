@@ -361,21 +361,27 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
     ? "M" + polys.map(([x, y]) => `${x - offX},${y - offY}`).join(" L") + " Z"
     : "";
 
+  // solo visual: en el modo horizontal la hoja se enseña girada 90º para
+  // aprovechar el ancho (no se recalcula absolutamente nada)
+  const girada = ui.hojaGirada === true;
+
   const pageEl = (i: number) => {
     const pls = result?.placements.filter((p) => p.page === i) ?? [];
     return (
       <div
         key={i}
         className={`page-box ${ui.eyeFosforito ? "fondo-fosforito"
-          : ui.eyeTransparent ? "alpha-bg" : "white-bg"}`}
-        style={{ width: "100%" }}
+          : ui.eyeTransparent ? "alpha-bg" : "white-bg"}${girada ? " girada" : ""}`}
+        style={girada ? { width: "100%",
+                          aspectRatio: `${sheetH} / ${sheetW}` }
+                      : { width: "100%" }}
         onClick={(e) => {
           if (pages > 1 && largePage === null && !(e.target as HTMLElement).closest(".item-box"))
             setLargePage(i);
         }}
         data-testid={`page-${i}`}
       >
-        <img className="sheet" src={api.pageUrl(i, version, settings.simular_impresion === true, ui.verBordes, faseBordes)} alt={t("Página {i}", { i: i + 1 })} draggable={false} />
+        <img className={`sheet${girada ? " girada" : ""}`} src={api.pageUrl(i, version, settings.simular_impresion === true, ui.verBordes, faseBordes)} alt={t("Página {i}", { i: i + 1 })} draggable={false} />
         {ui.guidesVisible && guidePath && (
           <svg className="overlay-svg" viewBox={`0 0 ${sheetW} ${sheetH}`} preserveAspectRatio="none">
             {/* rejilla de centímetros (para medir de un vistazo) */}
