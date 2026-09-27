@@ -60,14 +60,14 @@ def test_humo_todo_lo_de_la_interfaz(client):
         "copies": 2, "mini_enabled": True, "mini_quota": 2.0,
         "offset_mm": 1.5, "offset_modo": "unir_curvo"}).status_code == 200
 
-    # quitar fondo y blobs
-    assert c.post(f"/api/assets/{aid}/remove-background").status_code == 200
+    # optimizar (método automático por espacio) — antes de tocar el fondo
+    res = _optimizar(c, 2)
+    assert res["placements"], "la optimización no colocó nada"
+
+    # blobs (editor de contornos) y quitar fondo
     b = c.get(f"/api/assets/{aid}/blobs").json()
     assert "blobs" in b and "preview_png" in b
-
-    # optimizar (método automático por espacio)
-    res = _optimizar(c, 2)
-    assert res["placements"] and not res["warnings"] or True
+    assert c.post(f"/api/assets/{aid}/remove-background").status_code == 200
 
     # página: normal, con contornos y los DOS fotogramas del parpadeo
     for extra in ("", "&bordes=1&fase=0", "&bordes=1&fase=6"):
@@ -89,13 +89,13 @@ def test_humo_todo_lo_de_la_interfaz(client):
     assert ex.get("files")
 
     # mover al mismo sitio (no debe dar 409) y fijar
-    p0 = res["placements"][0]
+    p0 = c.get("/api/result").json()["placements"][0]
     mv = c.post("/api/placements/move",
                 json={"uid": p0["uid"], "x": p0["x"], "y": p0["y"]})
     assert mv.status_code == 200 and mv.json()["placement"]["pinned"] is True
 
     # descartar y demo (que sale YA optimizada)
-    c.post("/api/clear")
+    assert c.delete("/api/assets").status_code == 200
     dm = c.post("/api/demo?n=6").json()
     assert dm["ok"] is True and dm["pages"] >= 1
     assert c.get("/api/result").json()["placements"]

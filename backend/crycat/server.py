@@ -521,7 +521,10 @@ def create_app(store: Session = session) -> FastAPI:
             final = store.images().get(aid) or a.img
             ft = imaging.thumbnail(final)
             esc = ft.width / max(1, final.width)
-            vista = img.convert("RGBA")
+            # el lienzo de la carta es la silueta FINAL (con borde): antes se
+            # usaba el de la imagen sin borde y con piezas con borde el tamaño
+            # no coincidía y la carta fallaba (IndexError → no se veían)
+            vista = ft.convert("RGBA")
             arr = np.asarray(vista).copy()
             m_final = np.asarray(ft.convert("RGBA").getchannel("A")) > 1
             # el original, escalado y centrado dentro de la final
