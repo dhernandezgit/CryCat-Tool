@@ -572,10 +572,10 @@ def _cell_para(n_total: int, calidad: str) -> float:
     rapida  → más gruesa (muy rápido, algo menos fino)
     """
     if calidad == "exacta":
-        return 0.25 if n_total <= 40 else (0.5 if n_total <= 120 else 0.75)
+        return 0.15 if n_total <= 40 else (0.25 if n_total <= 120 else 0.35)
     if calidad == "rapida":
-        return 0.75 if n_total <= 120 else (1.0 if n_total <= 300 else 1.5)
-    return 0.5 if n_total <= 90 else (0.75 if n_total <= 250 else 1.0)
+        return 0.5 if n_total <= 120 else (0.75 if n_total <= 300 else 1.0)
+    return 0.25 if n_total <= 90 else (0.35 if n_total <= 250 else 0.5)
 
 
 def _one_pass(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
@@ -1041,7 +1041,7 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
                                                 as_completed)
                 import random as _r
                 import os as _os
-                n_hilos = max(2, min(6, (_os.cpu_count() or 4)))
+                n_hilos = max(2, min(8, (_os.cpu_count() or 4)))
                 with ThreadPoolExecutor(max_workers=n_hilos) as ex:
                     futuros = {
                         ex.submit(_one_pass, assets, masks, area, settings,

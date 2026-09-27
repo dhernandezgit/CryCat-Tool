@@ -19,9 +19,9 @@ CONFIG_VERSION = 26  # subir para migrar configuraciones antiguas
 # Tiempo máximo RECOMENDADO por método (segundos). El usuario puede
 # desactivar el automático y fijar su propio presupuesto.
 OPT_TIEMPOS: dict[str, float] = {
-    "auto": 6.0,         # elige solo según el espacio disponible
+    "auto": 8.0,         # elige solo según el espacio disponible
     "rapido": 3.0,       # una pasada de silueta (celda gruesa)
-    "greedy": 6.0,       # silueta real: multi-arranque en paralelo
+    "greedy": 8.0,       # silueta real: multi-arranque en paralelo
     "largest": 3.0,      # silueta real: una sola pasada
     "voronoi": 6.0,      # silueta real: huecos grandes
     "genetic": 25.0,     # silueta real: máxima calidad
