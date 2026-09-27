@@ -96,9 +96,18 @@ def _asset_mask(img: Image.Image, w_mm: float, h_mm: float, cell: float,
     """
     w = max(2, int(round(w_mm / cell)))
     h = max(2, int(round(h_mm / cell)))
-    alpha = img.convert("RGBA").getchannel("A").resize(
-        (w, h), Image.Resampling.BILINEAR)
-    m = np.asarray(alpha) > 1
+    # Reducción CONSERVADORA: se binariza a resolución completa y se reduce
+    # con BOX; cualquier píxel opaco hace la celda opaca. Así la máscara es
+    # SIEMPRE un superconjunto de la silueta real (las partes finas no se
+    # pierden) y nunca se coloca de menos ni se solapa nada.
+    alpha = img.convert("RGBA").getchannel("A")
+    llena = np.asarray(alpha) > 1
+    if (w, h) != llena.shape[::-1]:
+        im = Image.fromarray((llena * 255).astype(np.uint8), "L").resize(
+            (w, h), Image.Resampling.BOX)
+        m = np.asarray(im) > 0
+    else:
+        m = llena
     if pad > 0:
         # relleno transparente para que la dilatación no se recorte
         p = np.zeros((h + 2 * pad, w + 2 * pad), dtype=bool)
@@ -286,8 +295,12 @@ class _Ctx:
         self.mask_cells = 0
 
     def out_corr(self, dm: np.ndarray) -> np.ndarray:
-        """Correlación cacheada de la máscara dilatada con lo NO permitido."""
-        key = (dm.shape, hash(dm.tobytes()))
+        """Correlación cacheada de la máscara dilatada con lo NO permitido.
+
+        La clave incluye la forma de la rejilla de área: la caché se comparte
+        entre pasadas con celdas distintas, y sin esto chocarían.
+        """
+        key = (dm.shape, self.allowed.shape, hash(dm.tobytes()))
         c = self.out_cache.get(key)
         if c is None:
             c = _correlate((~self.allowed).astype(np.float32), dm)
@@ -324,7 +337,9 @@ class _Ctx:
 
     def base_mask(self, aid: str, w_mm: float, h_mm: float,
                   img: Image.Image) -> np.ndarray:
-        key = (aid, round(w_mm, 3), round(h_mm, 3))
+        # la celda forma parte de la clave: la caché se comparte entre pasadas
+        # con celdas distintas (semilla gruesa + refinados finos)
+        key = (aid, round(w_mm, 3), round(h_mm, 3), self.cell)
         b = self.cache.get(key)
         if b is None:
             b = _asset_mask(img, w_mm, h_mm, self.cell, pad=self.r + 2)
@@ -568,7 +583,9 @@ def _one_pass(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
               rnd, progress=None, frac=(0.0, 1.0),
               deadline: float | None = None,
               orden_idx: list[int] | None = None, contacto: bool = True,
-              voronoi: bool = False) -> PackResult:
+              voronoi: bool = False, cache: dict | None = None,
+              out_cache: dict | None = None,
+              grid_cache: dict | None = None) -> PackResult:
     """Una pasada constructiva con un orden de inserción dado.
 
     `orden_idx` permite imponer una permutación explícita (algoritmo genético).
@@ -582,6 +599,17 @@ def _one_pass(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
     n_total = sum(int(a.get("copies", 1)) for a in assets) + len(pinned or [])
     cell = _cell_para(n_total, str(settings.get("opt_calidad", "normal")))
     ctx = _Ctx(area, settings, cell=cell)
+    # cachés compartidas: las máscaras y correlaciones se calculan UNA vez
+    if cache is not None:
+        ctx.cache = cache
+    if out_cache is not None:
+        ctx.out_cache = out_cache
+    if grid_cache is not None:
+        k = (round(area.bbox[0], 3), round(area.bbox[1], 3),
+             round(area.bbox[2], 3), round(area.bbox[3], 3), cell)
+        if k not in grid_cache:
+            grid_cache[k] = (ctx.allowed, ctx.W, ctx.H)
+        ctx.allowed, ctx.W, ctx.H = grid_cache[k]
     result = PackResult(method="silueta")
     by_id = {a["id"]: a for a in assets}
     rot_norm = settings.get("rotacion", "90")
@@ -690,6 +718,8 @@ def _one_pass(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
                           - counts[a["id"]] / (total + 1.0), reverse=True)
                 hecho = False
                 for a in cand:
+                    if deadline is not None and time.time() > deadline:
+                        break
                     img = masks[a["id"]]
                     base = max(min(a["w_mm"], a["h_mm"]), 1e-6)
                     s_floor = min_mm / base
@@ -708,6 +738,8 @@ def _one_pass(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
                                                        a["w_mm"], a["h_mm"])
                         for s in _escalas_candidatas(s_floor, max_res, usar_lista,
                                                      escala_lista):
+                            if deadline is not None and time.time() > deadline:
+                                break
                             if _try_place(ctx, a["id"], a.get("name", ""),
                                           a["w_mm"] * s, a["h_mm"] * s, s,
                                           True, img, angles_m,
@@ -852,23 +884,51 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
     # colocar por tiempo. Así el resultado siempre es válido y completo.
     deadline_1 = None
 
+    # cachés compartidas por TODAS las pasadas (máscaras, correlaciones y
+    # rejilla de área): es la mayor ganancia de velocidad sin tocar nada más
+    cache_compartida: dict = {}
+    out_compartida: dict = {}
+    grid_compartida: dict = {}
+    extra = dict(cache=cache_compartida, out_cache=out_compartida,
+                 grid_cache=grid_compartida)
+
+    # 0) SEMILLA rápida y COMPLETA: celda gruesa, sin contacto y ángulos
+    #    básicos. Coloca TODO en muy poco tiempo y garantiza que nunca queden
+    #    copias sin colocar; las pasadas finas de después solo pueden mejorar.
+    semilla = dict(settings)
+    semilla["opt_calidad"] = "rapida"
+    if str(settings.get("rotacion", "90")) != "no":
+        semilla["rotacion"] = "90"
+    t_seed = min(deadline, t0 + max(1.0, t_max * 0.35))
+    best = _one_pass(assets, masks, area, semilla, pinned, "area", rnd,
+                     progress, (0.02, 0.15), deadline=t_seed, contacto=False,
+                     **extra)
+
     if metodo == "largest":
-        best = _one_pass(assets, masks, area, settings, pinned, "area", rnd,
-                         progress, (0.05, 0.95), deadline=deadline_1,
-                         contacto=False)
+        res_l = _one_pass(assets, masks, area, settings, pinned, "area", rnd,
+                          progress, (0.05, 0.95), deadline=deadline_1,
+                          contacto=False, **extra)
+        if _clave(res_l) < _clave(best):
+            best = res_l
     elif metodo == "voronoi":
-        best = _one_pass(assets, masks, area, settings, pinned, "area", rnd,
-                         progress, (0.05, 0.95), deadline=deadline_1,
-                         voronoi=True)
+        res_v = _one_pass(assets, masks, area, settings, pinned, "area", rnd,
+                          progress, (0.05, 0.95), deadline=deadline_1,
+                          voronoi=True, **extra)
+        if _clave(res_v) < _clave(best):
+            best = res_v
     elif metodo == "genetic":
         best = _pase_genetico(assets, masks, area, settings, pinned, deadline,
                               progress)
         if best is None:
             best = _one_pass(assets, masks, area, settings, pinned, "area",
-                             rnd, progress, (0.05, 0.95), deadline=deadline_1)
+                             rnd, progress, (0.05, 0.95), deadline=deadline_1,
+                             **extra)
     else:  # greedy: Largest First como solución inicial + multi-arranque paralelo
-        best = _one_pass(assets, masks, area, settings, pinned, "area", rnd,
-                         progress, (0.05, 0.35), deadline=deadline_1)
+        res_g = _one_pass(assets, masks, area, settings, pinned, "area", rnd,
+                          progress, (0.05, 0.35), deadline=deadline_1,
+                          **extra)
+        if _clave(res_g) < _clave(best):
+            best = res_g
         if (not (not best.unplaced and best.pages == 1)
                 and time.time() < deadline):
             ordenes = ["alto", "ancho"] + \
@@ -877,11 +937,15 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
                 from concurrent.futures import (ThreadPoolExecutor,
                                                 as_completed)
                 import random as _r
-                with ThreadPoolExecutor(max_workers=3) as ex:
+                import os as _os
+                n_hilos = max(2, min(6, (_os.cpu_count() or 4)))
+                with ThreadPoolExecutor(max_workers=n_hilos) as ex:
                     futuros = {
                         ex.submit(_one_pass, assets, masks, area, settings,
                                   pinned, o, _r.Random(20260925 + i), None,
-                                  (0.35, 0.95), deadline): o
+                                  (0.35, 0.95), deadline, None, contacto,
+                                  voronoi, cache_compartida, out_compartida,
+                                  grid_compartida): o
                         for i, o in enumerate(ordenes)
                     }
                     for f in as_completed(futuros):

@@ -534,6 +534,7 @@ export const EN: Record<string, string> = {
   "Personalizado": "Custom",
   "Escala": "Scale",
   "Borde": "Border",
+  "Borde adicional": "Extra border",
   "Borde solo de este elemento para unir trozos flotantes (0 = ajuste global)":
     "Border for this item only, to merge floating pieces (0 = global setting)",
   "Ancho": "Width",

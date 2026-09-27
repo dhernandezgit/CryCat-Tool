@@ -6493,6 +6493,7 @@ const pd = {
   Personalizado: "Custom",
   Escala: "Scale",
   Borde: "Border",
+  "Borde adicional": "Extra border",
   "Borde solo de este elemento para unir trozos flotantes (0 = ajuste global)": "Border for this item only, to merge floating pieces (0 = global setting)",
   Ancho: "Width",
   Alto: "Height",
@@ -7240,7 +7241,7 @@ function bm({
             onClick: () => m((v) => ({ ...v, borde: !v.borde })),
             children: [
               /* @__PURE__ */ i.jsx("span", { className: `chev ${A.borde ? "open" : ""}`, children: "›" }),
-              o("Borde"),
+              o("Borde adicional"),
               /* @__PURE__ */ i.jsxs("span", { className: "fold-val", "data-testid": `offset-${e.id}`, children: [
                 l.offset_mm.toFixed(1),
                 " mm",

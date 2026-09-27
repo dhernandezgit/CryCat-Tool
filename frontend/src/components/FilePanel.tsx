@@ -211,7 +211,7 @@ function AssetCard({ a, result, onChange, onEditarContorno,
           <button className="fold-head" data-testid={`fold-borde-${a.id}`}
                   onClick={() => setAbierto((o) => ({ ...o, borde: !o.borde }))}>
             <span className={`chev ${abierto.borde ? "open" : ""}`}>›</span>
-            {t("Borde")}
+            {t("Borde adicional")}
             <span className="fold-val" data-testid={`offset-${a.id}`}>
               {local.offset_mm.toFixed(1)} mm{local.offset_mm <= 0 ? ` · ${t("global")}` : ""}
             </span>
