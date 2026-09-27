@@ -614,18 +614,6 @@ def create_app(store: Session = session) -> FastAPI:
         return start_job()
 
     # --------------------------------------------------------------- pages --
-    @app.get("/api/pages/{idx}.png")
-    def page_png(idx: int):
-        if not store.last or not store.area:
-            return _png_response(Image.new("RGBA", (8, 8)))
-        pls = [p for p in store.last.placements if p.page == idx]
-        img = compose.render_page(
-            store.area, pls, store.images(),
-            float(settings.get("dpi_salida", 300)),
-            full_page=settings.get("lienzo") == "pagina",
-            color=settings.get("color_formato", "rgba"))
-        return _png_response(img)
-
     @app.get("/api/contornos")
     def contornos_piezas():
         """Contornos VECTORIALES de cada pieza (para la vista animada).

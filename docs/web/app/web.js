@@ -7105,7 +7105,14 @@ function Om({
     }
   };
   return /* @__PURE__ */ i.jsxs("div", { className: "asset-card", "data-testid": "asset-card", children: [
-    /* @__PURE__ */ i.jsx("div", { className: "preview", children: /* @__PURE__ */ i.jsx("img", { src: I.previewUrl(e.id), alt: e.name, loading: "lazy" }) }),
+    /* @__PURE__ */ i.jsx("div", { className: "preview", children: /* @__PURE__ */ i.jsx(
+      "img",
+      {
+        src: I.previewUrl(e.id, u, s),
+        alt: e.name,
+        loading: "lazy"
+      }
+    ) }),
     /* @__PURE__ */ i.jsxs("div", { className: "info", children: [
       /* @__PURE__ */ i.jsxs("div", { className: "name-row", children: [
         /* @__PURE__ */ i.jsx("span", { className: "name", title: e.name, children: e.name }),

@@ -82,7 +82,8 @@ function AssetCard({ a, result, onChange, onEditarContorno,
   return (
     <div className="asset-card" data-testid="asset-card">
       <div className="preview">
-        <img src={api.previewUrl(a.id)} alt={a.name} loading="lazy" />
+        <img src={api.previewUrl(a.id, verBordes, faseBordes)}
+             alt={a.name} loading="lazy" />
       </div>
       <div className="info">
         <div className="name-row">
