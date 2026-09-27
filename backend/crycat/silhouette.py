@@ -383,8 +383,13 @@ def _try_place(ctx: _Ctx, aid: str, name: str, w_mm: float, h_mm: float,
             if got is None:
                 continue
             off, score = got
-            if best is None or score > best[0]:
-                best = (score, pi, ang, off, rm, dm)
+            # DESEMPATE: si varios ángulos empatan en contacto (típico en
+            # hojas holgadas), gana el que coloque MÁS PROFUNDO (más abajo y
+            # más a la izquierda). Antes ganaba siempre 0° por ser el primero
+            # y por eso parecía que "no giraba nunca".
+            clave = (score, -off[0], -off[1])
+            if best is None or clave > best[0]:
+                best = (clave, pi, ang, off, rm, dm)
     if best is not None:
         _, pi, ang, off, rm, dm = best
         return _commit_offset(ctx, aid, name, pi, ang, scale, mini,
