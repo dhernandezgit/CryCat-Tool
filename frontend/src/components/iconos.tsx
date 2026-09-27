@@ -96,6 +96,17 @@ export function IconoBorrar({ size }: P) {
   );
 }
 
+export function IconoBordes({ size }: P) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"
+      strokeLinejoin="round" aria-hidden="true">
+      <rect x="3" y="4" width="14" height="14" rx="2" strokeDasharray="3 2" />
+      <rect x="7" y="8" width="14" height="12" rx="2" />
+    </svg>
+  );
+}
+
 export function IconoRotar({ size }: P) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none"

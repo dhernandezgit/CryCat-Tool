@@ -177,6 +177,69 @@ def render_page(area: CutArea, placements: list[Placement], images: dict[str, Im
     return canvas
 
 
+def contornos_bordes(canvas: Image.Image, placements: list[Placement],
+                     con_borde: dict[str, Image.Image],
+                     sin_borde: dict[str, Image.Image],
+                     area: CutArea, dpi: float,
+                     color_final: tuple[int, int, int] = (217, 79, 106),
+                     color_sin: tuple[int, int, int] = (58, 127, 181),
+                     ) -> Image.Image:
+    """Vista de comprobación: contorno REAL de cada pieza.
+
+    En `color_final` va la silueta que de verdad se corta (con el borde y
+    todas las modificaciones aplicadas) y en `color_sin` la del dibujo sin
+    borde. Sirve para ver de un vistazo qué se corta y qué se solapa.
+    No se usa nunca al exportar: es solo para la vista previa.
+    """
+    import numpy as np
+    from scipy import ndimage
+
+    px = dpi / 25.4
+    bx, by = area.bbox[0], area.bbox[1]
+    base = canvas.convert("RGBA")
+    for p in placements:
+        fin = con_borde.get(p.asset_id)
+        orig = sin_borde.get(p.asset_id)
+        pares: list[tuple[object, tuple[int, int, int], object]] = []
+        if fin is not None:
+            pares.append((fin, color_final, p))
+        if orig is not None:
+            # el dibujo sin borde va CENTRADO dentro de la pieza final
+            # (el borde crece por igual a los cuatro lados)
+            if fin is not None and fin.size[0] and fin.size[1]:
+                w_o = p.w * orig.size[0] / fin.size[0]
+                h_o = p.h * orig.size[1] / fin.size[1]
+                x_o = p.x + (p.w - w_o) / 2.0
+                y_o = p.y + (p.h - h_o) / 2.0
+                pares.append((orig, color_sin,
+                              Placement(uid=p.uid, asset_id=p.asset_id,
+                                        page=p.page, x=x_o, y=y_o, w=w_o,
+                                        h=h_o, angle=p.angle, mini=p.mini,
+                                        scale=p.scale, rot90=p.rot90)))
+            else:
+                pares.append((orig, color_sin, p))
+        for fuente, color, pp in pares:
+            try:
+                img = _content_image(fuente, pp)
+            except Exception:
+                continue
+            m = np.asarray(img.convert("RGBA").getchannel("A")) > 1
+            if not m.any():
+                continue
+            ys, xs = np.where(m)
+            ox, oy = int(xs.min()), int(ys.min())
+            cont = m & ~ndimage.binary_erosion(m, iterations=1)
+            if not cont.any():
+                continue
+            parche = np.zeros((m.shape[0], m.shape[1], 4), dtype=np.uint8)
+            parche[cont] = (color[0], color[1], color[2], 255)
+            capa = Image.fromarray(parche, "RGBA")
+            x = int(round(pp.x * px - bx * px)) - ox
+            y = int(round(pp.y * px - by * px)) - oy
+            base.alpha_composite(capa, (x, y))
+    return base
+
+
 def safe_name(name: str) -> str:
     """Nombre de carpeta seguro. Vacío -> "" (se usará solo la fecha)."""
     name = re.sub(r"[^\w\-.]+", "_", (name or "").strip())

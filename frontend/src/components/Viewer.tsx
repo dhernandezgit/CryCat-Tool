@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { api, NAME_SUGGESTIONS, NAME_SUGGESTIONS_EN, type AppSettings, type Asset, type Job, type Placement, type Result, type UiState } from "../api";
 import FolderPicker from "./FolderPicker";
 import SaveDialog from "./SaveDialog";
-import { IconoGuias, IconoZoomMas, IconoZoomMenos, IconoAjustar,
+import { IconoGuias, IconoBordes, IconoZoomMas, IconoZoomMenos, IconoAjustar,
          IconoGuardar, IconoImprimir, IconoCarpeta, IconoDeshacer,
          IconoRehacer } from "./iconos";
 import { useT, useIdioma } from "../i18n";
@@ -315,7 +315,7 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
         }}
         data-testid={`page-${i}`}
       >
-        <img className="sheet" src={api.pageUrl(i, version, settings.simular_impresion === true)} alt={t("Página {i}", { i: i + 1 })} draggable={false} />
+        <img className="sheet" src={api.pageUrl(i, version, settings.simular_impresion === true, ui.verBordes)} alt={t("Página {i}", { i: i + 1 })} draggable={false} />
         {ui.guidesVisible && guidePath && (
           <svg className="overlay-svg" viewBox={`0 0 ${sheetW} ${sheetH}`} preserveAspectRatio="none">
             <path
@@ -377,6 +377,16 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
             disabled={!puedeRehacer}
           >
             <IconoRehacer size={15} /> {t("Rehacer")}
+          </button>
+        </div>
+        <div className="group">
+          <button
+            data-testid="btn-bordes"
+            className={ui.verBordes ? "primary" : ""}
+            title={t("Ver los contornos reales: en un color la silueta que se corta (con borde y cambios) y en otro el dibujo sin borde")}
+            onClick={() => setUi((u) => ({ ...u, verBordes: !u.verBordes }))}
+          >
+            <IconoBordes size={15} /> {ui.verBordes ? t("Bordes") : t("Sin bordes")}
           </button>
         </div>
         <div className="group">

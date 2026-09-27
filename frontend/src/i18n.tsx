@@ -54,6 +54,57 @@ export const EN: Record<string, string> = {
   "Ajustes": "Settings",
   "General": "General",
   "Minis": "Minis",
+  "Ver los contornos reales: en un color la silueta que se corta (con borde y cambios) y en otro el dibujo sin borde":
+    "Show the real outlines: one colour for the silhouette that gets cut (border and changes included) and another for the drawing without border",
+  "Bordes": "Outlines",
+  "Sin bordes": "No outlines",
+  "El tamaño inicial sale de los PPP reales de cada archivo (si no trae datos, se supone 300). Marca los que quieras cambiar y pulsa Aplicar cambios.":
+    "The initial size comes from each file's real DPI (if it has no data, 300 is assumed). Tick the ones you want to change and press Apply changes.",
+  "Cómo quedan sobre la hoja": "How they fit on the sheet",
+  "Seleccionar todos": "Select all",
+  "Quitar selección": "Clear selection",
+  "Escala (%)": "Scale (%)",
+  "Tamaño fijo (mm)": "Fixed size (mm)",
+  "La previsualización usa la hoja y los ajustes actuales.":
+    "The preview uses the sheet and the current settings.",
+  "Siguiente": "Next",
+  "Aplicar cambios": "Apply changes",
+  "Reportar": "Report",
+  "Unir recto": "Join straight",
+  "Unir curvo": "Join round",
+  "Extender el color del borde (suave)": "Extend the border colour (smooth)",
+  "Unir trozos: borde recto (envolvente)":
+    "Join pieces: straight border (convex hull)",
+  "Unir trozos: borde curvo (redondeado)":
+    "Join pieces: round border (rounded hull)",
+  "Sugerencias (pulsa para añadirla):": "Suggestions (tap to add):",
+  "Incluir los {n} errores recogidos de la consola":
+    "Include the {n} collected console errors",
+  "Copiar informe": "Copy report",
+  "¡Copiado!": "Copied!",
+  "Copia el informe entero al portapapeles (por si no usas GitHub)":
+    "Copy the whole report to the clipboard (in case you don't use GitHub)",
+  "Se solapan elementos": "Elements overlap",
+  "No caben todas las copias": "Not all copies fit",
+  "Los bordes no quedan bien": "Borders don't look right",
+  "La impresión sale movida": "Print comes out shifted",
+  "El Pikmin no aparece": "The Pikmin never shows up",
+  "Se queda pensando": "It keeps thinking forever",
+  "La web no arranca": "The web version won't start",
+  "Reportar un bug": "Report a bug",
+  "Reportar un bug: abre un issue en GitHub ya rellenado":
+    "Report a bug: opens a pre-filled GitHub issue",
+  "Se abrirá la página de GitHub con el informe ya escrito: revisa, ajusta y pulsa «Submit new issue».":
+    "The GitHub page will open with the report already written: check it, tweak it and press “Submit new issue”.",
+  "¿Qué ha pasado?": "What happened?",
+  "Cuéntalo con tus palabras: qué esperabas y qué pasó.":
+    "Tell it in your own words: what you expected and what happened.",
+  "¿Cómo lo repetimos? (opcional)": "How can we reproduce it? (optional)",
+  "1. Abro… 2. Pulso… 3. Pasa…": "1. I open… 2. I press… 3. It happens…",
+  "Incluir versión y sistema (ayuda mucho)":
+    "Include version and system (helps a lot)",
+  "Incluir mis ajustes actuales": "Include my current settings",
+  "Abrir issue en GitHub": "Open issue on GitHub",
   "Tiempo automático (el recomendado para cada método)":
     "Automatic time (the recommended one per method)",
   ["Se usarán {s} s con «{m}» (el resto de métodos tienen el suyo)."]:

@@ -232,6 +232,39 @@ input::placeholder { color: #cbbfc8; opacity: 1; font-style: italic; }
   flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis;
   white-space: nowrap; font-size: 12.5px;
 }
+.reportar-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 10px; }
+.reportar-chips .chip {
+  font: inherit; font-size: 12px; font-weight: 700; cursor: pointer;
+  padding: 5px 10px; border-radius: 999px;
+  border: 2px solid var(--border); background: var(--panel);
+  color: var(--textSoft);
+}
+.reportar-chips .chip:hover { border-color: var(--accent); color: var(--text); }
+.modal label.col { display: flex; flex-direction: column; gap: 4px;
+  font-size: 13px; font-weight: 600; }
+.modal textarea {
+  font: inherit; font-size: 13px; padding: 8px 10px; border-radius: 10px;
+  border: 2px solid var(--border); background: var(--panel); color: var(--text);
+  resize: vertical; min-height: 60px;
+}
+.modal textarea:focus { outline: none; border-color: var(--accent); }
+.seg { display: flex; gap: 6px; margin-bottom: 8px; }
+.seg button {
+  flex: 1; font: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer;
+  padding: 8px 10px; border-radius: 10px; border: 2px solid var(--border);
+  background: var(--panel); color: var(--textSoft); transition: .15s;
+}
+.seg button.on { background: var(--accent2); border-color: var(--accent2); color: #fff; }
+.mini-link {
+  font: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer;
+  padding: 4px 8px; border-radius: 8px; border: none;
+  background: transparent; color: var(--accent3); text-decoration: underline;
+}
+.import-lista .import-nombre {
+  font-size: 12px; font-weight: 700; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; max-width: 100%;
+}
+.import-lista .import-datos { font-size: 11px; color: var(--textSoft); }
 .acciones-rapidas { display: flex; gap: 6px; margin: 8px 0 6px; }
 .perfiles-barra { display: flex; flex-direction: column; gap: 6px; margin: 0 0 10px; }
 .perfiles-barra .row { display: flex; gap: 6px; align-items: center; }

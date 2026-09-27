@@ -99,6 +99,21 @@ const FRASES_CARGA = [
 ];
 
 const TOTAL_PASOS = 7;
+
+// colector de errores: los últimos fallos del navegador se adjuntan al
+// informe de bug (sin datos personales: solo el mensaje y dónde pasó)
+type ErrorRecogido = { t: string; msg: string; donde: string };
+const errores: ErrorRecogido[] = [];
+(globalThis as { __crycatErrores?: ErrorRecogido[] }).__crycatErrores = errores;
+const apuntarError = (msg: string, donde: string) => {
+  errores.push({ t: new Date().toISOString().slice(11, 19), msg, donde });
+  if (errores.length > 12) errores.shift();
+};
+window.addEventListener("error", (e) =>
+  apuntarError(String(e.message || e.error || "error"), e.filename || ""));
+window.addEventListener("unhandledrejection", (e) =>
+  apuntarError(String((e.reason && e.reason.message) || e.reason || "promesa"),
+               "promesa"));
 let rotarFrases: number | undefined;
 
 function pintarCarga(texto: string, error = false) {

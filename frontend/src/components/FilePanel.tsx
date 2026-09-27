@@ -233,7 +233,8 @@ function AssetCard({ a, result, onChange, onEditarContorno,
               </div>
               <div className="seg-row">
                 {([["extender", t("Extender")], ["blanco", t("Blanco")],
-                   ["color", t("Color")]] as const).map(([modo, etiqueta]) => (
+                   ["color", t("Color")], ["unir_recto", t("Unir recto")],
+                   ["unir_curvo", t("Unir curvo")]] as const).map(([modo, etiqueta]) => (
                   <button key={modo}
                     className={`seg ${(local.offset_modo || "") === modo ? "on" : ""}`}
                     data-testid={`offset-modo-${modo}-${a.id}`}

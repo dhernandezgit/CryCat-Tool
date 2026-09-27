@@ -46,6 +46,55 @@ def mascara_optimizador(img: Image.Image, w_mm: float, h_mm: float,
     return silhouette._asset_mask(img, w_mm, h_mm, cell, pad=0)
 
 
+def escenario_donut() -> None:
+    """Anillos grandes + círculos pequeños: alguno debe anidarse DENTRO."""
+    import math
+
+    def circulo(lado: int, agujero: float | None, color):
+        im = Image.new("RGBA", (lado, lado), (0, 0, 0, 0))
+        d = ImageDraw.Draw(im)
+        d.ellipse((0, 0, lado - 1, lado - 1), fill=color)
+        if agujero:
+            r = lado * agujero / 2.0
+            m = lado / 2.0
+            d.ellipse((m - r, m - r, m + r, m + r), fill=(0, 0, 0, 0))
+        return im
+
+    anillo = circulo(1000, 0.5, (196, 158, 230, 255))     # 84,7 mm
+    chico = circulo(300, None, (136, 178, 230, 255))      # 25,4 mm
+    assets = [
+        {"id": "anillo", "name": "anillo", "w_mm": 84.7, "h_mm": 84.7,
+         "copies": 2, "mini_enabled": False},
+        {"id": "chico", "name": "chico", "w_mm": 25.4, "h_mm": 25.4,
+         "copies": 12, "mini_enabled": False},
+    ]
+    masks = {"anillo": anillo, "chico": chico}
+    settings = {"espacio_mm": 1.0, "rotacion": "no", "opt_metodo": "greedy",
+                "opt_calidad": "exacta", "opt_tiempo_auto": False,
+                "opt_tiempo_max_s": 6.0, "usar_minis": False}
+    res = silhouette.pack(assets, masks, area_a4(), settings)
+    anidados = 0
+    for p in res.placements:
+        if p.asset_id != "chico":
+            continue
+        cx, cy = p.x + p.w / 2.0, p.y + p.h / 2.0
+        for q in res.placements:
+            if q.asset_id != "anillo":
+                continue
+            qx, qy = q.x + q.w / 2.0, q.y + q.h / 2.0
+            dist = math.hypot(cx - qx, cy - qy)
+            hueco = q.w * 0.5 * 0.5            # radio del agujero (0,5 del lado)
+            if dist + p.w / 2.0 <= hueco + 1.0:
+                anidados += 1
+                break
+    print(f"donut: {len(res.placements)} piezas, anidadas dentro: {anidados}")
+    print("anidado OK" if anidados > 0 else "NO se anidó ninguna (revisar)")
+
+
+def area_a4():
+    return cut_area(210.0, 297.0, "maker3")
+
+
 def main() -> int:
     ruta = Path(sys.argv[1]) if len(sys.argv) > 1 else \
         RAIZ / "assets" / "prueba_crycat.png"
@@ -60,7 +109,7 @@ def main() -> int:
     w_mm = img.width / dpi * 25.4
     h_mm = img.height / dpi * 25.4
 
-    area = cut_area(210.0, 297.0, "maker5")          # A4
+    area = area_a4()                                  # A4
     cell = 0.25
     assets = [{"id": "prueba", "name": "prueba", "w_mm": w_mm, "h_mm": h_mm,
                "copies": 30, "mini_enabled": False}]
@@ -117,6 +166,7 @@ def main() -> int:
     salida.parent.mkdir(parents=True, exist_ok=True)
     im.save(salida)
     print("imagen:", salida)
+    escenario_donut()
     return 0 if n_solape == 0 else 2
 
 

@@ -4,7 +4,7 @@ import { assetUrl } from "../recursos";
 import { useIdioma, useT } from "../i18n";
 import { IconoMute, IconoVolumen, IconoInfo, IconoAlerta,
          IconoCheck, IconoDescargar, IconoComprobar, IconoAyuda,
-         IconoCarpeta, IconoCorazon } from "./iconos";
+         IconoCarpeta, IconoCorazon, IconoAviso } from "./iconos";
 
 export interface EstimateInfo {
   maquina: string;
@@ -27,7 +27,7 @@ function formatoTiempo(s: number): string {
 export default function StatusBar({ job, backendOk, result, estimate,
                                     volumen = 0.5, mute = false,
                                     onVolumen, onMute, onIdioma,
-                                    onEasterEgg, onAyuda }: {
+                                    onEasterEgg, onAyuda, onReportar }: {
   job: Job | null;
   backendOk: boolean;
   result: Result | null;
@@ -39,6 +39,7 @@ export default function StatusBar({ job, backendOk, result, estimate,
   onIdioma?: (i: "es" | "en") => void;
   onEasterEgg?: () => void;   // 5 clics seguidos en el gato
   onAyuda?: () => void;       // abrir la ayuda / cómo usar
+  onReportar?: () => void;    // reportar un bug (issue de GitHub)
 }) {
   const t = useT();
   const idioma = useIdioma();
@@ -227,6 +228,14 @@ export default function StatusBar({ job, backendOk, result, estimate,
           onClick={() => onAyuda?.()}
         >
           <IconoAyuda size={15} /> {t("Cómo usar")}
+        </button>
+        <button
+          className="app-info reportar"
+          data-testid="btn-reportar"
+          title={t("Reportar un bug: abre un issue en GitHub ya rellenado")}
+          onClick={() => onReportar?.()}
+        >
+          <IconoAviso size={15} /> {t("Reportar")}
         </button>
         <button
           className="app-info apoyar"

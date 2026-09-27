@@ -14,7 +14,8 @@ export interface Asset {
   mini_enabled: boolean;
   mini_quota: number;
   offset_mm: number;
-  offset_modo?: "" | "extender" | "blanco" | "color";
+  offset_modo?: "" | "extender" | "blanco" | "color"
+              | "unir_recto" | "unir_curvo";
   offset_color?: string;
   scale_pct: number;
   bg_removed: boolean;
@@ -220,6 +221,7 @@ export interface UiState {
   eyeTransparent: boolean;
   eyeFosforito: boolean;      // tercer modo: fondo verde fosforito
   guidesVisible: boolean;
+  verBordes: boolean;         // contornos reales (con y sin borde)
   viewMode: 1 | 2 | 4;
   saveName: string;
 }
@@ -320,8 +322,9 @@ export const api = {
       paginas: { pagina: number; formas: number; segundos: number }[];
       desglose: { corte_s?: number; viaje_s?: number; extra_s?: number };
     }>("/api/estimate"),
-  pageUrl: (i: number, v: number, sim = false) =>
-    `${apiBase().replace(/\/$/, "")}/api/pages/${i}.png?v=${v}${sim ? "&sim=1" : ""}`,
+  pageUrl: (i: number, v: number, sim = false, bordes = false) =>
+    `${apiBase().replace(/\/$/, "")}/api/pages/${i}.png?v=${v}` +
+    `${sim ? "&sim=1" : ""}${bordes ? "&bordes=1" : ""}`,
   move: (uid: string, x: number, y: number) =>
     req<{ ok: boolean; placement: Placement; job: Job | null }>(
       `/api/placements/move`, {

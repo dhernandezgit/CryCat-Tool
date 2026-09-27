@@ -278,8 +278,15 @@ def create_app(store: Session = session) -> FastAPI:
             raise HTTPException(400, str(e))
         aid = new_id()
         dpi_use = info.dpi_src if 10 < info.dpi_src <= 2400 else dpi
+        if not (10 < info.dpi_src <= 2400):
+            a_dpi_aviso = tr("se supone {d} ppp (el archivo no lo indicaba)",
+                             d=f"{dpi:.0f}")
+        avisos = [w for w in info.warnings
+                  if "sin datos de resolución" not in w]
+        if not (10 < info.dpi_src <= 2400):
+            avisos.append(a_dpi_aviso)
         a = Asset(aid, name, imaging.trim(img), raw, dpi_use,
-                  list(info.warnings), info.color_mode)
+                  avisos, info.color_mode)
         if settings.get("chequear_lineas"):
             a.warnings += imaging.detect_anomalous_lines(a.img)[:3]
         _avisar_blobs(a)
@@ -623,7 +630,7 @@ def create_app(store: Session = session) -> FastAPI:
                 "files": [str(f) for f in written]}
 
     @app.get("/api/pages/{i}.png")
-    def page_png(i: int, v: str = "", sim: int = 0):
+    def page_png(i: int, v: str = "", sim: int = 0, bordes: int = 0):
         """Página renderizada (con simulación de impresión si se pide)."""
         if not store.last or not store.area:
             raise HTTPException(404, tr("sin optimización previa"))
@@ -632,6 +639,12 @@ def create_app(store: Session = session) -> FastAPI:
             store.area, [p for p in store.last.placements if p.page == i],
             store.images(), dpi, settings.get("lienzo") == "pagina",
             settings.get("color_formato", "rgba"))
+        if bordes:
+            img = compose.contornos_bordes(
+                img, [p for p in store.last.placements if p.page == i],
+                store.images(),
+                {a.id: a.img for a in store.assets.values()},
+                store.area, dpi)
         if sim:
             img = compose.simular_impresion(
                 img,

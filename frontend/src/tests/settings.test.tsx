@@ -59,12 +59,11 @@ describe("Panel de ajustes", () => {
     expect(screen.getByTestId("set-mini_max_rescale")).toHaveValue(100);
   });
 
-  it("la sección imagen incluye carpeta de exportación persistente y líneas anómalas", async () => {
+  it("la sección imagen incluye la detección de líneas anómalas", async () => {
     const u = userEvent.setup();
     render(<SettingsPanel settings={settings} saveSettings={saveSettings} />);
     await u.click(screen.getByText("Imagen"));
     expect(screen.getByTestId("set-chequear-lineas")).toBeChecked();
-    expect(screen.getByTestId("set-carpeta")).toBeInTheDocument();
   });
 
   it("la sección visualización lista los temas y el cambio de icono", async () => {

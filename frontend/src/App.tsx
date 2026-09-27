@@ -8,6 +8,7 @@ import SettingsPanel from "./components/SettingsPanel";
 import StatusBar from "./components/StatusBar";
 import PikminPet from "./components/PikminPet";
 import AyudaDialog, { useBienvenida } from "./components/AyudaDialog";
+import ReportarDialog from "./components/ReportarDialog";
 
 export interface Estimate {
   maquina: string;
@@ -25,10 +26,12 @@ export default function App() {
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [job, setJob] = useState<Job | null>(null);
   const [backendOk, setBackendOk] = useState(true);
+  const [reportar, setReportar] = useState(false);
   const [ui, setUi] = useState<UiState>({
     eyeTransparent: false,
     eyeFosforito: false,
     guidesVisible: true,
+    verBordes: false,
     viewMode: 1,
     saveName: "",
   });
@@ -357,7 +360,8 @@ export default function App() {
                  onIdioma={(i) => saveSettings({ idioma: i })}
                  onEasterEgg={() => saveSettings({
                    pikmin_fiesta: !settings.pikmin_fiesta })}
-                 onAyuda={ayuda.abrir} />
+                 onAyuda={ayuda.abrir}
+                 onReportar={() => setReportar(true)} />
       <PikminPet
         activo={settings.pikmin_activo !== false}
         frecuenciaMin={settings.pikmin_frecuencia_min ?? 1}
@@ -370,6 +374,8 @@ export default function App() {
       <AyudaDialog open={ayuda.visible} onClose={ayuda.cerrar}
                    onAbrirCarpeta={() => void api.fsOpen(
                      settings.carpeta_export || "").catch(() => undefined)} />
+      <ReportarDialog open={reportar} onClose={() => setReportar(false)}
+                      settings={settings} job={job} result={result} />
       </div>
     </IdiomaProvider>
   );

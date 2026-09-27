@@ -47,7 +47,7 @@ def load_image(data: bytes, filename: str, render_dpi: float = 300.0) -> tuple[I
     """
     ext = Path(filename).suffix.lower()
     warnings: list[str] = []
-    dpi_src = 300.0
+    dpi_src = 0.0          # 0 = sin datos: el que llame decide el valor
 
     if ext == ".svg":
         raise ValueError(tr("SVG: rasteriza en el navegador o exporta a PNG"))
@@ -141,13 +141,29 @@ def _analyze(img: Image.Image, dpi_src: float, warnings: list[str],
     # calidad de color: todo se normaliza a sRGB para no mezclar espacios
     rgba = _to_srgb(rgba, icc)
     w, h = rgba.size
-    # DPI de origen desde metadatos
-    try:
-        info_dpi = rgba.info.get("dpi", None)
-        if info_dpi and info_dpi[0] and 10 < float(info_dpi[0]) <= 2400:
-            dpi_src = float(info_dpi[0])
-    except Exception:
-        pass
+    # DPI de origen: metadatos del archivo (pHYs de PNG, densidad JFIF de
+    # JPEG, resolución de TIFF/PSD…) y, si no hay, EXIF (XResolution).
+    if not dpi_src or dpi_src <= 10:
+        try:
+            info_dpi = rgba.info.get("dpi", None)
+            if info_dpi and info_dpi[0] and 10 < float(info_dpi[0]) <= 2400:
+                dpi_src = float(info_dpi[0])
+        except Exception:
+            pass
+    if not dpi_src or dpi_src <= 10:
+        try:
+            exif = rgba.getexif()
+            xr = exif.get(282)          # XResolution
+            if xr:
+                if isinstance(xr, tuple):
+                    xr = xr[0] / (xr[1] or 1)
+                xr = float(xr)
+                if 10 < xr <= 2400:
+                    dpi_src = xr
+        except Exception:
+            pass
+    if not dpi_src or dpi_src <= 10:
+        warnings.append(tr("sin datos de resolución: se supone 300 ppp"))
     alpha = rgba.getchannel("A")
     bbox = alpha.getbbox() or (0, 0, w, h)
     trimmed = rgba.crop(bbox)
@@ -315,6 +331,47 @@ def detect_anomalous_lines(img: Image.Image, min_span: float = 0.8,
 
 # ---------------------------------------------------------------- offset ----
 
+def _union_mask(dentro: np.ndarray, r: int,
+                primero_hull: bool) -> np.ndarray:
+    """Máscara que UNE todos los trozos: envolvente convexa + ancho.
+
+    * `primero_hull=True`  → envolvente y luego engordada (borde RECTO).
+    * `primero_hull=False` → engordada y luego envolvente (borde CURVO).
+    Si no hay OpenCV se cae a la dilatación euclídea normal (unión suave).
+    """
+    from scipy import ndimage
+
+    m = dentro.astype(np.uint8)
+    try:
+        import cv2
+        if primero_hull:
+            gordo = ndimage.binary_dilation(m, iterations=max(0, r)) \
+                if r > 0 else m
+            cs, _ = cv2.findContours(gordo.astype(np.uint8),
+                                     cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+            if not cs:
+                return gordo > 0
+            pts = np.vstack([c.reshape(-1, 2) for c in cs])
+            hull = cv2.convexHull(pts)
+            salida = np.zeros_like(m)
+            cv2.fillPoly(salida, [hull], 1)
+            return salida > 0
+        cs, _ = cv2.findContours(m, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+        if not cs:
+            return m > 0
+        pts = np.vstack([c.reshape(-1, 2) for c in cs])
+        hull = cv2.convexHull(pts)
+        salida = np.zeros_like(m)
+        cv2.fillPoly(salida, [hull], 1)
+        if r > 0:
+            yy, xx = np.mgrid[-r:r + 1, -r:r + 1]
+            disco = (xx * xx + yy * yy) <= (r * r + 0.5)
+            salida = ndimage.binary_dilation(salida > 0, structure=disco)
+        return salida > 0
+    except Exception:
+        return ndimage.binary_dilation(m, iterations=max(1, r)) > 0
+
+
 def aplicar_offset(img: Image.Image, radio_px: float,
                    modo: str = "extender",
                    color: tuple[int, int, int] = (255, 255, 255)
@@ -326,6 +383,9 @@ def aplicar_offset(img: Image.Image, radio_px: float,
         (se propaga el color más cercano del borde hacia fuera).
       * 'blanco'  : borde blanco.
       * 'color'   : borde de un color concreto.
+      * 'unir_recto' / 'unir_curvo': UNEN todos los trozos en una sola forma
+        (envolvente convexa del contenido, con el ancho pedido): recta o
+        redondeada. Sirve para fusionar blobs flotantes en una pegatina.
 
     `radio_px` es el grosor del borde en píxeles de ESTA imagen.
     Devuelve una copia nueva (nunca modifica la original).
@@ -354,6 +414,17 @@ def aplicar_offset(img: Image.Image, radio_px: float,
     filo = np.clip(radio_px - dist + 0.5, 0.0, 1.0)
     alfa_borde = np.where(borde, np.maximum(filo, 0.55) * 255.0, 0.0)
 
+    if modo in ("unir_recto", "unir_curvo"):
+        union = _union_mask(dentro, r if modo == "unir_curvo" else r,
+                            primero_hull=(modo == "unir_recto"))
+        colores = np.zeros_like(arr[..., :3])
+        colores[..., 0], colores[..., 1], colores[..., 2] = color
+        nuevo = np.zeros_like(arr)
+        nuevo[..., :3] = colores
+        nuevo[..., 3] = np.where(union, 255, 0).astype(np.uint8)
+        sobre = alpha > 2
+        nuevo[sobre] = arr[sobre]
+        return trim(Image.fromarray(nuevo, "RGBA"))
     if modo == "extender":
         # color del contenido más cercano, propagado hacia fuera
         _d, (iy, ix) = ndimage.distance_transform_edt(~dentro,

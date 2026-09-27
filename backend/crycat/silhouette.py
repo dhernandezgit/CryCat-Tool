@@ -68,16 +68,18 @@ def _dilate(m: np.ndarray, r: int) -> np.ndarray:
 
 def _asset_mask(img: Image.Image, w_mm: float, h_mm: float, cell: float,
                 pad: int = 0) -> np.ndarray:
-    """Máscara booleana del CONTORNO simplificado (o del alfa si no hay)."""
+    """Máscara booleana de la SILUETA REAL (el canal alfa tal cual).
+
+    Antes se usaba el contorno simplificado (más rápido) pero mentía: la
+    simplificación recortaba las partes cóncavas y perdía los AGUJEROS
+    (un anillo quedaba como un disco). Con el alfa, el empaquetado respeta
+    la forma exacta: nada se solapa y las piezas pequeñas pueden anidarse
+    dentro de los huecos (donuts, marcos…). El alfa incluye los bordes
+    suavizados (cualquier píxel > 1 cuenta como opaco), así que es
+    ligeramente conservadora: nunca coloca de menos.
+    """
     w = max(2, int(round(w_mm / cell)))
     h = max(2, int(round(h_mm / cell)))
-    try:
-        from .contour import contornos_mm, dibujar_poligonos
-        polys = contornos_mm(img, w_mm, h_mm, eps_mm=max(0.2, cell * 0.6))
-        if polys:
-            return dibujar_poligonos(polys, w, h, w_mm, h_mm, pad)
-    except Exception:
-        pass
     alpha = img.convert("RGBA").getchannel("A").resize(
         (w, h), Image.Resampling.BILINEAR)
     m = np.asarray(alpha) > 1
@@ -138,9 +140,9 @@ def _best_offset(occ: np.ndarray, m: np.ndarray, out_corr: np.ndarray,
     if h > H or w > W:
         return None
     ov = _correlate(occ, m)
-    # tolerancia mínima de rasterización: las posiciones tangentes son válidas
-    # pero no se admite un solape apreciable (la separación se respeta)
-    tol = 1.0
+    # tolerancia SOLO de rasterización (la FFT deja ~1e-4 de ruido): una
+    # celda entera de solape ya se rechaza, así nunca se pisan dos piezas
+    tol = 0.5
     valid = (ov <= tol) & (out_corr < 0.5)
     valid[H - h + 1:, :] = False
     valid[:, W - w + 1:] = False
@@ -232,8 +234,8 @@ def try_move_sil(placements: list[Placement], uid: str, x: float, y: float,
     # 1) solape con otras siluetas: se rechaza sólo si es apreciable (>margen)
     sub_occ = occ[ty:ty + h, tx:tx + w]
     solape = int(np.count_nonzero((sub_occ > 0) & dm))
-    area_m = int(np.count_nonzero(dm))
-    if solape > max(2, int(0.02 * max(1, area_m))):
+    # sin solape real: solo se tolera una celda de rasterización
+    if solape > 1:
         return None
     # 2) el CONTENIDO (sin márgenes) debe caber dentro del área recortable
     ys, xs = np.where(dm)
@@ -242,7 +244,7 @@ def try_move_sil(placements: list[Placement], uid: str, x: float, y: float,
     zona = allowed[cy0:cy1 + 1, cx0:cx1 + 1]
     interior = dm[ys.min():ys.max() + 1, xs.min():xs.max() + 1]
     fuera = int(np.count_nonzero(interior & (~zona)))
-    if fuera > max(2, int(0.02 * max(1, area_m))):
+    if fuera > 1:
         return None
     target.x, target.y = x, y
     target.pinned = True
@@ -406,7 +408,7 @@ def _try_place_voronoi(ctx: _Ctx, aid: str, name: str, w_mm: float,
             if len(cys) == 0:
                 continue
             oc = ctx.out_corr(dm)
-            tol = 1.0
+            tol = 0
             orden = np.argsort(-dist[cys, cxs])[:80]   # huecos mayores
             for k in orden:
                 cy, cx = int(cys[k]), int(cxs[k])

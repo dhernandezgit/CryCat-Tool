@@ -432,9 +432,11 @@ export default function SettingsPanel({ settings, saveSettings,
           <>
             {num("Grosor del borde", "offset_mm", 0.1, 20, 0.1, "mm")}
             {sel("Tipo de borde", "offset_modo", [
-              ["extender", "Extender el color del borde"],
+              ["extender", "Extender el color del borde (suave)"],
               ["blanco", "Blanco"],
               ["color", "Color personalizado"],
+              ["unir_recto", "Unir trozos: borde recto (envolvente)"],
+              ["unir_curvo", "Unir trozos: borde curvo (redondeado)"],
             ])}
             {settings.offset_modo === "color" && (
               <div className="ctl">
