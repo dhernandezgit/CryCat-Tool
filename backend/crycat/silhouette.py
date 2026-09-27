@@ -383,13 +383,12 @@ def _try_place(ctx: _Ctx, aid: str, name: str, w_mm: float, h_mm: float,
             if got is None:
                 continue
             off, score = got
-            # DESEMPATE por profundidad: PROBADO y REVERTIDO — con rotación
-            # libre introducía un solape real de ~34 mm² (el empate en
-            # contacto con ángulos no rectos necesita la validación fina de la
-            # multirresolución). Se deja el comportamiento seguro anterior:
-            # a igual contacto, el primer ángulo (0°).
-            if best is None or score > best[0]:
-                best = (score, pi, ang, off, rm, dm)
+            # DESEMPATE por profundidad (reactivado): a igual contacto gana
+            # el ángulo que coloque más abajo/izquierda. La red fina de
+            # seguridad (0,25 mm, ya corrigida) garantiza que no cuele solapes.
+            clave = (score, -off[0], -off[1])
+            if best is None or clave > best[0]:
+                best = (clave, pi, ang, off, rm, dm)
     if best is not None:
         _, pi, ang, off, rm, dm = best
         return _commit_offset(ctx, aid, name, pi, ang, scale, mini,
@@ -881,8 +880,10 @@ def _sin_solapes(res: PackResult, assets: list[dict],
     cumple: nada fuera del área, nada solapado y nada sin colocar.
     """
     por_id = {a["id"]: a for a in assets}
-    cell = _cell_para(len(res.placements) or 1,
-                      str(settings.get("opt_calidad", "normal")))
+    # MULTINIVEL mínimo: el cálculo va con su celda, la VALIDACIÓN de
+    # contactos a 0,25 mm (media resolución de salida)
+    cell = min(0.25, _cell_para(len(res.placements) or 1,
+                                str(settings.get("opt_calidad", "normal"))))
     ctx = _Ctx(area, settings, cell=cell)
     ctx.cache = extra.get("cache", {})
     ctx.out_cache = extra.get("out_cache", {})
@@ -898,8 +899,15 @@ def _sin_solapes(res: PackResult, assets: list[dict],
         # ¿cabe donde está, sin tocar lo ya validado?
         rm, dm = ctx.rotated(p.asset_id, a["w_mm"], a["h_mm"], p.angle, img)
         h, w = dm.shape
-        ty = int(round((p.y - ctx.y0) / cell))
-        tx = int(round((p.x - ctx.x0) / cell))
+        # OJO: la máscara lleva relleno (pad), así que hay que descontar el
+        # desplazamiento del CONTENIDO dentro del array. Sin esto la red
+        # comparaba celdas equivocadas y no veía los solapes (bug).
+        ys_rm, xs_rm = np.where(rm)
+        if len(ys_rm) == 0:
+            continue
+        oy_rm, ox_rm = int(ys_rm.min()), int(xs_rm.min())
+        ty = int(round((p.y - ctx.y0) / cell)) - oy_rm
+        tx = int(round((p.x - ctx.x0) / cell)) - ox_rm
         ok = (0 <= ty and 0 <= tx and ty + h <= ctx.H and tx + w <= ctx.W)
         if ok:
             occ = ctx.pages[p.page]
@@ -925,8 +933,8 @@ def _sin_solapes(res: PackResult, assets: list[dict],
                 off, _score = got
             ty, tx = off
             p.page = pi_ok
-            p.x = (tx + int(np.where(rm)[1].min())) * cell + ctx.x0
-            p.y = (ty + int(np.where(rm)[0].min())) * cell + ctx.y0
+            p.x = (tx + ox_rm) * cell + ctx.x0
+            p.y = (ty + oy_rm) * cell + ctx.y0
             movidas += 1
         occ = ctx.pages[p.page]
         occ[ty:ty + h, tx:tx + w] = np.maximum(occ[ty:ty + h, tx:tx + w],

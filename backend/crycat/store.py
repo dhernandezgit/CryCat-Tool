@@ -254,8 +254,28 @@ def new_id() -> str:
 
 
 def _offset_de(a) -> tuple[float, str, tuple[int, int, int]] | None:
-    """Offset efectivo de un elemento: el suyo si tiene, si no el global."""
+    """Offset efectivo de un elemento.
+
+    El offset GLOBAL y el BORDE ADICIONAL del elemento son dos cosas
+    distintas y SE SUMAN: el global rodea la pieza y el adicional añade un
+    borde extra encima (p. ej. global blanco de 1 mm + adicional 2 mm = 3 mm
+    en total). El modo y el color del adicional mandan si están puestos.
+    """
+    base = _offset_actual()
     propio = float(getattr(a, "offset_mm", 0.0) or 0.0)
+    if propio > 0 and base is not None:
+        modo = (getattr(a, "offset_modo", "")
+                or base[1] or "extender")
+        hexcol = (getattr(a, "offset_color", "") or "").lstrip("#")
+        if hexcol and len(hexcol) == 6:
+            try:
+                color = (int(hexcol[0:2], 16), int(hexcol[2:4], 16),
+                         int(hexcol[4:6], 16))
+            except Exception:
+                color = base[2]
+        else:
+            color = base[2]
+        return (base[0] + propio, modo, color)
     if propio > 0:
         base = _offset_actual()
         modo = (getattr(a, "offset_modo", "") or

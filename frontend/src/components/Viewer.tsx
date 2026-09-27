@@ -487,6 +487,15 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
                 unpin(p.uid);
               }}
               data-testid={`item-${p.uid}`}
+            onClick={(ev) => {
+              // centrar la pieza en el visor y avisar para que la izquierda
+              // haga scroll a su tarjeta y le abra los menús
+              ev.stopPropagation();
+              (ev.currentTarget as HTMLElement).scrollIntoView({
+                block: "center", inline: "center", behavior: "smooth" });
+              window.dispatchEvent(new CustomEvent("crycat:seleccion",
+                { detail: p.asset_id }));
+            }}
             >
               {p.pinned && <span className="pin"></span>}
             </div>

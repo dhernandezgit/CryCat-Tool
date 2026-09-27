@@ -61,6 +61,15 @@ export default function App() {
     })();
   }, []);
 
+  // al pulsar una pieza en la hoja: scroll a su tarjeta y menús abiertos
+  const [destacado, setDestacado] = useState("");
+  useEffect(() => {
+    const alSeleccionar = (ev: Event) =>
+      setDestacado(String((ev as CustomEvent<string>).detail || ""));
+    window.addEventListener("crycat:seleccion", alSeleccionar);
+    return () => window.removeEventListener("crycat:seleccion", alSeleccionar);
+  }, []);
+
   // botón de disposición del visor: menús anchos <-> hoja más grande
   useEffect(() => {
     const alCambiar = (ev: Event) => {
@@ -332,6 +341,7 @@ export default function App() {
             onEditarContorno={(a) => setEditando(a)}
             onAntesDeCambiar={recordar}
             verBordes={ui.verBordes}
+            destacado={destacado}
           />
         </div>
         <div className="splitter" data-testid="splitter-left" onMouseDown={() => startDrag("left")} />

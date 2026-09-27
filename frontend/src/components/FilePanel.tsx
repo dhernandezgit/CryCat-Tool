@@ -16,17 +16,20 @@ interface Props {
   onAntesDeCambiar?: () => void;
   faseBordes?: number;
   verBordes?: boolean;
+  destacado?: string;
 }
 
 function AssetCard({ a, result, onChange, onEditarContorno,
                      onAntesDeCambiar, bordeGlobal = false,
-                     faseBordes = 0, verBordes = true }: {
+                     faseBordes = 0, verBordes = true,
+                     destacado = false }: {
   a: Asset; result: Result | null; onChange: () => Promise<void>;
   onEditarContorno?: (a: Asset) => void;
   onAntesDeCambiar?: () => void;
   bordeGlobal?: boolean;
   faseBordes?: number;
   verBordes?: boolean;
+  destacado?: boolean;
 }) {
   const t = useT();
   const [local, setLocal] = useState<Asset>(() => normalizeAsset(a));
@@ -40,6 +43,12 @@ function AssetCard({ a, result, onChange, onEditarContorno,
   const [altoTexto, setAltoTexto] = useState("");
   const editandoAlto = useRef(false);
   const [abierto, setAbierto] = useState({ tamano: false, borde: false, mini: false });
+  const raizRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!destacado) return;
+    setAbierto({ tamano: true, borde: true, mini: true });
+    raizRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, [destacado]);
   useEffect(() => {
     if (!editandoMm.current) {
       setMmTexto(size.w > 0 ? size.w.toFixed(1) : "");
@@ -80,7 +89,9 @@ function AssetCard({ a, result, onChange, onEditarContorno,
   };
 
   return (
-    <div className="asset-card" data-testid="asset-card">
+    <div ref={raizRef} data-asset={a.id}
+         className={`asset-card${destacado ? " destacada" : ""}`}
+         data-testid="asset-card">
       <div className="preview">
         <img src={api.previewUrl(a.id, verBordes, faseBordes)}
              alt={a.name} loading="lazy" />
@@ -322,7 +333,8 @@ function AssetCard({ a, result, onChange, onEditarContorno,
 export default function FilePanel({ assets, result, settings, onChange,
                                     saveSettings, onEditarContorno,
                                     onAntesDeCambiar, faseBordes = 0,
-                                    verBordes = true }: Props) {
+                                    verBordes = true,
+                                    destacado = "" }: Props) {
   const t = useT();
   const inputRef = useRef<HTMLInputElement>(null);
   const [over, setOver] = useState(false);
@@ -393,6 +405,7 @@ export default function FilePanel({ assets, result, settings, onChange,
                      onAntesDeCambiar={onAntesDeCambiar}
                      faseBordes={faseBordes}
                      verBordes={verBordes}
+                     destacado={destacado === a.id}
                      bordeGlobal={settings.offset_activo === true} />
         ))}
       </div>
