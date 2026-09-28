@@ -140,6 +140,7 @@ export interface Job {
   done: boolean;
   message: string;
   eta_s?: number;
+  tope_s?: number;      // presupuesto máximo del trabajo (s)
   efficiency?: number;
   warnings?: string[];
   unplaced?: number;

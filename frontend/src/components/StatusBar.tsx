@@ -125,7 +125,11 @@ export default function StatusBar({ job, backendOk, result, estimate,
   const etaTxt = useMemo(() => {
     const s = job?.eta_s;
     if (!running || s === undefined || s === null || s <= 0.5) return "";
-    return t(" · {x} restante", { x: formatoTiempo(s) });
+    const tope = job?.tope_s;
+    return tope
+      ? t(" · ~{x} restante (máx {y})", { x: formatoTiempo(s),
+                                          y: formatoTiempo(tope) })
+      : t(" · {x} restante", { x: formatoTiempo(s) });
   }, [job?.eta_s, running, t]);
 
   const corteTxt = useMemo(() => {

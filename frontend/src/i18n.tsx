@@ -178,6 +178,7 @@ export const EN: Record<string, string> = {
     "Cut-area guides (key G): preview only",
   "Recalcular la colocación (ignora los elementos fijados)":
     "Recalculate the layout (ignores pinned items)",
+  " · ~{x} restante (máx {y})": " · ~{x} left (max {y})",
   "Borde de los minis": "Mini border",
   "Proporcional (se reduce con el mini)": "Proportional (shrinks with the mini)",
   "Mantener el mismo borde (mm del original)":

@@ -53,6 +53,34 @@ def _abrir_explorador(path: Path) -> None:
         raise RuntimeError(tr("no hay explorador de archivos disponible"))
 
 
+# Historial de duraciones reales: [(n_piezas, segundos)] para estimar mejor
+_HIST: list[tuple[int, float]] = []
+
+
+def _esperado_para(n: int) -> float | None:
+    """Duración esperada para `n` piezas, INTERPOLANDO el historial real.
+
+    Se toman las muestras más cercanas en número de piezas y se interpola
+    linealmente entre ellas; con una sola muestra se usa esa.
+    """
+    if not _HIST or n <= 0:
+        return None
+    muestras = sorted(_HIST)[-30:]
+    menores = [m for m in muestras if m[0] <= n]
+    mayores = [m for m in muestras if m[0] >= n]
+    if menores and mayores:
+        a, b = menores[-1], mayores[0]
+        if b[0] == a[0]:
+            return a[1]
+        k = (n - a[0]) / (b[0] - a[0])
+        return a[1] + (b[1] - a[1]) * k
+    if menores:
+        a = menores[-1]
+        return a[1] * (n / max(1, a[0]))       # extrapola proporcional
+    b = mayores[0]
+    return b[1] * (n / max(1, b[0]))
+
+
 def _offset_de_global() -> tuple[float, str, tuple[int, int, int]] | None:
     """Offset global activo (o None), para el borde de los minis."""
     from .store import _offset_actual
@@ -131,6 +159,10 @@ def create_app(store: Session = session) -> FastAPI:
                 st["opt_tiempo_max_s"] = max(10.0, float(st.get("opt_tiempo_max_s", 8)))
             pinned = [] if force else store.pinned()
             t0 = time.time()
+            with jobs_lock:
+                jobs[jid]["n_piezas"] = sum(
+                    max(0, int(a.get("copies", 1)))
+                    for a in store.asset_dicts())
 
             def progress(frac: float, pages: int) -> None:
                 with jobs_lock:
@@ -139,16 +171,27 @@ def create_app(store: Session = session) -> FastAPI:
                     j["progress"] = frac
                     j["pages"] = pages
                     elapsed = time.time() - t0
-                    # ETA honesta: extrapolación suavizada, acotada por el
-                    # presupuesto pedido (no puede tardar más que eso)
-                    tope = float(st.get("opt_tiempo_max_s", 8.0))
-                    eta = elapsed / frac * (1.0 - frac) if frac > 0.05 else None
-                    if eta is not None:
+                    # ETA honesta y ACTUALIZADA: se mezcla (a) la
+                    # extrapolación de lo que llevamos y (b) el HISTORIAL de
+                    # duraciones reales para cantidades parecidas (interpolado
+                    # por número de piezas). Acotada por el tope real del job.
+                    from .config import tiempo_optimo
+                    n_pz = int(j.get("n_piezas", 0) or 0)
+                    tope = tiempo_optimo(st, n_pz)
+                    j["tope_s"] = round(tope, 1)
+                    esperado = _esperado_para(n_pz)
+                    ext = elapsed / frac if frac > 0.05 else None
+                    base = esperado or ext
+                    if base:
+                        restante = base * (1.0 - frac)
+                        if ext and frac > 0.2:
+                            restante = 0.5 * restante + 0.5 * ext * (1.0 - frac)
                         prev = j.get("eta_s")
-                        eta = eta if prev is None else (0.6 * eta + 0.4 * prev)
-                        j["eta_s"] = min(tope, max(0.0, eta))
+                        if prev:
+                            restante = 0.6 * restante + 0.4 * prev
+                        j["eta_s"] = round(min(tope, max(0.0, restante)), 1)
                     else:
-                        j["eta_s"] = min(tope, max(0.0, tope - elapsed))
+                        j["eta_s"] = round(max(0.0, tope - elapsed), 1)
                     j["message"] = mensajes_funny()[
                         int(elapsed * 3) % len(mensajes_funny())]
 
@@ -157,10 +200,19 @@ def create_app(store: Session = session) -> FastAPI:
                                pinned=pinned, progress=progress,
                                masks=store.images())
                 store.set_result(res)
+                # guardar la duración real para estimar mejor la próxima vez
                 with jobs_lock:
+                    try:
+                        _HIST.append((sum(max(0, int(a.get("copies", 1)))
+                                          for a in assets),
+                                      time.time() - t0))
+                        del _HIST[:-60]
+                    except Exception:
+                        pass
                     jobs[jid].update(
                         status="done", done=True, progress=1.0, pages=res.pages,
-                        eta_s=0.0, efficiency=res.efficiency,
+                        eta_s=0.0, tope_s=0.0,
+                        efficiency=res.efficiency,
                         warnings=res.warnings, unplaced=len(res.unplaced),
                         message=(tr("¡Listo, ni un Diglett fuera de sitio!")
                                  if not res.unplaced else
