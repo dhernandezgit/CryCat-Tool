@@ -198,6 +198,7 @@ def contornos_bordes(canvas: Image.Image, placements: list[Placement],
                      color_sin: tuple[int, int, int] = (0, 148, 211),
                      grosor_px: int = 8,
                      fase: int = 0,
+                     full_page: bool = False,
                      ) -> Image.Image:
     """Vista de comprobación: contorno REAL de cada pieza.
 
@@ -210,7 +211,12 @@ def contornos_bordes(canvas: Image.Image, placements: list[Placement],
     from scipy import ndimage
 
     px = dpi / 25.4
-    bx, by = area.bbox[0], area.bbox[1]
+    # OJO con el sistema de coordenadas del lienzo:
+    #  · lienzo "recortable" → el origen es el bbox del área (se resta)
+    #  · lienzo "página"     → las coordenadas son ABSOLUTAS de la página
+    #    (restar el bbox desplazaba los contornos por el margen del límite,
+    #     justo el fallo de X/Y que se veía en la hoja)
+    bx, by = (0.0, 0.0) if full_page else (area.bbox[0], area.bbox[1])
     base = canvas.convert("RGBA")
     for p in placements:
         fin = con_borde.get(p.asset_id)

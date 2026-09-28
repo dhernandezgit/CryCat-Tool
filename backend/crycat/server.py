@@ -815,7 +815,8 @@ def create_app(store: Session = session) -> FastAPI:
                 img, [p for p in store.last.placements if p.page == i],
                 store.images(),
                 {a.id: a.img for a in store.assets.values()},
-                store.area, dpi, fase=fase)
+                store.area, dpi, fase=fase,
+                full_page=settings.get("lienzo") == "pagina")
         if sim:
             img = compose.simular_impresion(
                 img,
