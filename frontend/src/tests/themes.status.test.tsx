@@ -76,10 +76,10 @@ describe("Barra de estado", () => {
     expect(screen.getByTestId("eta")).toHaveTextContent(/5 s restante/);
   });
 
-  it("avisa cuando no cabe todo en una página", () => {
-    render(<StatusBar job={null} backendOk result={result} />);
-    const aviso = screen.getByTestId("aviso-paginas");
-    expect(aviso).toHaveTextContent(/No cabe en una página: 2 páginas/);
+  it("el aviso de varias páginas ya no va en la barra (va en el visor)", () => {
+    const { container } = render(
+      <StatusBar job={null} backendOk result={{ ...result, pages: 3 }} />);
+    expect(container.querySelector(".aviso-paginas")).toBeNull();
   });
 
   it("no avisa si todo cabe en una página", () => {

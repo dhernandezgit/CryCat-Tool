@@ -230,12 +230,7 @@ export default function StatusBar({ job, backendOk, result, estimate,
         {!(result && result.pages > 0 && !running) && (
           <span className="msg">{message}</span>
         )}
-        {!!result && result.pages > 1 && (
-          <span className="aviso-paginas" data-testid="aviso-paginas"
-                title={t("No cabe todo en una página: se usarán varias")}>
-             {t("No cabe en una página: {n} páginas", { n: result.pages })}
-          </span>
-        )}
+
         {running && (
           <>
             <div className="progress" data-testid="progress">

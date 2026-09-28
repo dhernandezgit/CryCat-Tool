@@ -174,7 +174,7 @@ input::placeholder { color: #cbbfc8; opacity: 1; font-style: italic; }
   transition: box-shadow .25s, border-color .25s;
 }
 .aviso-paginas-flotante {
-  position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+  position: absolute; top: 58px; left: 50%; transform: translateX(-50%);
   z-index: 6; pointer-events: none;
   background: var(--accent2); color: #fff; font-size: 12.5px; font-weight: 800;
   padding: 6px 14px; border-radius: 999px;
@@ -182,7 +182,7 @@ input::placeholder { color: #cbbfc8; opacity: 1; font-style: italic; }
 }
 .viewer { position: relative; }
 .viewer-flotantes {
-  position: absolute; inset: auto 10px 10px 10px; display: flex;
+  position: absolute; inset: auto 10px 60px 10px; display: flex;
   justify-content: space-between; align-items: flex-end;
   pointer-events: none; z-index: 5;
 }

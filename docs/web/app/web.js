@@ -9529,15 +9529,6 @@ function Km({
         ] });
       })(),
       !(n && n.pages > 0 && !I) && /* @__PURE__ */ i.jsx("span", { className: "msg", children: G }),
-      !!n && n.pages > 1 && /* @__PURE__ */ i.jsx(
-        "span",
-        {
-          className: "aviso-paginas",
-          "data-testid": "aviso-paginas",
-          title: f("No cabe todo en una página: se usarán varias"),
-          children: f("No cabe en una página: {n} páginas", { n: n.pages })
-        }
-      ),
       I && /* @__PURE__ */ i.jsxs(i.Fragment, { children: [
         /* @__PURE__ */ i.jsx("div", { className: "progress", "data-testid": "progress", children: /* @__PURE__ */ i.jsx("div", { style: { width: `${Math.max(4, T)}%` } }) }),
         /* @__PURE__ */ i.jsxs("span", { className: "eta", "data-testid": "eta", children: [
