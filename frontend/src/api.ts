@@ -227,7 +227,8 @@ export interface UiState {
   eyeTransparent: boolean;
   eyeFosforito: boolean;      // tercer modo: fondo verde fosforito
   guidesVisible: boolean;
-  verBordes: boolean;         // contornos reales (con y sin borde)
+  verBordes: boolean;         // contornos activados
+  contornoModo?: "final" | "orig" | "ambos" | "ninguno";
   hojaGirada?: boolean;       // solo visual: hoja girada 90º
   viewMode: 1 | 2 | 4;
   saveName: string;
@@ -312,9 +313,9 @@ export const api = {
       body: JSON.stringify({ quitar }),
     }),
   /** Vista previa de la carta: con los contornos punteados (nunca va al PDF). */
-  previewUrl: (id: string, bordes = true, fase = 0) =>
+  previewUrl: (id: string, bordes = true, fase = 0, cont = "final") =>
     `${apiBase()}/api/assets/${id}/preview.png?bordes=${bordes ? 1 : 0}` +
-    `&fase=${fase}`,
+    `&fase=${fase}&cont=${cont}`,
   previewUrlSinBordes: (id: string) => `/api/assets/${id}/preview.png`,
   optimize: (modo?: "rapido" | "optimo", force = false) =>
     req<Job>("/api/optimize", {
@@ -340,10 +341,10 @@ export const api = {
       desglose: { corte_s?: number; viaje_s?: number; extra_s?: number };
     }>("/api/estimate"),
   pageUrl: (i: number, v: number, sim = false, bordes = false,
-            fase = 0) =>
+            fase = 0, cont = "final") =>
     `${apiBase().replace(/\/$/, "")}/api/pages/${i}.png?v=${v}` +
     `${sim ? "&sim=1" : ""}${bordes ? "&bordes=1" : ""}` +
-    `${bordes ? `&fase=${fase}` : ""}`,
+    `${bordes ? `&fase=${fase}&cont=${cont}` : ""}`,
   move: (uid: string, x: number, y: number) =>
     req<{ ok: boolean; placement: Placement; job: Job | null }>(
       `/api/placements/move`, {

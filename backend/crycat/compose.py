@@ -199,6 +199,7 @@ def contornos_bordes(canvas: Image.Image, placements: list[Placement],
                      grosor_px: int = 8,
                      fase: int = 0,
                      full_page: bool = False,
+                     modo: str = "final",
                      ) -> Image.Image:
     """Vista de comprobación: contorno REAL de cada pieza.
 
@@ -210,6 +211,8 @@ def contornos_bordes(canvas: Image.Image, placements: list[Placement],
     import numpy as np
     from scipy import ndimage
 
+    if modo == "ninguno":
+        return canvas
     px = dpi / 25.4
     # OJO con el sistema de coordenadas del lienzo:
     #  · lienzo "recortable" → el origen es el bbox del área (se resta)
@@ -222,9 +225,9 @@ def contornos_bordes(canvas: Image.Image, placements: list[Placement],
         fin = con_borde.get(p.asset_id)
         orig = sin_borde.get(p.asset_id)
         pares: list[tuple[object, tuple[int, int, int], object]] = []
-        if fin is not None:
+        if fin is not None and modo in ("final", "ambos"):
             pares.append((fin, color_final, p))
-        if orig is not None:
+        if orig is not None and modo in ("orig", "ambos"):
             # el dibujo sin borde va CENTRADO dentro de la pieza final
             # (el borde crece por igual a los cuatro lados)
             if fin is not None and fin.size[0] and fin.size[1]:
@@ -267,11 +270,13 @@ def contornos_bordes(canvas: Image.Image, placements: list[Placement],
                 cont = ndimage.binary_dilation(cont,
                                                iterations=grosor_px - 1)
             yy, xx = np.mgrid[0:m.shape[0], 0:m.shape[1]]
-            desfase = (xx + yy + fase) % 14
+            # periodo 12 (el mismo de las cartas): los fotogramas avanzan de 3
+            # en 3 y los puntos "caminan" por el contorno (hormigas marchando)
+            desfase = (xx + yy + fase) % 12
             if color == color_final:
-                cont = cont & (desfase < 9)       # guiones
+                cont = cont & (desfase < 8)       # guiones
             else:
-                cont = cont & (desfase >= 9)      # puntos (la otra mitad)
+                cont = cont & (desfase >= 8)      # puntos (la otra mitad)
             if not cont.any():
                 continue
             parche = np.zeros((m.shape[0], m.shape[1], 4), dtype=np.uint8)

@@ -16,12 +16,14 @@ interface Props {
   onAntesDeCambiar?: () => void;
   faseBordes?: number;
   verBordes?: boolean;
+  contornoModo?: "final" | "orig" | "ambos" | "ninguno";
   destacado?: string;
 }
 
 function AssetCard({ a, result, onChange, onEditarContorno,
                      onAntesDeCambiar, bordeGlobal = false,
                      faseBordes = 0, verBordes = true,
+                     contornoModo = "final",
                      destacado = false }: {
   a: Asset; result: Result | null; onChange: () => Promise<void>;
   onEditarContorno?: (a: Asset) => void;
@@ -29,6 +31,7 @@ function AssetCard({ a, result, onChange, onEditarContorno,
   bordeGlobal?: boolean;
   faseBordes?: number;
   verBordes?: boolean;
+  contornoModo?: "final" | "orig" | "ambos" | "ninguno";
   destacado?: boolean;
 }) {
   const t = useT();
@@ -93,7 +96,7 @@ function AssetCard({ a, result, onChange, onEditarContorno,
          className={`asset-card${destacado ? " destacada" : ""}`}
          data-testid="asset-card">
       <div className="preview">
-        <img src={api.previewUrl(a.id, verBordes, faseBordes)}
+        <img src={api.previewUrl(a.id, verBordes, faseBordes, contornoModo)}
              alt={a.name} loading="lazy" />
       </div>
       <div className="info">
@@ -334,6 +337,7 @@ export default function FilePanel({ assets, result, settings, onChange,
                                     saveSettings, onEditarContorno,
                                     onAntesDeCambiar, faseBordes = 0,
                                     verBordes = true,
+                                    contornoModo = "final",
                                     destacado = "" }: Props) {
   const t = useT();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -405,6 +409,7 @@ export default function FilePanel({ assets, result, settings, onChange,
                      onAntesDeCambiar={onAntesDeCambiar}
                      faseBordes={faseBordes}
                      verBordes={verBordes}
+                     contornoModo={contornoModo}
                      destacado={destacado === a.id}
                      bordeGlobal={settings.offset_activo === true} />
         ))}

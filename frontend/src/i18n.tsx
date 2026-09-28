@@ -179,6 +179,12 @@ export const EN: Record<string, string> = {
   "Recalcular la colocación (ignora los elementos fijados)":
     "Recalculate the layout (ignores pinned items)",
   " · ~{x} restante (máx {y})": " · ~{x} left (max {y})",
+  "Contorno: {modo} (pulsa para cambiar)":
+    "Outline: {modo} (press to change)",
+  "Contorno exterior (con bordes)": "Outer outline (with borders)",
+  "Contorno sin bordes": "Outline without borders",
+  "Contornos (con y sin bordes)": "Outlines (with and without borders)",
+  "Sin contornos": "No outlines",
   "Borde de los minis": "Mini border",
   "Proporcional (se reduce con el mini)": "Proportional (shrinks with the mini)",
   "Mantener el mismo borde (mm del original)":

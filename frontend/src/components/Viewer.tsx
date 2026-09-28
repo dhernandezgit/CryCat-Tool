@@ -56,7 +56,7 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
   useEffect(() => {
     if (!ui.verBordes) return;
     const t = window.setInterval(
-      () => setFaseBordes((f) => (f + 6) % 12), 1100);
+      () => setFaseBordes((f) => (f + 3) % 12), 260);
     return () => window.clearInterval(t);
   }, [ui.verBordes]);
 
@@ -374,6 +374,16 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
     }
   }, [result?.pages, result?.placed, result?.minis]);
 
+  // contorno: 4 opciones (exterior por defecto, sin bordes, ambos, ninguno)
+  const CONTS: Record<string, { etiqueta: string }> = {
+    final: { etiqueta: "Contorno exterior (con bordes)" },
+    orig: { etiqueta: "Contorno sin bordes" },
+    ambos: { etiqueta: "Contornos (con y sin bordes)" },
+    ninguno: { etiqueta: "Sin contornos" },
+  };
+  const modoCont = ui.contornoModo ?? "final";
+  const verCont = ui.verBordes && modoCont !== "ninguno";
+
   // solo visual: en el modo horizontal la hoja se enseña girada 90º para
   // aprovechar el ancho (no se recalcula absolutamente nada)
   const girada = ui.hojaGirada === true;
@@ -394,7 +404,7 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
         }}
         data-testid={`page-${i}`}
       >
-        <img className={`sheet${girada ? " girada" : ""}`} src={api.pageUrl(i, version, settings.simular_impresion === true, ui.verBordes, faseBordes)} alt={t("Página {i}", { i: i + 1 })} draggable={false} />
+        <img className={`sheet${girada ? " girada" : ""}`} src={api.pageUrl(i, version, settings.simular_impresion === true, verCont, faseBordes, modoCont)} alt={t("Página {i}", { i: i + 1 })} draggable={false} />
         {ui.guidesVisible && guidePath && (
           <svg className="overlay-svg" viewBox={`0 0 ${sheetW} ${sheetH}`} preserveAspectRatio="none">
             {/* rejilla de centímetros (para medir de un vistazo) */}
@@ -519,8 +529,15 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
           <button
             data-testid="btn-bordes"
             className={ui.verBordes ? "primary" : ""}
-            data-tip={t("Contornos punteados: guiones = lo que se corta; puntos = el dibujo sin borde")}
-            onClick={() => setUi((u) => ({ ...u, verBordes: !u.verBordes }))}
+            data-tip={t("Contorno: {modo} (pulsa para cambiar)", {
+              modo: t(CONTS[ui.contornoModo ?? "final"].etiqueta) })}
+            onClick={() => setUi((u) => {
+              const orden = ["final", "orig", "ambos", "ninguno"] as const;
+              const i = orden.indexOf(u.contornoModo ?? "final");
+              const sig = orden[(i + 1) % 4];
+              return { ...u, contornoModo: sig,
+                       verBordes: sig !== "ninguno" };
+            })}
           >
             <IconoBordes size={16} />
           </button>

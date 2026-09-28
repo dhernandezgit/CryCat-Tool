@@ -33,6 +33,7 @@ export default function App() {
     eyeFosforito: false,
     guidesVisible: true,
     verBordes: true,
+    contornoModo: "final",
     viewMode: 1,
     saveName: "",
   });
@@ -345,6 +346,7 @@ export default function App() {
             onEditarContorno={(a) => setEditando(a)}
             onAntesDeCambiar={recordar}
             verBordes={ui.verBordes}
+            contornoModo={ui.contornoModo ?? "final"}
             destacado={destacado}
           />
         </div>

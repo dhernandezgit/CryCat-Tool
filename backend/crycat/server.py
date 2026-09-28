@@ -564,7 +564,8 @@ def create_app(store: Session = session) -> FastAPI:
         return a.to_dict()
 
     @app.get("/api/assets/{aid}/preview.png")
-    def preview(aid: str, bordes: int = 0, fase: int = 0):
+    def preview(aid: str, bordes: int = 0, fase: int = 0,
+                cont: str = "final"):
         a = store.get(aid)
         if not a:
             raise HTTPException(404, tr("asset no encontrado"))
@@ -855,7 +856,7 @@ def create_app(store: Session = session) -> FastAPI:
 
     @app.get("/api/pages/{i}.png")
     def page_png(i: int, v: str = "", sim: int = 0, bordes: int = 0,
-                 fase: int = 0):
+                 fase: int = 0, cont: str = "final"):
         """Página renderizada (con simulación de impresión si se pide)."""
         if not store.last or not store.area:
             raise HTTPException(404, tr("sin optimización previa"))
@@ -869,7 +870,7 @@ def create_app(store: Session = session) -> FastAPI:
                 img, [p for p in store.last.placements if p.page == i],
                 store.images(),
                 {a.id: a.img for a in store.assets.values()},
-                store.area, dpi, fase=fase,
+                store.area, dpi, fase=fase, modo=cont,
                 full_page=settings.get("lienzo") == "pagina")
         if sim:
             img = compose.simular_impresion(
