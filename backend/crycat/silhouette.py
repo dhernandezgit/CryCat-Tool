@@ -715,8 +715,18 @@ def _one_pass(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
         off_glob = settings.get("_offset_global")
         angles_m = _angles(rot_mini)
 
+        cache_mini: dict = {}
+
         def imagen_mini(a, s_escala):
-            """Imagen del mini según el modo de borde elegido."""
+            """Imagen del mini según el modo de borde elegido.
+
+            Cacheada por (elemento, escala redondeada): antes se recalculaba
+            en CADA intento y con cambios de borde repetidos la optimización
+            se quedaba minutos (o se moría).
+            """
+            clave_m = (a["id"], round(s_escala, 3), borde_mini)
+            if clave_m in cache_mini:
+                return cache_mini[clave_m]
             base = sin_borde.get(a["id"])
             propio = float(a.get("offset_mm", 0) or 0)
             mm = propio if propio > 0 else (off_glob[0] if off_glob else 0.0)
@@ -724,22 +734,35 @@ def _one_pass(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
                       else "extender"))
             color_b = off_glob[2] if off_glob else (255, 255, 255)
             if base is None or mm <= 0 or borde_mini == "proporcional":
-                es = s_escala * (a.get("scale_pct", 100) / 100.0)
-                return (masks[a["id"]], a["w_mm"] * s_escala,
-                        a["h_mm"] * s_escala) if es > 0 else \
-                    (masks[a["id"]], a["w_mm"] * s_escala, a["h_mm"] * s_escala)
+                out = (masks[a["id"]], a["w_mm"] * s_escala,
+                       a["h_mm"] * s_escala)
+                cache_mini[clave_m] = out
+                return out
             if borde_mini == "sin":
-                return (base, (a["w_mm"] - 2 * mm) * s_escala,
-                        (a["h_mm"] - 2 * mm) * s_escala)
+                out = (base, (a["w_mm"] - 2 * mm) * s_escala,
+                       (a["h_mm"] - 2 * mm) * s_escala)
+                cache_mini[clave_m] = out
+                return out
             # "igual": mismo borde en mm que el original, aunque el mini sea
             # más pequeño: se aplica con radio mm/(escala del mini)
             escala_total = max(0.01, s_escala * (a.get("scale_pct", 100) / 100.0))
             dpi = float(a.get("dpi_origen", 300.0) or 300.0)
             radio = (mm / escala_total) / 25.4 * dpi
+            # TOPE DE SEGURIDAD: el borde "mantener" no puede crecer más que
+            # la propia pieza (con minis diminutos el radio se disparaba y
+            # podía reventar la optimización). Si se pasa, se usa proporcional
+            tope = 0.45 * min(base.width, base.height)
+            if not (radio > 0) or radio > tope:
+                out = (masks[a["id"]], a["w_mm"] * s_escala,
+                       a["h_mm"] * s_escala)
+                cache_mini[clave_m] = out
+                return out
             from .imaging import aplicar_offset
             img = aplicar_offset(base, radio, modo_b, color_b)
-            return (img, img.width / dpi * 25.4 * escala_total,
-                    img.height / dpi * 25.4 * escala_total)
+            out = (img, img.width / dpi * 25.4 * escala_total,
+                   img.height / dpi * 25.4 * escala_total)
+            cache_mini[clave_m] = out
+            return out
 
         angles_m = _angles(rot_mini)
         cand = [a for a in assets if a.get("mini_enabled") and a["id"] in masks]
