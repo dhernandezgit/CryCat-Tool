@@ -113,9 +113,13 @@ FORMAS = ["circulo", "cuadrado", "triangulo", "hexagono", "estrella",
           "anillo", "corazon", "anillo_punto", "casa", "flor"]
 
 
-def figuras(n: int = 16, semilla: int | None = None
+def figuras(n: int = 16, semilla: int | None = 20260928
             ) -> list[tuple[str, Image.Image]]:
-    """`n` figuras aleatorias: (nombre, imagen RGBA a 300 ppp)."""
+    """`n` figuras aleatorias: (nombre, imagen RGBA a 300 ppp).
+
+    Con semilla fija por defecto: la muestra es siempre la misma (estable
+    para los tests y reproducible para quien la ve).
+    """
     rnd = random.Random(semilla)
     salida: list[tuple[str, Image.Image]] = []
     for _ in range(n):

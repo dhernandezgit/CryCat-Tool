@@ -311,13 +311,15 @@ def create_app(store: Session = session) -> FastAPI:
         if any(not getattr(a, "demo", False) for a in store.assets.values()):
             return {"ok": False, "motivo": "ya hay imágenes"}
         store._quitar_demo()
+        import random as _rnd
+        _rnd.seed(20260928)          # muestra reproducible (tests estables)
         figuras = demo.figuras(max(3, min(60, n)))
         for k, (nombre, img) in enumerate(figuras):
             a = Asset(new_id(), nombre, img, b"", demo.DPI, [], "RGBA")
             a.demo = True
             # copias y tamaños variados para que se vea de todo, SIN minis
             # (salvo UN ejemplo: 0 normales y todos los minis que quepan)
-            a.copies = random.choice([1, 1, 2, 2, 3, 4])
+            a.copies = _rnd.choice([1, 1, 2, 2, 3, 4])
             a.mini_enabled = False
             if k == 1:
                 a.scale_pct = 55.0           # un ejemplo bien pequeño
