@@ -133,6 +133,11 @@ class Session:
                 d["offset_mm"] = mm
         return out
 
+    def images_sin_borde(self) -> dict[str, Image.Image]:
+        """Imágenes originales (sin borde) — para los minis con borde 'sin'
+        o 'igual'."""
+        return {a.id: a.img for a in self.assets.values()}
+
     def images(self) -> dict[str, Image.Image]:
         """Imágenes de trabajo con el borde aplicado (por elemento o global)."""
         out: dict[str, Image.Image] = {}

@@ -710,6 +710,37 @@ def _one_pass(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
         lista_modo = str(settings.get("mini_lista_modo", "mm"))
         lista_mm = [max(0.5, float(v)) for v in
                     (settings.get("mini_tamanos_lista") or [])]
+        borde_mini = str(settings.get("mini_borde_modo", "proporcional"))
+        sin_borde = settings.get("_sin_borde") or {}
+        off_glob = settings.get("_offset_global")
+        angles_m = _angles(rot_mini)
+
+        def imagen_mini(a, s_escala):
+            """Imagen del mini según el modo de borde elegido."""
+            base = sin_borde.get(a["id"])
+            propio = float(a.get("offset_mm", 0) or 0)
+            mm = propio if propio > 0 else (off_glob[0] if off_glob else 0.0)
+            modo_b = (a.get("offset_modo") or (off_glob[1] if off_glob
+                      else "extender"))
+            color_b = off_glob[2] if off_glob else (255, 255, 255)
+            if base is None or mm <= 0 or borde_mini == "proporcional":
+                es = s_escala * (a.get("scale_pct", 100) / 100.0)
+                return (masks[a["id"]], a["w_mm"] * s_escala,
+                        a["h_mm"] * s_escala) if es > 0 else \
+                    (masks[a["id"]], a["w_mm"] * s_escala, a["h_mm"] * s_escala)
+            if borde_mini == "sin":
+                return (base, (a["w_mm"] - 2 * mm) * s_escala,
+                        (a["h_mm"] - 2 * mm) * s_escala)
+            # "igual": mismo borde en mm que el original, aunque el mini sea
+            # más pequeño: se aplica con radio mm/(escala del mini)
+            escala_total = max(0.01, s_escala * (a.get("scale_pct", 100) / 100.0))
+            dpi = float(a.get("dpi_origen", 300.0) or 300.0)
+            radio = (mm / escala_total) / 25.4 * dpi
+            from .imaging import aplicar_offset
+            img = aplicar_offset(base, radio, modo_b, color_b)
+            return (img, img.width / dpi * 25.4 * escala_total,
+                    img.height / dpi * 25.4 * escala_total)
+
         angles_m = _angles(rot_mini)
         cand = [a for a in assets if a.get("mini_enabled") and a["id"] in masks]
         if cand:
@@ -738,10 +769,10 @@ def _one_pass(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
                     colocado = False
                     if policy == "iguales" and a["id"] in comunes:
                         s = comunes[a["id"]]
+                        img_m, w_m, h_m = imagen_mini(a, s)
                         colocado = _try_place(
-                            ctx, a["id"], a.get("name", ""), a["w_mm"] * s,
-                            a["h_mm"] * s, s, True, img, angles_m,
-                            new_page_ok=False)
+                            ctx, a["id"], a.get("name", ""), w_m, h_m, s, True,
+                            img_m, angles_m, new_page_ok=False)
                     else:
                         # lista de tamaños deseada o mayor que quepa (desc.)
                         escala_lista = _escalas_lista(lista_mm, lista_modo,
@@ -750,9 +781,10 @@ def _one_pass(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
                                                      escala_lista):
                             if deadline is not None and time.time() > deadline:
                                 break
+                            img_m, w_m, h_m = imagen_mini(a, s)
                             if _try_place(ctx, a["id"], a.get("name", ""),
-                                          a["w_mm"] * s, a["h_mm"] * s, s,
-                                          True, img, angles_m,
+                                          w_m, h_m, s, True,
+                                          img_m, angles_m,
                                           new_page_ok=False):
                                 colocado = True
                                 comunes.setdefault(a["id"], s)

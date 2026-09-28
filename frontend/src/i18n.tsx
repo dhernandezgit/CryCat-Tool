@@ -178,6 +178,13 @@ export const EN: Record<string, string> = {
     "Cut-area guides (key G): preview only",
   "Recalcular la colocación (ignora los elementos fijados)":
     "Recalculate the layout (ignores pinned items)",
+  "Borde de los minis": "Mini border",
+  "Proporcional (se reduce con el mini)": "Proportional (shrinks with the mini)",
+  "Mantener el mismo borde (mm del original)":
+    "Keep the same border (mm of the original)",
+  "Sin borde": "No border",
+  "Qué hacer con el borde de cada mini al reducirlo":
+    "What to do with each mini's border when shrinking it",
   "Lista de tamaños": "Size list",
   "Automático (mínimo + %)": "Automatic (minimum + %)",
   "En milímetros": "In millimetres",

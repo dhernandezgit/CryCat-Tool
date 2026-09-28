@@ -111,7 +111,7 @@ export default function SettingsPanel({ settings, saveSettings,
   const t = useT();
   const [panelAbierto, setPanelAbierto] = useState(true);
   const [open, setOpen] = useState<Record<string, boolean>>({
-    general: true, minis: true, optimizacion: false, imagen: false,
+    general: true, minis: false, optimizacion: false, imagen: false,
     visualizacion: false,
     historial: false,
     perfiles: false, corte: false, extras: false, offset: false,
@@ -297,6 +297,11 @@ export default function SettingsPanel({ settings, saveSettings,
           ["iguales", "Priorizar que sean iguales"],
           ["grandes", "Priorizar grandes"],
         ])}
+        {sel("Borde de los minis", "mini_borde_modo", [
+          ["proporcional", "Proporcional (se reduce con el mini)"],
+          ["igual", "Mantener el mismo borde (mm del original)"],
+          ["sin", "Sin borde"],
+        ], undefined, "Qué hacer con el borde de cada mini al reducirlo")}
         {settings.mini_usar_lista && (
           <div className="ctl">
             <label>{t("Tamaños deseados")}</label>

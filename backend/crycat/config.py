@@ -91,6 +91,9 @@ DEFAULTS: dict = {
     "mini_tamanos": "grandes",   # iguales | grandes
     "mini_usar_lista": True,     # por defecto manda la LISTA de tamaños
     "mini_lista_modo": "mm",     # la lista en mm (por defecto) o en %
+    # borde de los minis: proporcional (se reduce con el mini), igual
+    # (mantiene los mm del original) o sin (sin borde)
+    "mini_borde_modo": "proporcional",
     "mini_tamanos_lista": [20.0],  # tamaños deseados (mm del lado menor, o %)
     # Optimización
     "opt_metodo": "auto",        # auto | rapido | greedy | largest | voronoi | genetic

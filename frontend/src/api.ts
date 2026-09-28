@@ -70,6 +70,7 @@ export interface AppSettings {
   mini_tamanos: "iguales" | "grandes";
   mini_usar_lista: boolean;
   mini_lista_modo?: "mm" | "pct";
+  mini_borde_modo?: "proporcional" | "igual" | "sin";
   mini_tamanos_lista: number[];
   opt_metodo: string;
   opt_calidad: "exacta" | "normal" | "rapida";

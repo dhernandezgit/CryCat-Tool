@@ -53,6 +53,12 @@ def _abrir_explorador(path: Path) -> None:
         raise RuntimeError(tr("no hay explorador de archivos disponible"))
 
 
+def _offset_de_global() -> tuple[float, str, tuple[int, int, int]] | None:
+    """Offset global activo (o None), para el borde de los minis."""
+    from .store import _offset_actual
+    return _offset_actual()
+
+
 def _avisar_blobs(a: Asset) -> None:
     """Avisa si hay trozos sueltos (blobs) fuera del contorno principal."""
     try:
