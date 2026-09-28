@@ -238,6 +238,15 @@ def contornos_bordes(canvas: Image.Image, placements: list[Placement],
                 img = _content_image(fuente, pp)
             except Exception:
                 continue
+            # MISMO escalado que el render: sin esto el contorno se dibuja al
+            # tamaño nativo de la imagen y queda desplazado (bug del X/Y)
+            tw = max(1, round(pp.w * px))
+            th = max(1, round(pp.h * px))
+            if (tw, th) != img.size:
+                k = min(tw / img.width, th / img.height)
+                nw = max(1, round(img.width * k))
+                nh = max(1, round(img.height * k))
+                img = img.resize((nw, nh), Image.Resampling.LANCZOS)
             m = np.asarray(img.convert("RGBA").getchannel("A")) > 1
             if not m.any():
                 continue

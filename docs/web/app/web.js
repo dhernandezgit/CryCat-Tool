@@ -8609,7 +8609,7 @@ function Ym({
 }) {
   const r = tt(), [a, o] = w.useState(!0), [s, u] = w.useState({
     general: !0,
-    minis: !1,
+    minis: !0,
     optimizacion: !1,
     imagen: !1,
     visualizacion: !1,

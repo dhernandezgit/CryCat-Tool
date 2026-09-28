@@ -111,7 +111,7 @@ export default function SettingsPanel({ settings, saveSettings,
   const t = useT();
   const [panelAbierto, setPanelAbierto] = useState(true);
   const [open, setOpen] = useState<Record<string, boolean>>({
-    general: true, minis: false, optimizacion: false, imagen: false,
+    general: true, minis: true, optimizacion: false, imagen: false,
     visualizacion: false,
     historial: false,
     perfiles: false, corte: false, extras: false, offset: false,
