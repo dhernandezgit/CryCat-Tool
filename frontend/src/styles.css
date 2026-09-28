@@ -53,6 +53,9 @@ button {
 }
 button:hover:not(:disabled) { border-color: var(--accent); transform: translateY(-1px); }
 button:disabled { opacity: 0.45; cursor: default; }
+button, .chip, .mini-toggle, .seg button, .acciones-rapidas .chip {
+  line-height: 1.1;
+}
 button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
 button.danger { color: var(--danger); border-color: var(--danger); }
 
@@ -924,7 +927,10 @@ button:active { transform: translateY(1px); }
   border-color: var(--accent);
   background: color-mix(in srgb, var(--accent) 22%, var(--panel2));
 }
-.viewer-bottom .primary, button.primary {
+.viewer-bottom .primary, button, .chip, .mini-toggle, .seg button, .acciones-rapidas .chip {
+  line-height: 1.1;
+}
+button.primary {
   border-color: var(--accent2);
   background: var(--accent2); color: var(--panel);
 }

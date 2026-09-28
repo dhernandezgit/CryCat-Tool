@@ -10743,7 +10743,7 @@ await webapi.peticion(` + JSON.stringify(u.method) + ", " + JSON.stringify(u.pat
       });
     } catch {
     }
-    ma("Optimizando la muestra inicial…", 8);
+    ma("Optimizando la muestra inicial…", 7);
     try {
       const s = await fetch(fn() + "api/assets").then((u) => u.json());
       Array.isArray(s) && s.length === 0 && await fetch(fn() + "api/demo?n=16", { method: "POST" });

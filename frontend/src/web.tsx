@@ -398,7 +398,7 @@ async function main() {
     // PASO 8: la muestra inicial se optimiza AQUÍ, dentro de la carga, para
     // que al abrir ya esté colocada y no haya que esperar (y no parezca que
     // se ha quedado colgada)
-    estado("Optimizando la muestra inicial…", 8);
+    estado("Optimizando la muestra inicial…", 7);
     try {
       const previos = await fetch(apiBase() + "api/assets").then((r) => r.json());
       if (Array.isArray(previos) && previos.length === 0) {
