@@ -175,7 +175,7 @@ def render_page(area: CutArea, placements: list[Placement], images: dict[str, Im
         th = max(1, round(p.h * px_per_mm))
         if (tw, th) != img.size:
             # Escala SIEMPRE uniforme: se ajusta a la caja sin deformar la
-            # imagen (se mantiene el factor de forma exacto del original).
+            # imagen (la proporción del original se conserva).
             k = min(tw / img.width, th / img.height)
             nw = max(1, round(img.width * k))
             nh = max(1, round(img.height * k))
