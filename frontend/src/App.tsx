@@ -27,6 +27,7 @@ export default function App() {
   const [job, setJob] = useState<Job | null>(null);
   const [backendOk, setBackendOk] = useState(true);
   const [reportar, setReportar] = useState(false);
+  const [optimizando, setOptimizando] = useState(false);
   const [ui, setUi] = useState<UiState>({
     eyeTransparent: false,
     eyeFosforito: false,
@@ -130,12 +131,15 @@ export default function App() {
   }, []);
 
   const optimize = useCallback(async () => {
+    setOptimizando(true);
     try {
       const j = await api.optimize();
       setJob(j);
       pollJob(j.id);
     } catch {
       setBackendOk(false);
+    } finally {
+      setOptimizando(false);
     }
   }, [pollJob]);
 

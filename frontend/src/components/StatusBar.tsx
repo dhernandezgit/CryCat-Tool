@@ -25,6 +25,7 @@ function formatoTiempo(s: number): string {
 }
 
 export default function StatusBar({ job, backendOk, result, estimate,
+                                    optimizando = false,
                                     volumen = 0.5, mute = false,
                                     onVolumen, onMute, onIdioma,
                                     onEasterEgg, onAyuda, onReportar }: {
@@ -40,6 +41,7 @@ export default function StatusBar({ job, backendOk, result, estimate,
   onEasterEgg?: () => void;   // 5 clics seguidos en el gato
   onAyuda?: () => void;       // abrir la ayuda / cómo usar
   onReportar?: () => void;    // reportar un bug (issue de GitHub)
+  optimizando?: boolean;      // la optimización está en marcha (web incluida)
 }) {
   const t = useT();
   const idioma = useIdioma();
@@ -86,7 +88,7 @@ export default function StatusBar({ job, backendOk, result, estimate,
     return () => clearInterval(t);
   }, [actualizando]);
 
-  const running = !!(job && !job.done);
+  const running = optimizando || !!(job && !job.done);
   useEffect(() => {
     if (!running) return;
     const t = setInterval(() => setIdx((i) => i + 1), 1200);

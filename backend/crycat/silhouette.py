@@ -1022,7 +1022,9 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
     from .config import tiempo_optimo
 
     t0 = time.time()
-    t_max = max(0.5, tiempo_optimo(settings))
+    n_prev = sum(max(0, int(a.get("copies", 1))) for a in assets) + \
+        len(pinned or [])
+    t_max = max(0.5, tiempo_optimo(settings, n_prev))
     metodo = str(settings.get("opt_metodo", "auto")).lower()
     # compatibilidad con los nombres antiguos
     if metodo in ("silueta_rapido", "silueta", "maxrects", "skyline"):

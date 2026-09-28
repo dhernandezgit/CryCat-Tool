@@ -388,7 +388,7 @@ export default function SettingsPanel({ settings, saveSettings,
         </label>
         {settings.opt_tiempo_auto !== false ? (
           <div className="hint" data-testid="tiempo-recomendado">
-            {t("Se usarán {s} s con «{m}» (el resto de métodos tienen el suyo).",
+            {t("Base de {s} s con «{m}» que CRECE con cada pieza (más piezas, más tiempo para buscar el mejor encaje; tope 3 min).",
                { s: OPT_TIEMPOS[settings.opt_metodo] ?? 8,
                  m: t(METODO_NOMBRE[settings.opt_metodo] ?? settings.opt_metodo) })}
           </div>

@@ -176,7 +176,6 @@ const estado = (t: string, paso?: number) => {
 };
 
 let py: any = null;
-let esperaTimer: number | undefined;
 
 // ---------------------------------------------------------------- puente --
 const b64DeArray = (buf: ArrayBuffer) => {
@@ -333,52 +332,6 @@ async function main() {
 
     instalarPuente();          // reserva: la API funciona sin service worker
 
-    // Aviso durante la optimización: en la web el cálculo bloquea el hilo, así
-    // que se pinta el estado ANTES para que no parezca colgado.
-    const espera = document.createElement("div");
-    espera.id = "crycat-espera";
-    const c2 = temaRecordado().colors;
-    // barra ABAJO (como la de escritorio), no una pantalla que lo tapa todo
-    espera.style.cssText =
-      "position:fixed;left:0;right:0;bottom:0;display:none;z-index:9999;" +
-      "align-items:center;gap:12px;padding:10px 18px;font:14px system-ui;" +
-      "color:#fff;background:" + c2.accent3 +
-      ";box-shadow:0 -4px 18px rgba(60,20,40,.28)";
-    espera.innerHTML =
-      '<img src="./app/piensa.gif" alt="" style="height:34px;width:auto" />' +
-      '<div id="espera-frase" style="font-size:14.5px;font-weight:800;' +
-      'flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>' +
-      '<div style="font-size:12.5px;opacity:.9">' +
-      'Optimizando en tu equipo…</div>';
-    document.body.appendChild(espera);
-    const original = window.fetch.bind(window);
-    const fetchConAviso = async (input: RequestInfo | URL,
-                                 init?: RequestInit) => {
-      const url = String((input as Request)?.url ?? input ?? "");
-      // solo la optimización real: el demo sale en el paso 8 de la carga
-      const esOptimizar = url.includes("/api/optimize");
-      if (esOptimizar) {
-        espera.style.display = "flex";
-        // frases graciosas rotando mientras el hilo está ocupado
-        const el = document.getElementById("espera-frase");
-        let k = Math.floor(Math.random() * FRASES_CARGA.length);
-        if (el) el.textContent = FRASES_CARGA[k++ % FRASES_CARGA.length];
-        window.clearInterval(esperaTimer);
-        esperaTimer = window.setInterval(() => {
-          const e2 = document.getElementById("espera-frase");
-          if (e2) e2.textContent = FRASES_CARGA[k++ % FRASES_CARGA.length];
-        }, 1200);
-      }
-      try {
-        return await original(input, init);
-      } finally {
-        if (esOptimizar) {
-          window.clearInterval(esperaTimer);
-          espera.style.display = "none";
-        }
-      }
-    };
-    window.fetch = fetchConAviso as typeof window.fetch;
 
     // en la web los ajustes viven en memoria: se recupera el último tema
     // elegido (guardado en el navegador) para que no se pierda al recargar

@@ -35,12 +35,29 @@ METODO_ALIAS: dict[str, str] = {
 }
 
 
-def tiempo_optimo(d) -> float:
-    """Presupuesto efectivo: el recomendado del método o el manual."""
+# segundos EXTRA de presupuesto por cada pieza a colocar (el trabajo crece:
+# más piezas = más intentos, más combinaciones y más minis que rellenan)
+OPT_POR_PIEZA: dict[str, float] = {
+    "auto": 0.15, "rapido": 0.05, "greedy": 0.15, "largest": 0.05,
+    "voronoi": 0.20, "genetic": 0.35,
+}
+OPT_TIEMPO_TOPE = 60.0       # techo de seguridad (nunca más de 1 minuto)
+
+
+def tiempo_optimo(d, n_elementos: int = 0) -> float:
+    """Presupuesto efectivo ADAPTADO al número de elementos.
+
+    No es un tiempo fijo: parte de la base del método y crece con cada pieza
+    (colocarlas, probar combinaciones y rellenar con minis cuesta más cuanto
+    más hay). Preferimos un resultado bueno a uno rápido. Tope: 3 minutos.
+    """
     if bool(d.get("opt_tiempo_auto", True)):
         m = str(d.get("opt_metodo", "greedy"))
         m = METODO_ALIAS.get(m, m)
-        return float(OPT_TIEMPOS.get(m, 8.0))
+        base = float(OPT_TIEMPOS.get(m, 8.0))
+        por_pieza = float(OPT_POR_PIEZA.get(m, 0.45))
+        t = base + por_pieza * max(0, int(n_elementos))
+        return max(base, min(OPT_TIEMPO_TOPE, t))
     return max(0.5, float(d.get("opt_tiempo_max_s", 8.0)))
 
 

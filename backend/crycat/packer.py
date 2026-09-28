@@ -493,7 +493,9 @@ def optimize(assets: list[dict], area: CutArea, settings: dict,
     pinned = [p for p in (pinned or []) if p.pinned]
     from .config import tiempo_optimo
 
-    t_max = max(0.5, tiempo_optimo(settings))
+    n_prev = sum(max(0, int(a.get("copies", 1))) for a in assets) + \
+        len(pinned or [])
+    t_max = max(0.5, tiempo_optimo(settings, n_prev))
     normals, _ = _expand_items(assets, settings)
 
     if method == "maxrects":

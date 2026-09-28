@@ -173,6 +173,13 @@ input::placeholder { color: #cbbfc8; opacity: 1; font-style: italic; }
   box-shadow: 0 0 0 3px var(--accent2), 0 6px 20px rgba(140, 40, 80, .22);
   transition: box-shadow .25s, border-color .25s;
 }
+.statusbar .progress > div {
+  background: linear-gradient(90deg, var(--accent2), var(--accent),
+              var(--accent3), var(--accent2));
+  background-size: 300% 100%;
+  animation: barra-marcha 1.6s linear infinite;
+}
+@keyframes barra-marcha { to { background-position: -300% 0; } }
 .aviso-paginas-flotante {
   position: absolute; top: 58px; left: 50%; transform: translateX(-50%);
   z-index: 6; pointer-events: none;
