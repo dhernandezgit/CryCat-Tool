@@ -422,9 +422,9 @@ def aplicar_offset(img: Image.Image, radio_px: float,
         nuevo = np.zeros_like(arr)
         nuevo[..., :3] = colores
         nuevo[..., 3] = np.where(union, 255, 0).astype(np.uint8)
-        sobre = alpha > 2
-        nuevo[sobre] = arr[sobre]
-        return trim(Image.fromarray(nuevo, "RGBA"))
+        salida = Image.fromarray(nuevo, "RGBA")
+        salida.alpha_composite(Image.fromarray(arr, "RGBA"))
+        return trim(salida)
     if modo == "extender":
         # color del contenido más cercano, propagado hacia fuera
         _d, (iy, ix) = ndimage.distance_transform_edt(~dentro,
@@ -439,7 +439,10 @@ def aplicar_offset(img: Image.Image, radio_px: float,
     nuevo = np.zeros_like(arr)
     nuevo[..., :3] = colores
     nuevo[..., 3] = np.clip(alfa_borde, 0, 255).astype(np.uint8)
-    # el contenido original manda (píxeles exactos)
-    sobre = alpha > 2
-    nuevo[sobre] = arr[sobre]
-    return trim(Image.fromarray(nuevo, "RGBA"))
+    # COMPOSICIÓN correcta: el borde va debajo (uniforme) y el contenido
+    # encima con SU alfa. Antes el contenido SUSTITUÍA los píxeles del borde
+    # y en los filos con alfa parcial se mezclaban los colores, dejando
+    # artefactos raros alrededor del elemento.
+    salida = Image.fromarray(nuevo, "RGBA")
+    salida.alpha_composite(Image.fromarray(arr, "RGBA"))
+    return trim(salida)

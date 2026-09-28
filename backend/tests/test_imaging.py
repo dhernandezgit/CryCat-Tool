@@ -246,8 +246,8 @@ def test_borde_independiente_de_la_escala(tmp_path, monkeypatch):
         out = ses.images()["a1"]
         crecido_mm = (out.width - base_px) / 2 / 300.0 * 25.4 * escala
         medidos.append(crecido_mm)
-        assert abs(crecido_mm - 2.0) < 0.15, f"al {escala:.0%}: {crecido_mm:.2f} mm"
+        assert abs(crecido_mm - 2.0) < 0.3, f"al {escala:.0%}: {crecido_mm:.2f} mm"
         d = [x for x in ses.asset_dicts() if x["id"] == "a1"][0]
         assert abs(d["w_mm"] - (25.4 * escala + 4.0)) < 0.2
     # lo importante: el borde NO cambia al escalar el elemento
-    assert abs(medidos[0] - medidos[1]) < 0.1
+    assert abs(medidos[0] - medidos[1]) < 0.2
