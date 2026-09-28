@@ -28,7 +28,9 @@ from .i18n import tr
 from .packer import PackResult, Placement
 
 CELL = 0.5
-FREE_ANGLES = (45, 30, 60, 15, 75, 135, 120, 150, 105, 165)
+# "cualquier ángulo": pasos de 15º INCLUYENDO 90/180/270 (antes faltaban y
+# el modo libre no podía usar los giros rectos, que son los más útiles)
+FREE_ANGLES = (15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180, 270)
 
 
 # --------------------------------------------------------------- utilidades --
@@ -80,6 +82,165 @@ def _dilate(m: np.ndarray, r: int) -> np.ndarray:
     yy, xx = np.mgrid[-r:r + 1, -r:r + 1]
     disk = (xx * xx + yy * yy) <= (r * r + 0.5)
     return ndimage.binary_dilation(m, structure=disk)
+
+
+def _mascaras_redondas(assets: list[dict], masks: dict[str, Image.Image],
+                       dpi: float = 300.0) -> dict[str, Image.Image]:
+    """Máscaras SINTÉTICAS de círculo para el modo chapas.
+
+    Las chapas son redondas: empaquetarlas como círculos es exacto y mucho
+    más rápido que rasterizar cada imagen. El diámetro es el lado MENOR de la
+    pieza (conservador si algún día el dibujo no fuese un círculo perfecto);
+    la red de seguridad final valida con las siluetas REALES.
+    """
+    from PIL import ImageDraw
+    por_id = {a["id"]: a for a in assets}
+    out: dict[str, Image.Image] = {}
+    for aid, img in (masks or {}).items():
+        a = por_id.get(aid)
+        if a is None:
+            out[aid] = img
+            continue
+        w_mm = float(a["w_mm"])
+        h_mm = float(a["h_mm"])
+        W = max(4, int(round(w_mm / 25.4 * dpi)))
+        H = max(4, int(round(h_mm / 25.4 * dpi)))
+        d = max(4, min(W, H))
+        im = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+        ImageDraw.Draw(im).ellipse(
+            ((W - d) // 2, (H - d) // 2,
+             (W - d) // 2 + d - 1, (H - d) // 2 + d - 1),
+            fill=(255, 255, 255, 255))
+        out[aid] = im
+    return out
+
+
+# Formas simples: ángulos que merece la pena probar (el resto son simetrías)
+_ANGULOS_FORMA = {
+    "circulo": [0.0],
+    "rectangulo": [0.0, 90.0, 180.0, 270.0],
+    "triangulo": [0.0, 90.0, 180.0, 270.0],
+}
+
+
+def _forma_simple(mask: np.ndarray, cell: float,
+                  umbral: float = 0.96, max_vertices: int = 12
+                  ) -> tuple[str, list] | None:
+    """¿La silueta es una forma geométrica simple? Devuelve (tipo, polígono).
+
+    Se mide sobre la máscara real: si es un círculo, un rectángulo (aunque
+    tenga las esquinas redondeadas), un triángulo o un POLÍGONO CONVEXO de
+    pocos lados, se puede empaquetar con su forma analítica y menos ángulos.
+    `umbral` (0..1) decide cuánto tiene que parecerse (área/casco y área/caja)
+    y `max_vertices` cuántos lados se admiten en el polígono.
+
+    La forma analítica CONTIENE a la silueta salvo el círculo, que usa el
+    mismo ÁREA (un pelín más pequeño si la forma no es perfecta): la red de
+    seguridad final valida con el alfa real y recoloca si hiciera falta.
+    """
+    try:
+        ys, xs = np.where(mask)
+        if len(ys) < 50:
+            return None
+        area = float(len(ys))
+        x0, x1 = int(xs.min()), int(xs.max())
+        y0, y1 = int(ys.min()), int(ys.max())
+        w = x1 - x0 + 1
+        h = y1 - y0 + 1
+        r_bbox = area / float(w * h)
+        cx, cy = float(xs.mean()), float(ys.mean())
+        # círculo: mismo ÁREA INTERIOR (sin el filo conservador de la máscara)
+        # -> queda del tamaño real que se corta, liso y sin crecer. La red de
+        # seguridad final valida con el alfa real y recoloca si hiciera falta.
+        from scipy import ndimage
+        area_int = float(ndimage.binary_erosion(mask, iterations=1).sum()) \
+            or area
+        r_eq = math.sqrt(area_int / math.pi)
+        r_max = float(np.sqrt(((xs - cx) ** 2 + (ys - cy) ** 2).max()))
+        if r_max > 0 and r_eq / r_max > 0.90 and r_max > 0.3 * max(w, h):
+            poly = [(cx + r_eq * math.cos(2 * math.pi * k / 24),
+                     cy + r_eq * math.sin(2 * math.pi * k / 24))
+                    for k in range(24)]
+            return "circulo", poly
+        if r_bbox > 0.97:
+            return "rectangulo", [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]
+        # convexidad: si el casco es casi el área, no hay recovecos
+        try:
+            from scipy.spatial import ConvexHull
+            pts = np.column_stack([xs, ys]).astype(np.float64)
+            hull = ConvexHull(pts)
+            area_hull = float(hull.volume)
+            r_hull = area / max(1.0, area_hull)
+            vh = hull.points[hull.vertices]
+        except Exception:
+            return None
+        if r_hull < umbral:
+            return None
+        # rectángulo REDONDEADO: casco que llena casi el bbox pero con las
+        # esquinas cortadas -> se usa el PROPIO CASCO (más fino que la caja)
+        if r_bbox > 0.86 and len(vh) <= 8:
+            return "rectangulo", [(float(px), float(py)) for px, py in vh]
+        # triángulo: casco de 3 lados (algún vértice extra por el pixelado)
+        if len(vh) <= 8 and 0.30 < r_bbox < 0.68:
+            return "triangulo", [(float(px), float(py)) for px, py in vh]
+        # POLÍGONO convexo de pocos lados: también se simplifica
+        if len(vh) <= max_vertices:
+            return "poligono", [(float(px), float(py)) for px, py in vh]
+        return None
+    except Exception:
+        return None
+
+
+def _simplificar_simples(assets: list[dict], masks: dict[str, Image.Image],
+                         cell: float = 0.25, dpi: float = 300.0,
+                         umbral: float = 0.96, max_vertices: int = 12
+                         ) -> tuple[dict[str, Image.Image],
+                                    dict[str, list[float]]]:
+    """Máscaras analíticas y ángulos reducidos para las siluetas simples.
+
+    Devuelve (mascaras, angulos_por_asset): solo se tocan los elementos con
+    `simplificar` activado (por defecto sí) cuya silueta es claramente un
+    círculo, un rectángulo (aunque sea redondeado), un triángulo o un
+    polígono convexo de pocos lados; el resto se queda igual (alfa real y
+    todos los ángulos). Las formas analíticas contienen a la silueta (el
+    círculo usa el mismo área) y la red final valida con el alfa real.
+    """
+    from PIL import ImageDraw
+    por_id = {a["id"]: a for a in assets}
+    out = dict(masks)
+    angulos: dict[str, list[float]] = {}
+    k = dpi / 25.4 * cell            # píxeles de imagen por celda de máscara
+    for aid, img in (masks or {}).items():
+        a = por_id.get(aid)
+        if a is None or a.get("simplificar") is False:
+            continue
+        try:
+            w_mm = float(a["w_mm"])
+            h_mm = float(a["h_mm"])
+            m = _asset_mask(img, w_mm, h_mm, cell)
+            forma = _forma_simple(m, cell, umbral, max_vertices)
+            if forma is None:
+                continue
+            tipo, poly = forma
+            W = max(4, int(round(w_mm / 25.4 * dpi)))
+            H = max(4, int(round(h_mm / 25.4 * dpi)))
+            im = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+            d = ImageDraw.Draw(im)
+            if tipo == "circulo":
+                xs = [p[0] for p in poly]
+                ys = [p[1] for p in poly]
+                d.ellipse((min(xs) * k, min(ys) * k,
+                           max(xs) * k, max(ys) * k),
+                          fill=(255, 255, 255, 255))
+            else:
+                d.polygon([(px * k, py * k) for px, py in poly],
+                          fill=(255, 255, 255, 255))
+            out[aid] = im
+            angulos[aid] = list(_ANGULOS_FORMA.get(tipo, [0.0, 90.0, 180.0,
+                                                          270.0]))
+        except Exception:
+            continue
+    return out, angulos
 
 
 def _asset_mask(img: Image.Image, w_mm: float, h_mm: float, cell: float,
@@ -199,11 +360,38 @@ def _angles(rot_mode: str) -> list[float]:
     return [0.0] + list(FREE_ANGLES)
 
 
+# ángulos de la pasada SEMILLA en modo libre: unos pocos (45º de paso) para
+# que sea RÁPIDA; los giros finos (30/60/…) los prueban las pasadas de refino
+ANGULOS_SEMILLA_LIBRE = (0.0, 45.0, 90.0, 135.0)
+
+
+def _angles_semilla(rot_mode: str) -> list[float]:
+    """Ángulos reducidos de la semilla (siempre dentro de los permitidos)."""
+    if rot_mode == "no":
+        return [0.0]
+    if rot_mode in ("90", "cuadrantes", "cuadrantes4"):
+        return [0.0, 90.0]
+    return list(ANGULOS_SEMILLA_LIBRE)
+
+
+def _angles_mini(rot_mode: str) -> list[float]:
+    """Ángulos de los MINIS (relleno): subconjunto reducido y rápido.
+
+    Siguen siendo ángulos PERMITIDOS; probar los 14 en cada intento hacía la
+    fase de minis interminable (14 s en modo libre) sin ganar apenas huecos.
+    """
+    return _angles_semilla(rot_mode)
+
+
 def _mask_for_placement(p: Placement, a: dict, img: Image.Image, cell: float,
                         r: int):
     """(rm, dm, ox, oy) para una colocación: máscara, dilatada y desplazamiento
     del contenido dentro del array."""
-    base = _asset_mask(img, a["w_mm"], a["h_mm"], cell, pad=r + 2)
+    # OJO: los minis van a escala (`p.scale`); usar el tamaño del original
+    # agrandaba su máscara y la validación los movía sin motivo (bug real).
+    s = float(p.scale or 1.0)
+    base = _asset_mask(img, float(a["w_mm"]) * s, float(a["h_mm"]) * s, cell,
+                       pad=r + 2)
     rm = _rotate_mask(base, p.angle)
     ys, xs = np.where(rm)
     ox, oy = int(xs.min()), int(ys.min())
@@ -361,17 +549,44 @@ class _Ctx:
 def _try_place(ctx: _Ctx, aid: str, name: str, w_mm: float, h_mm: float,
                scale: float, mini: bool, img: Image.Image,
                rot_angles: list[float], new_page_ok: bool,
-               contacto: bool = True, voronoi: bool = False) -> bool:
+               contacto: bool = True, voronoi: bool = False,
+               first_fit: bool = False) -> bool:
     """Evalúa TODOS los ángulos y hojas y coloca en la mejor posición (la de
     más contacto con lo ya puesto). Así los giros simples (0/90/180/270) se
     aprovechan de verdad para encajar más.
 
     Con `voronoi=True` las posiciones candidatas son los centros de los
     huecos libres más grandes (aproximación Voronoi).
+    Con `first_fit=True` se acepta la PRIMERA posición válida (mucho más
+    rápido; se usa para los minis, que son relleno).
     """
     if voronoi:
         return _try_place_voronoi(ctx, aid, name, w_mm, h_mm, scale, mini,
                                   img, rot_angles, new_page_ok)
+    if first_fit:
+        for ang in rot_angles:
+            rm, dm = ctx.rotated(aid, w_mm, h_mm, ang, img)
+            h, w = dm.shape
+            if h > ctx.H or w > ctx.W:
+                continue
+            for pi in range(len(ctx.pages)):
+                got = ctx.best_for(pi, dm, rm)
+                if got is not None:
+                    return _commit_offset(ctx, aid, name, pi, ang, scale, mini,
+                                          rm, dm, got[0], w_mm, h_mm)
+        if new_page_ok:
+            pi = ctx.new_page()
+            for ang in rot_angles:
+                rm, dm = ctx.rotated(aid, w_mm, h_mm, ang, img)
+                h, w = dm.shape
+                if h > ctx.H or w > ctx.W:
+                    continue
+                got = ctx.best_for(pi, dm, rm)
+                if got is not None:
+                    return _commit_offset(ctx, aid, name, pi, ang, scale,
+                                          mini, rm, dm, got[0], w_mm, h_mm)
+            ctx.pages.pop()
+        return False
     best = None  # (score, page, ang, off, rm, dm)
     for ang in rot_angles:
         rm, dm = ctx.rotated(aid, w_mm, h_mm, ang, img)
@@ -536,7 +751,7 @@ def _commit_offset(ctx, aid, name, pi, ang, scale, mini, rm, dm, off,
     ctx.placements.append(Placement(
         uid=f"{aid}#{len(ctx.placements)}", asset_id=aid, page=pi,
         x=x_mm, y=y_mm, w=we, h=he, angle=ang, mini=mini, scale=scale,
-        rot90=False))
+        rot90=False, w0=w_mm, h0=h_mm))
     ctx.mask_cells += int(np.count_nonzero(rm))
     return True
 
@@ -582,6 +797,25 @@ def _cell_para(n_total: int, calidad: str) -> float:
     return 0.25 if n_total <= 90 else (0.35 if n_total <= 250 else 0.5)
 
 
+MAX_CELDAS = 420_000   # tope de celdas de la rejilla: acota el coste de las FFT
+
+
+def _celda_ajustada(cell: float, area: CutArea) -> float:
+    """Sube la celda (si hace falta) para no pasar de MAX_CELDAS.
+
+    Las correlaciones por FFT cuestan O(N log N) con N = celdas del área. En
+    hojas grandes una celda fina dispara el tiempo sin mejorar el encaje; con
+    este tope el presupuesto se reparte mejor entre pasadas.
+    """
+    _, _, bw, bh = area.bbox
+    if bw <= 0 or bh <= 0:
+        return cell
+    n = (bw / cell) * (bh / cell)
+    if n > MAX_CELDAS:
+        return math.sqrt(bw * bh / MAX_CELDAS)
+    return cell
+
+
 def _one_pass(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
               settings: dict, pinned: list[Placement] | None, order: str,
               rnd, progress=None, frac=(0.0, 1.0),
@@ -589,7 +823,8 @@ def _one_pass(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
               orden_idx: list[int] | None = None, contacto: bool = True,
               voronoi: bool = False, cache: dict | None = None,
               out_cache: dict | None = None,
-              grid_cache: dict | None = None) -> PackResult:
+              grid_cache: dict | None = None,
+              angles_override: list[float] | None = None) -> PackResult:
     """Una pasada constructiva con un orden de inserción dado.
 
     `orden_idx` permite imponer una permutación explícita (algoritmo genético).
@@ -601,7 +836,8 @@ def _one_pass(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
         return PackResult(method="silueta")
     # rejilla adaptativa: más gruesa cuantos más objetos (mantiene la rapidez)
     n_total = sum(int(a.get("copies", 1)) for a in assets) + len(pinned or [])
-    cell = _cell_para(n_total, str(settings.get("opt_calidad", "normal")))
+    cell = _celda_ajustada(
+        _cell_para(n_total, str(settings.get("opt_calidad", "normal"))), area)
     ctx = _Ctx(area, settings, cell=cell)
     # cachés compartidas: las máscaras y correlaciones se calculan UNA vez
     if cache is not None:
@@ -614,7 +850,7 @@ def _one_pass(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
         if k not in grid_cache:
             grid_cache[k] = (ctx.allowed, ctx.W, ctx.H)
         ctx.allowed, ctx.W, ctx.H = grid_cache[k]
-    result = PackResult(method="silueta")
+    result = PackResult(method="silueta", cell=cell)
     by_id = {a["id"]: a for a in assets}
     # Si solo hay minis (elementos con 0 copias normales), hay que abrir ya la
     # primera hoja: sin ella los minis no tendrían dónde colocarse (bug real)
@@ -636,7 +872,9 @@ def _one_pass(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
         while len(ctx.pages) <= max(0, p.page):
             ctx.new_page()
         pi = max(0, p.page)
-        rm, dm = ctx.rotated(p.asset_id, a["w_mm"], a["h_mm"], p.angle, img)
+        esc = float(p.scale or 1.0)
+        rm, dm = ctx.rotated(p.asset_id, a["w_mm"] * esc, a["h_mm"] * esc,
+                             p.angle, img)
         ty = int(round((p.y - ctx.y0) / ctx.cell))
         tx = int(round((p.x - ctx.x0) / ctx.cell))
         h, w = dm.shape
@@ -648,11 +886,12 @@ def _one_pass(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
             occ_sil[ty:ty + h, tx:tx + w] = np.maximum(
                 occ_sil[ty:ty + h, tx:tx + w], rm.astype(np.float32))
             ctx.mask_cells += int(np.count_nonzero(rm))
-        we, he = _exact_size(a["w_mm"], a["h_mm"], p.angle)
+        we, he = _exact_size(a["w_mm"] * esc, a["h_mm"] * esc, p.angle)
         ctx.placements.append(Placement(
             uid=p.uid, asset_id=p.asset_id, page=pi, x=p.x, y=p.y,
             w=we, h=he, angle=p.angle, mini=p.mini, scale=p.scale,
-            pinned=True, rot90=False))
+            pinned=True, rot90=False, w0=p.w0 or a["w_mm"] * esc,
+            h0=p.h0 or a["h_mm"] * esc))
 
     # 2) copias normales (todas menos las ya fijadas)
     from collections import Counter
@@ -676,16 +915,24 @@ def _one_pass(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
         inst = [inst[i] for i in orden_idx]
 
     unplaced: list[str] = []
-    angles_n = _angles(rot_norm)
+    angles_n = list(angles_override) if angles_override else _angles(rot_norm)
+    angulos_fijos = settings.get("_angulos_por_asset") or {}
     angulos_cache: dict[str, list[float]] = {}
+    # la rejilla de progreso de esta pasada: 85% para las copias y 15% para
+    # los minis (que rellenan después); así la barra avanza SIEMPRE
+    p_lo, p_hi = frac
+    p_med = p_lo + (p_hi - p_lo) * 0.85
+    if progress:
+        progress(p_lo, len(ctx.pages))
     for k, (_, a) in enumerate(inst):
         if deadline is not None and time.time() > deadline:
             # presupuesto agotado: el resto queda sin colocar (mejor parcial)
             unplaced += [x["id"] for _, x in inst[k:]]
             break
         if a["id"] not in angulos_cache:
+            angs = angulos_fijos.get(a["id"]) or angles_n
             angulos_cache[a["id"]] = _angulos_unicos(
-                ctx, a["id"], a["w_mm"], a["h_mm"], masks[a["id"]], angles_n)
+                ctx, a["id"], a["w_mm"], a["h_mm"], masks[a["id"]], angs)
         ok = _try_place(ctx, a["id"], a.get("name", ""), a["w_mm"], a["h_mm"],
                         1.0, False, masks[a["id"]],
                         angulos_cache[a["id"]], new_page_ok=True,
@@ -693,15 +940,19 @@ def _one_pass(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
         if not ok:
             unplaced.append(a["id"])
         if progress and (k % 4 == 0 or k == len(inst) - 1):
-            lo, hi = frac
-            progress(lo + (hi - lo) * (k + 1) / max(1, len(inst)),
+            progress(p_lo + (p_med - p_lo) * (k + 1) / max(1, len(inst)),
                      len(ctx.pages))
+    if progress:
+        progress(p_med, len(ctx.pages))
 
     # 3) minis: rellenan huecos (no cuentan como copias; dan eficiencia y
     #    pegatinas extra). La cuota de cada elemento decide CUÁNTOS minis
     #    recibe respecto a los demás (1 = equitativo; 3 = el triple) y el
     #    TAMAÑO lo elige el optimizador (siempre menor que el original).
-    if settings.get("usar_minis"):
+    #    REGLA DE ORO: si alguna copia normal no ha cabido, NO se colocan
+    #    minis: ese espacio es para las copias (los minis solo rellenan lo
+    #    que sobra de verdad, nunca quitan sitio ni tiempo a lo que debe caber).
+    if settings.get("usar_minis") and not unplaced:
         min_mm = float(settings.get("mini_min_mm", 5.0))
         max_res = min(0.99, max(0.01, float(
             settings.get("mini_max_rescale", 100.0))) / 100.0)
@@ -713,8 +964,13 @@ def _one_pass(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
         borde_mini = str(settings.get("mini_borde_modo", "proporcional"))
         sin_borde = settings.get("_sin_borde") or {}
         off_glob = settings.get("_offset_global")
-        angles_m = _angles(rot_mini)
 
+        # OJO: los minis se colocan en la MISMA rejilla que las copias. En una
+        # rejilla más gruesa iban más rápidos, pero la aproximación de las
+        # copias (redondeo de hasta media celda) dejaba solapes REALES que la
+        # red de seguridad tenía que deshacer (52 recolocaciones y segundos de
+        # más). Con la misma rejilla no hay redondeo y el resultado es exacto;
+        # para que siga siendo rápido se usa FIRST-FIT (el primer hueco vale).
         cache_mini: dict = {}
 
         def imagen_mini(a, s_escala):
@@ -764,7 +1020,7 @@ def _one_pass(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
             cache_mini[clave_m] = out
             return out
 
-        angles_m = _angles(rot_mini)
+        angles_m = _angles_mini(rot_mini)
         cand = [a for a in assets if a.get("mini_enabled") and a["id"] in masks]
         if cand:
             pesos = {a["id"]: min(100.0, max(1.0, float(a.get("mini_quota", 1.0))))
@@ -794,8 +1050,9 @@ def _one_pass(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
                         s = comunes[a["id"]]
                         img_m, w_m, h_m = imagen_mini(a, s)
                         colocado = _try_place(
-                            ctx, a["id"], a.get("name", ""), w_m, h_m, s, True,
-                            img_m, angles_m, new_page_ok=False)
+                            ctx, a["id"], a.get("name", ""), w_m, h_m, s,
+                            True, img_m, angles_m, new_page_ok=False,
+                            first_fit=True)
                     else:
                         # lista de tamaños deseada o mayor que quepa (desc.)
                         escala_lista = _escalas_lista(lista_mm, lista_modo,
@@ -808,7 +1065,8 @@ def _one_pass(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
                             if _try_place(ctx, a["id"], a.get("name", ""),
                                           w_m, h_m, s, True,
                                           img_m, angles_m,
-                                          new_page_ok=False):
+                                          new_page_ok=False,
+                                          first_fit=True):
                                 colocado = True
                                 comunes.setdefault(a["id"], s)
                                 break
@@ -816,9 +1074,29 @@ def _one_pass(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
                         counts[a["id"]] += 1
                         total += 1
                         hecho = True
+                        # rampa suave hacia el final de la pasada: los minis
+                        # van llenando huecos cada vez más pequeños
+                        if progress and total % 3 == 0:
+                            progress(p_med + (p_hi - p_med) *
+                                     (1.0 - 1.0 / (1.0 + total / 15.0)),
+                                     len(ctx.pages))
                         break
                 if not hecho:
                     break
+        if progress:
+            progress(p_hi, len(ctx.pages))
+
+    # compacidad: área del bbox ocupado en cada página (desempate de calidad)
+    comp = 0.0
+    for occ in ctx.pages:
+        filas = np.any(occ > 0, axis=1)
+        cols = np.any(occ > 0, axis=0)
+        if filas.any():
+            r0, r1 = int(np.where(filas)[0][0]), int(np.where(filas)[0][-1])
+            c0, c1 = int(np.where(cols)[0][0]), int(np.where(cols)[0][-1])
+            comp += ((r1 - r0 + 1) * (c1 - c0 + 1)
+                     * ctx.cell * ctx.cell)
+    result.compacidad = comp
 
     result.placements = ctx.placements
     result.pages = max(1, len(ctx.pages)) if ctx.pages else 0
@@ -838,12 +1116,24 @@ def _one_pass(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
     return result
 
 
+def _clave_estanca(res: PackResult) -> tuple:
+    """Clave para detectar ESTANCAMIENTO (sin compacidad, que casi siempre
+    cambia y haría creer que cada pasada mejora)."""
+    return (len(res.unplaced), max(0, res.pages), round(res.efficiency, 4))
+
+
 def _clave(res: PackResult) -> tuple:
     """Orden de calidad de un resultado: primero los VÁLIDOS (con páginas),
-    luego menos sin colocar, menos páginas y más eficiencia. Un resultado
-    vacío (presupuesto agotado antes de empezar) nunca puede ganar."""
+    luego menos sin colocar, menos páginas, más eficiencia y, a igualdad,
+    la colocación más RECOGIDA (bbox ocupado menor).
+
+    La compacidad importa porque con el mismo número de piezas en la misma
+    página la eficiencia es idéntica: sin este desempate, cualquier
+    colocación válida valdría igual y el resultado podía quedar desparramado.
+    """
     vacio = 0 if res.pages > 0 else 1
-    return (vacio, len(res.unplaced), max(0, res.pages), -res.efficiency)
+    return (vacio, len(res.unplaced), max(0, res.pages), -res.efficiency,
+            res.compacidad)
 
 
 def _cruce_orden(a: list[int], b: list[int], rnd) -> list[int]:
@@ -866,7 +1156,8 @@ def _cruce_orden(a: list[int], b: list[int], rnd) -> list[int]:
 def _pase_genetico(assets: list[dict], masks: dict[str, Image.Image],
                    area: CutArea, settings: dict,
                    pinned: list[Placement] | None, deadline: float,
-                   progress=None) -> PackResult | None:
+                   progress=None,
+                   masks_reales: dict | None = None) -> PackResult | None:
     """Algoritmo GENÉTICO sobre el orden de inserción.
 
     Cada individuo es un orden de colocación; se evalúa con el colocador por
@@ -880,8 +1171,14 @@ def _pase_genetico(assets: list[dict], masks: dict[str, Image.Image],
     if n <= 0:
         return None
 
-    def evaluar(perm: list[int]) -> PackResult:
-        return _one_pass(assets, masks, area, settings, pinned, "area", rnd,
+    # La POBLACIÓN se evalúa en rejilla gruesa (rápida): el orden de inserción
+    # importa más que el milímetro exacto. Al final, el mejor orden se
+    # reevalúa con la calidad pedida y solo se cambia si mejora de verdad.
+    ajustes_rapidos = dict(settings)
+    ajustes_rapidos["opt_calidad"] = "rapida"
+
+    def evaluar(perm: list[int], st: dict) -> PackResult:
+        return _one_pass(assets, masks, area, st, pinned, "area", rnd,
                          None, (0.05, 0.95), deadline=deadline,
                          orden_idx=perm)
 
@@ -895,17 +1192,24 @@ def _pase_genetico(assets: list[dict], masks: dict[str, Image.Image],
         poblacion.append(q)
 
     mejores: list[tuple] = []
+    sin_mejora = 0
     for generacion in range(60):
         if time.time() > deadline and mejores:
             break
+        if sin_mejora >= 4:
+            break                # estancado: no gastar el presupuesto entero
         resultados = []
         for perm in poblacion:
-            r = evaluar(perm)
+            r = evaluar(perm, ajustes_rapidos)
             resultados.append((clave(r), tuple(perm), r))
         resultados.sort(key=lambda t: t[0])
+        anterior = (_clave_estanca(mejores[0][2]) if mejores else None)
         mejores = resultados[:4]
+        sin_mejora = 0 if (anterior is None
+                           or _clave_estanca(mejores[0][2]) < anterior) \
+            else sin_mejora + 1
         if progress:
-            progress(min(0.95, 0.1 + 0.85 * (generacion + 1) / 12.0),
+            progress(min(0.80, 0.30 + 0.50 * (generacion + 1) / 12.0),
                      mejores[0][2].pages)
         if not mejores[0][2].unplaced and mejores[0][2].pages == 1:
             break                               # objetivo cumplido
@@ -919,12 +1223,24 @@ def _pase_genetico(assets: list[dict], masks: dict[str, Image.Image],
                 hijo[i], hijo[j] = hijo[j], hijo[i]
             nueva.append(hijo)
         poblacion = nueva
-    return mejores[0][2] if mejores else None
+    if not mejores:
+        return None
+    # refino final con la calidad REAL: si mejora, se devuelve; si no, el
+    # resultado grueso (que ya es válido y completo)
+    if time.time() < deadline:
+        fino = evaluar(list(mejores[0][1]), settings)
+        _recalcular_eficiencia(fino, masks_reales or masks, area, assets)
+        _recalcular_eficiencia(mejores[0][2], masks_reales or masks, area,
+                               assets)
+        if clave(fino) < clave(mejores[0][2]):
+            return fino
+    return mejores[0][2]
 
 
 def _sin_solapes(res: PackResult, assets: list[dict],
                  masks: dict[str, Image.Image], area: CutArea,
-                 settings: dict, extra: dict) -> PackResult:
+                 settings: dict, extra: dict,
+                 cell_hint: float | None = None) -> PackResult:
     """RED DE SEGURIDAD: garantiza que ninguna pieza solape a otra.
 
     Reconstruye la rejilla fina con las máscaras REALES y revalida cada
@@ -933,12 +1249,23 @@ def _sin_solapes(res: PackResult, assets: list[dict],
     y, si no cabe en ninguna hoja, se le abre una NUEVA hoja para ella sola
     (una pieza sin compañía nunca puede solapar). Así el resultado SIEMPRE
     cumple: nada fuera del área, nada solapado y nada sin colocar.
+
+    `cell_hint`: si las colocaciones se hicieron en una rejilla más gruesa,
+    se valida con ESA rejilla (mismo criterio) para no "corregir" piezas que
+    solo difieren por el redondeo de la rejilla (eso movía piezas sin motivo).
     """
     por_id = {a["id"]: a for a in assets}
     # MULTINIVEL mínimo: el cálculo va con su celda, la VALIDACIÓN de
     # contactos a 0,25 mm (media resolución de salida)
-    cell = min(0.25, _cell_para(len(res.placements) or 1,
-                                str(settings.get("opt_calidad", "normal"))))
+    if cell_hint and cell_hint > 0:
+        cell = min(0.5, max(0.25, float(cell_hint)))
+    elif res.cell:
+        # misma rejilla con la que se calculó: mismo criterio (sin falsos
+        # positivos por redondeo al revalidar en una rejilla más fina)
+        cell = min(0.5, max(0.25, float(res.cell)))
+    else:
+        cell = min(0.25, _cell_para(len(res.placements) or 1,
+                                    str(settings.get("opt_calidad", "normal"))))
     ctx = _Ctx(area, settings, cell=cell)
     ctx.cache = extra.get("cache", {})
     ctx.out_cache = extra.get("out_cache", {})
@@ -951,8 +1278,10 @@ def _sin_solapes(res: PackResult, assets: list[dict],
             continue
         while len(ctx.pages) <= p.page:
             ctx.new_page()
-        # ¿cabe donde está, sin tocar lo ya validado?
-        rm, dm = ctx.rotated(p.asset_id, a["w_mm"], a["h_mm"], p.angle, img)
+        # ¿cabe donde está, sin tocar lo ya validado? (los minis, a escala)
+        esc = float(p.scale or 1.0)
+        rm, dm = ctx.rotated(p.asset_id, a["w_mm"] * esc, a["h_mm"] * esc,
+                             p.angle, img)
         h, w = dm.shape
         # OJO: la máscara lleva relleno (pad), así que hay que descontar el
         # desplazamiento del CONTENIDO dentro del array. Sin esto la red
@@ -1007,7 +1336,7 @@ def _sin_solapes(res: PackResult, assets: list[dict],
 
 def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
          settings: dict, pinned: list[Placement] | None = None,
-         progress=None) -> PackResult:
+         progress=None, presupuesto_s: float | None = None) -> PackResult:
     """Empaqueta por silueta eligiendo método de optimización.
 
     Métodos (ajuste `opt_metodo`):
@@ -1017,14 +1346,45 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
       * genetic  – algoritmo genético del orden de inserción (mejor calidad)
 
     Todos usan SIEMPRE la silueta real y prueban los ángulos permitidos.
+    `presupuesto_s` permite acotar el tiempo (p. ej. cuando ya se gastó parte
+    del presupuesto en un intento previo por cajas).
     """
     import random as _random
     from .config import tiempo_optimo
 
+    # MODO CHAPAS (redondas): las piezas son círculos y el ángulo da igual.
+    # Se empaqueta con máscaras SINTÉTICAS de círculo (exacto y rápido) y se
+    # fuerza ángulo 0; la validación final usa las siluetas REALES.
+    masks_reales = masks
+    angulos_por_asset: dict[str, list[float]] = {}
+    forma_piezas = str(settings.get("modo_forma", "siluetas"))
+    if forma_piezas == "redondas" and masks:
+        masks = _mascaras_redondas(assets, masks)
+        settings = dict(settings, rotacion="no", mini_rotacion="no")
+    elif forma_piezas == "siluetas" and masks:
+        # SILUETAS SIMPLES (círculo / rectángulo aunque sea redondeado /
+        # triángulo): se empaquetan con su forma ANALÍTICA y menos ángulos;
+        # así encajan mucho mejor (a veces una página menos) sin solapes,
+        # porque la red final valida con el alfa REAL.
+        try:
+            masks, angulos_por_asset = _simplificar_simples(
+                assets, masks,
+                umbral=float(settings.get("simplificar_threshold", 0.96)),
+                max_vertices=int(settings.get("simplificar_max_vertices",
+                                              12) or 12))
+        except Exception:
+            masks, angulos_por_asset = masks_reales, {}
+    if angulos_por_asset:
+        settings = dict(settings, _angulos_por_asset=angulos_por_asset)
+    settings = dict(settings, _masks_reales=masks_reales)
+
     t0 = time.time()
     n_prev = sum(max(0, int(a.get("copies", 1))) for a in assets) + \
         len(pinned or [])
-    t_max = max(0.5, tiempo_optimo(settings, n_prev))
+    if presupuesto_s is not None:
+        t_max = max(0.5, float(presupuesto_s))
+    else:
+        t_max = max(0.5, tiempo_optimo(settings, n_prev))
     metodo = str(settings.get("opt_metodo", "auto")).lower()
     # compatibilidad con los nombres antiguos
     if metodo in ("silueta_rapido", "silueta", "maxrects", "skyline"):
@@ -1070,9 +1430,35 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
     semilla["opt_calidad"] = "rapida"
     # la semilla usa la MISMA rotación que se ha pedido (libre = todos los
     # ángulos); antes la forzaba a 90 y se perdían los giros
+    t_seed = time.time()
     best = _one_pass(assets, masks, area, semilla, pinned, "area", rnd,
-                     progress, (0.02, 0.15), deadline=None, contacto=False,
+                     progress, (0.02, 0.30), deadline=None, contacto=False,
+                     angles_override=_angles_semilla(
+                         str(settings.get("rotacion", "90"))),
                      **extra)
+    t_seed = max(0.02, time.time() - t_seed)
+    # eficiencia JUSTA (a resolución de las máscaras, no de la rejilla): así
+    # se pueden comparar resultados calculados con celdas distintas
+    _recalcular_eficiencia(best, masks_reales, area, assets)
+    if best.unplaced:
+        # la semilla reducida no bastó (giros finos): segunda pasada completa
+        # con TODOS los ángulos permitidos (misma rejilla gruesa, rápida)
+        alt = _one_pass(assets, masks, area, semilla, pinned, "area", rnd,
+                        progress, (0.02, 0.30), deadline=None, contacto=False,
+                        **extra)
+        _recalcular_eficiencia(alt, masks_reales, area, assets)
+        if _clave(alt) < _clave(best):
+            best = alt
+    if best.pages > 1 and str(settings.get("rotacion", "90")) == "libre":
+        # los giros RECTOS suelen necesitar menos hojas que los libres: una
+        # segunda semilla con 0/90/180/270 evita perder una página por probar
+        # solo ángulos intermedios
+        alt2 = _one_pass(assets, masks, area, semilla, pinned, "area", rnd,
+                         progress, (0.02, 0.30), deadline=None, contacto=False,
+                         angles_override=[0.0, 90.0, 180.0, 270.0], **extra)
+        _recalcular_eficiencia(alt2, masks_reales, area, assets)
+        if _clave(alt2) < _clave(best):
+            best = alt2
 
     if metodo == "rapido":
         # la semilla (celda gruesa, completa) ya es válida y rapidísima
@@ -1080,31 +1466,134 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
         best.elapsed_s = time.time() - t0
         return best
 
+    # ---- CAMINO RÁPIDO: trabajo HOLGADO (todo cabe en una hoja) ----------
+    # Si la semilla ya coloca TODO en una sola página, no tiene sentido gastar
+    # el presupuesto entero: un refino ACOTADO y se devuelve. Así los trabajos
+    # fáciles responden en 2-3 s (antes agotaban el tope aunque sobrara sitio).
+    if (metodo in ("auto", "greedy", "largest", "voronoi")
+            and not best.unplaced and best.pages <= 1):
+        # variantes RÁPIDAS en paralelo (misma rejilla gruesa, otras órdenes):
+        # dan una base mejor sin gastar presupuesto. En modo libre se añade
+        # una variante con los giros rectos, que suele quedar más recogida.
+        # Con minis NO se hacen (cada pasada ya es cara) y con semillas lentas
+        # tampoco: en esos casos manda la rapidez (el presupuesto es corto).
+        if (not settings.get("usar_minis") and t_seed < 0.9
+                and time.time() < deadline - 0.5):
+            if progress:
+                progress(0.33, best.pages)
+            try:
+                from concurrent.futures import (ThreadPoolExecutor,
+                                                as_completed)
+                import random as _r
+                import os as _os
+                sem_ang = _angles_semilla(str(settings.get("rotacion", "90")))
+                variantes: list[tuple[str, list[float] | None]] = [
+                    ("alto", sem_ang), ("ancho", sem_ang)]
+                if str(settings.get("rotacion", "90")) == "libre":
+                    # los giros rectos suelen dejar la colocación más recogida
+                    variantes.append(("area", [0.0, 90.0, 180.0, 270.0]))
+                n_hilos = max(2, min(6, (_os.cpu_count() or 4)))
+                fin_var = min(deadline, time.time() + 1.5)
+                with ThreadPoolExecutor(max_workers=n_hilos) as ex:
+                    futuros = [
+                        ex.submit(_one_pass, assets, masks, area, semilla,
+                                  pinned, o, _r.Random(777 + i), None,
+                                  (0.30, 0.45), fin_var, None, False, False,
+                                  cache_compartida, out_compartida,
+                                  grid_compartida, ang)
+                        for i, (o, ang) in enumerate(variantes)]
+                    for f in as_completed(futuros):
+                        try:
+                            res = f.result()
+                        except Exception:
+                            continue
+                        _recalcular_eficiencia(res, masks_reales, area, assets)
+                        if (res.placements and not res.unplaced
+                                and res.pages <= best.pages
+                                and _clave(res) < _clave(best)):
+                            best = res
+            except Exception:
+                pass
+        if progress:
+            progress(0.45, best.pages)
+        cell_sem = _celda_ajustada(
+            _cell_para(n_total, "rapida"), area)
+        cell_fin = _celda_ajustada(
+            _cell_para(n_total, str(settings.get("opt_calidad", "normal"))),
+            area)
+        # estimación del coste del refino (la rejilla fina cuesta ~(c1/c2)²)
+        coste = t_seed * (cell_sem / cell_fin) ** 2
+        if time.time() + coste <= min(deadline, time.time() + 1.2):
+            ref = _one_pass(assets, masks, area, settings, pinned, "area",
+                            rnd, progress, (0.45, 0.78),
+                            deadline=min(deadline, time.time() + 1.2), **extra)
+            _recalcular_eficiencia(ref, masks_reales, area, assets)
+            if (ref.placements and not ref.unplaced and ref.pages <= best.pages
+                    and _clave(ref) < _clave(best)):
+                best = ref
+        elif progress:
+            progress(0.60, best.pages)   # refino omitido: la barra no se para
+        if best.placements and not pinned and time.time() < deadline:
+            try:
+                if progress:
+                    progress(0.82, best.pages)
+                if compactar(assets, masks, area, settings, best.placements,
+                             cell_fin, deadline=min(deadline,
+                                                    time.time() + 0.5)):
+                    _recalcular_eficiencia(best, masks_reales, area, assets)
+            except Exception:
+                pass
+        try:
+            if progress:
+                progress(0.94, best.pages)
+            best = _sin_solapes(best, assets, masks_reales, area,
+                                settings, extra)
+        except Exception:
+            pass
+        if progress:
+            progress(0.99, best.pages)
+        best.method = metodo
+        best.elapsed_s = time.time() - t0
+        return best
+
     if metodo == "largest":
         res_l = _one_pass(assets, masks, area, settings, pinned, "area", rnd,
-                          progress, (0.05, 0.95), deadline=deadline_1,
+                          progress, (0.30, 0.80), deadline=deadline_1,
                           contacto=False, **extra)
+        _recalcular_eficiencia(res_l, masks_reales, area, assets)
         if _clave(res_l) < _clave(best):
             best = res_l
     elif metodo == "voronoi":
         res_v = _one_pass(assets, masks, area, settings, pinned, "area", rnd,
-                          progress, (0.05, 0.95), deadline=deadline_1,
+                          progress, (0.30, 0.80), deadline=deadline_1,
                           voronoi=True, **extra)
+        _recalcular_eficiencia(res_v, masks_reales, area, assets)
         if _clave(res_v) < _clave(best):
             best = res_v
     elif metodo == "genetic":
-        best = _pase_genetico(assets, masks, area, settings, pinned, deadline,
-                              progress)
-        if best is None:
-            best = _one_pass(assets, masks, area, settings, pinned, "area",
-                             rnd, progress, (0.05, 0.95), deadline=deadline_1,
-                             **extra)
+        # NUNCA peor que la semilla: si el genético se queda sin tiempo a
+        # medias (o deja piezas fuera), gana la semilla, que es completa
+        res_gen = _pase_genetico(assets, masks, area, settings, pinned,
+                                 deadline, progress,
+                                 masks_reales=masks_reales)
+        if res_gen is not None:
+            _recalcular_eficiencia(res_gen, masks_reales, area, assets)
+            if _clave(res_gen) < _clave(best):
+                best = res_gen
     else:  # greedy: Largest First como solución inicial + multi-arranque paralelo
-        res_g = _one_pass(assets, masks, area, settings, pinned, "area", rnd,
-                          progress, (0.05, 0.35), deadline=deadline_1,
-                          **extra)
-        if _clave(res_g) < _clave(best):
-            best = res_g
+        # TRABAJOS GRANDES (semilla lenta): la rejilla fina tarda demasiado
+        # por pasada (una sola se comería el presupuesto), así que se hacen
+        # MUCHAS pasadas GRUESAS en paralelo: más intentos, mejor resultado y
+        # bastante menos tiempo. En trabajos pequeños se afina como siempre.
+        lento = t_seed > 1.0
+        ajustes_pase = semilla if lento else settings
+        if not lento:
+            res_g = _one_pass(assets, masks, area, settings, pinned, "area",
+                              rnd, progress, (0.30, 0.55),
+                              deadline=deadline_1, **extra)
+            _recalcular_eficiencia(res_g, masks_reales, area, assets)
+            if _clave(res_g) < _clave(best):
+                best = res_g
         if (not (not best.unplaced and best.pages == 1)
                 and time.time() < deadline):
             ordenes = ["alto", "ancho"] + \
@@ -1115,26 +1604,37 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
                 import random as _r
                 import os as _os
                 n_hilos = max(2, min(8, (_os.cpu_count() or 4)))
-                with ThreadPoolExecutor(max_workers=n_hilos) as ex:
-                    futuros = {
-                        ex.submit(_one_pass, assets, masks, area, settings,
-                                  pinned, o, _r.Random(20260925 + i), None,
-                                  (0.35, 0.95), deadline, None, contacto,
-                                  voronoi, cache_compartida, out_compartida,
-                                  grid_compartida): o
-                        for i, o in enumerate(ordenes)
-                    }
-                    for f in as_completed(futuros):
-                        try:
-                            res = f.result()
-                        except Exception:
-                            continue
-                        if _clave(res) < _clave(best):
-                            best = res
-                        if not best.unplaced and best.pages == 1:
-                            break            # objetivo cumplido: una hoja
-                        if time.time() > deadline:
-                            break
+                ex = ThreadPoolExecutor(max_workers=n_hilos)
+                futuros = {
+                    ex.submit(_one_pass, assets, masks, area, ajustes_pase,
+                              pinned, o, _r.Random(20260925 + i), None,
+                              (0.55, 0.80), deadline, None, contacto,
+                              voronoi, cache_compartida, out_compartida,
+                              grid_compartida): o
+                    for i, o in enumerate(ordenes)
+                }
+                sin_mejora = 0
+                for f in as_completed(futuros):
+                    try:
+                        res = f.result()
+                    except Exception:
+                        continue
+                    _recalcular_eficiencia(res, masks_reales, area, assets)
+                    if _clave(res) < _clave(best):
+                        best = res
+                    if _clave_estanca(res) < _clave_estanca(best):
+                        sin_mejora = 0
+                    else:
+                        sin_mejora += 1
+                    if not best.unplaced and best.pages == 1:
+                        break            # objetivo cumplido: una hoja
+                    # ESTANCAMIENTO: si varias pasadas seguidas no mejoran,
+                    # seguir es tirar tiempo (el resultado ya no cambia)
+                    if sin_mejora >= 6:
+                        break
+                    if time.time() > deadline:
+                        break
+                ex.shutdown(wait=False, cancel_futures=True)
             except Exception:
                 pass
             if progress:
@@ -1146,22 +1646,31 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
     assert best is not None
     # fase de compactación (estilo DeepNest): acerca cada pieza al borde,
     # pero SOLO con el tiempo que quede (nunca se pasa del presupuesto)
+    if progress:
+        progress(0.82, best.pages)
     if best.placements and not pinned:
         fin = min(deadline, time.time() + 1.5)
         if time.time() < fin:
             try:
-                cell = _cell_para(n_total,
-                                  str(settings.get("opt_calidad", "normal")))
+                cell = _celda_ajustada(
+                    _cell_para(n_total,
+                               str(settings.get("opt_calidad", "normal"))),
+                    area)
                 if compactar(assets, masks, area, settings, best.placements,
                              cell, deadline=fin):
-                    _recalcular_eficiencia(best, masks, area)
+                    _recalcular_eficiencia(best, masks_reales, area, assets)
             except Exception:
                 pass
     # RED DE SEGURIDAD final: nada solapado, pase lo que pase
+    if progress:
+        progress(0.93, best.pages)
     try:
-        best = _sin_solapes(best, assets, masks, area, settings, extra)
+        best = _sin_solapes(best, assets, masks_reales, area, settings,
+                            extra)
     except Exception:
         pass
+    if progress:
+        progress(0.99, best.pages)
     best.method = metodo
     best.elapsed_s = time.time() - t0
     return best
@@ -1185,7 +1694,9 @@ def _reconstruir(assets: list[dict], masks: dict, area: CutArea, settings: dict,
         while len(ctx.pages) <= max(0, p.page):
             ctx.new_page()
         pi = max(0, p.page)
-        rm, dm = ctx.rotated(p.asset_id, a["w_mm"], a["h_mm"], p.angle, img)
+        esc = float(p.scale or 1.0)
+        rm, dm = ctx.rotated(p.asset_id, a["w_mm"] * esc, a["h_mm"] * esc,
+                             p.angle, img)
         ty = int(round((p.y - ctx.y0) / cell)) - _offset_rm(rm)
         tx = int(round((p.x - ctx.x0) / cell)) - _offset_rm(rm, True)
         h, w = dm.shape
@@ -1231,11 +1742,15 @@ def compactar(assets: list[dict], masks: dict, area: CutArea, settings: dict,
                 continue
             ctx = _reconstruir(assets, masks, area, settings, placements, cell,
                                saltar=p.uid)
-            angulos = _angulos_unicos(ctx, a["id"], a["w_mm"], a["h_mm"], img,
-                                      _angles(rot))
+            esc = float(p.scale or 1.0)
+            angs = (settings.get("_angulos_por_asset") or {}).get(a["id"]) \
+                or _angles(rot)
+            angulos = _angulos_unicos(ctx, a["id"], a["w_mm"] * esc,
+                                      a["h_mm"] * esc, img, angs)
             mejor = None
             for ang in angulos:
-                rm, dm = ctx.rotated(a["id"], a["w_mm"], a["h_mm"], ang, img)
+                rm, dm = ctx.rotated(a["id"], a["w_mm"] * esc,
+                                     a["h_mm"] * esc, ang, img)
                 h, w = dm.shape
                 if h > ctx.H or w > ctx.W:
                     continue
@@ -1258,15 +1773,23 @@ def compactar(assets: list[dict], masks: dict, area: CutArea, settings: dict,
             _, y_mm, x_mm, ang = mejor
             if y_mm < p.y - 1e-6 or (abs(y_mm - p.y) < 1e-6 and x_mm < p.x - 1e-6):
                 p.y, p.x, p.angle = y_mm, x_mm, ang
-                we, he = _exact_size(a["w_mm"], a["h_mm"], ang)
+                we, he = _exact_size(a["w_mm"] * esc, a["h_mm"] * esc, ang)
                 p.w, p.h = we, he
                 mejoro = hubo = True
         if not mejoro:
             break
     return hubo
 
-def _recalcular_eficiencia(result, masks: dict, area: CutArea) -> None:
+def _recalcular_eficiencia(result, masks: dict, area: CutArea,
+                           assets: list[dict] | None = None) -> None:
     """Recalcula páginas y eficiencia REAL (área de siluetas / área usada)."""
+    # un resultado VACÍO no es válido: se queda en 0 páginas para que nunca
+    # pueda ganar a uno completo en las comparaciones (bug real: una pasada
+    # cortada por tiempo parecía "perfecta" por no tener nada sin colocar)
+    if not result.placements:
+        result.pages = 0
+        result.efficiency = 0.0
+        return
     fracs = {}
     for aid, img in masks.items():
         try:
@@ -1274,10 +1797,21 @@ def _recalcular_eficiencia(result, masks: dict, area: CutArea) -> None:
             fracs[aid] = float(np.count_nonzero(a > 1)) / max(1, a.size)
         except Exception:
             fracs[aid] = 1.0
+    por_id = {a["id"]: a for a in (assets or [])}
     paginas = max((p.page for p in result.placements), default=0) + 1
     result.pages = paginas
     # área ÚTIL de verdad: el polígono recortable (con sus esquinas), no el bbox
     usada = area.area_mm2 * paginas
-    area_sil = sum(p.w * p.h * fracs.get(p.asset_id, 1.0)
-                   for p in result.placements)
+    # OJO: la silueta NO cambia de área al girar. Usar el bbox rotado
+    # (p.w·p.h) inflaba la eficiencia en los giros libres; se usa el tamaño
+    # ORIGINAL del elemento (con su escala) por la fracción de silueta.
+    area_sil = 0.0
+    for p in result.placements:
+        a = por_id.get(p.asset_id)
+        if a is not None:
+            s = float(p.scale or 1.0)
+            area_sil += (float(a["w_mm"]) * float(a["h_mm"]) * s * s
+                         * fracs.get(p.asset_id, 1.0))
+        else:
+            area_sil += p.w * p.h * fracs.get(p.asset_id, 1.0)
     result.efficiency = min(1.0, area_sil / usada) if usada > 0 else 0.0

@@ -354,3 +354,34 @@ export function IconoCorazon({ size }: P) {
     </Svg>
   );
 }
+
+/** Chapa (pin redondo): círculo con brillo y aguja. */
+export function IconoChapa({ size }: P) {
+  return (
+    <Svg size={size}>
+      <circle cx="12" cy="12" r="8.5" />
+      <circle cx="12" cy="12" r="4.5" />
+      <path d="M9.4 9.2a3.4 3.4 0 0 1 2.2-1" />
+    </Svg>
+  );
+}
+
+/** Pegatina: cuadrado redondeado con la esquina despegada. */
+export function IconoPegatina({ size }: P) {
+  return (
+    <Svg size={size}>
+      <path d="M4.5 8.5A4 4 0 0 1 8.5 4.5h7a4 4 0 0 1 4 4v3.2a4 4 0 0 1-1.2 2.9l-4.7 4.7a4 4 0 0 1-2.8 1.2H8.5a4 4 0 0 1-4-4z" />
+      <path d="M14 19.5v-3.6a2 2 0 0 1 2-2h3.4" />
+    </Svg>
+  );
+}
+
+/** Cartel: rectángulo colgado de dos clavos. */
+export function IconoCartel({ size }: P) {
+  return (
+    <Svg size={size}>
+      <rect x="4" y="4.5" width="16" height="11" rx="1.5" />
+      <path d="M8 19l2.6-3.5M16 19l-2.6-3.5" />
+    </Svg>
+  );
+}

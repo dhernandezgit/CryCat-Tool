@@ -9,6 +9,33 @@ import { createContext, useContext, type ReactNode } from "react";
 export type Idioma = "es" | "en";
 
 export const EN: Record<string, string> = {
+  // ----- modos (chapas / pegatinas / carteles) y actualización -----
+  "Chapas": "Badges",
+  "Redondas, sin girar": "Round, no rotation",
+  "Pegatinas": "Stickers",
+  "Siluetas, cualquier ángulo": "Silhouettes, any angle",
+  "Carteles": "Posters",
+  "Rectángulos, giros de 90°": "Rectangles, 90° turns",
+  "Modo {n}: {d}": "Mode {n}: {d}",
+  "Modo «{n}» aplicado": "Mode “{n}” applied",
+  "Ajustes guardados en «{n}»": "Settings saved to “{n}”",
+  "No se pudo guardar el modo": "Could not save the mode",
+  "No se pudo cambiar el nombre": "Could not rename",
+  "No se pudo vaciar el hueco": "Could not clear the slot",
+  "Cambiar el nombre de este modo": "Rename this mode",
+  "Aplicar este modo": "Apply this mode",
+  "Sobrescribir con los ajustes actuales": "Overwrite with current settings",
+  "Vaciar este hueco": "Clear this slot",
+  "Guardar aquí los ajustes actuales": "Save current settings here",
+  "Nombre del modo": "Mode name",
+  "Actualizando CryCat…": "Updating CryCat…",
+  "Reiniciando con la versión nueva…": "Restarting with the new version…",
+  "Preparando la actualización…": "Preparing the update…",
+  "Tus ajustes, imágenes y colocación se guardan antes de actualizar: al volver, todo queda exactamente como estaba.":
+    "Your settings, images and layout are saved before updating: when it comes back, everything is exactly as it was.",
+  "La página se recargará sola cuando el motor nuevo esté listo…":
+    "The page will reload by itself when the new engine is ready…",
+  "Cerrar": "Close",
   // ------------------------------------------------------------- general --
   "Cargando CryCat…": "Loading CryCat…",
 
@@ -179,6 +206,8 @@ export const EN: Record<string, string> = {
   "Recalcular la colocación (ignora los elementos fijados)":
     "Recalculate the layout (ignores pinned items)",
   " · ~{x} restante (máx {y})": " · ~{x} left (max {y})",
+  " · ~{x} restante": " · ~{x} remaining",
+  "Tiempo máximo de este cálculo: {y}": "Maximum time for this run: {y}",
   "Contorno: {modo} (pulsa para cambiar)":
     "Outline: {modo} (press to change)",
   "Contorno exterior (con bordes)": "Outer outline (with borders)",

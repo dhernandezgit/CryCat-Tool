@@ -94,28 +94,38 @@ DEFAULTS: dict = {
     # General
     "espacio_mm": 2.0,
     "margen_mm": 1.0,            # margen de seguridad a los límites (mm)
-    "rotacion": "90",            # no | 90 (0/90/180/270) | libre
+    "rotacion": "libre",         # no | 90 (0/90/180/270) | libre (por defecto)
     "dpi_salida": 300,
     "pagina": "A4",
     "pagina_w": APP_W,           # mm (A4 vertical)
     "pagina_h": APP_H,
     "maquina": "maker3",         # maker3 | maker | maker5 | estandar | joy
     "usar_minis": False,       # desactivado por defecto (se activa en la barra)
-    # Minis
-    "mini_min_mm": 10.0,
+    # Forma de las piezas (modos rápidos): siluetas (pegatinas), redondas
+    # (chapas: círculos, ángulo 0) o rectangulos (carteles: cajas, giros 90)
+    "modo_forma": "siluetas",
+    # Minis (por defecto: 20 mm, tamaños IGUALES, cualquier ángulo y con el
+    # MISMO borde en mm que el elemento grande, no proporcional)
+    "mini_min_mm": 20.0,
     "mini_max_rescale": 70.0,    # tamaño máximo del mini (% del original)
-    "mini_rotacion": "90",       # no | 90 (0/90/180/270) | libre
-    "mini_tamanos": "grandes",   # iguales | grandes
+    "mini_rotacion": "libre",    # no | 90 (0/90/180/270) | libre (por defecto)
+    "mini_tamanos": "iguales",   # iguales (por defecto) | grandes
     "mini_usar_lista": True,     # por defecto manda la LISTA de tamaños
     "mini_lista_modo": "mm",     # la lista en mm (por defecto) o en %
-    # borde de los minis: proporcional (se reduce con el mini), igual
-    # (mantiene los mm del original) o sin (sin borde)
-    "mini_borde_modo": "proporcional",
-    "mini_tamanos_lista": [20.0],  # tamaños deseados (mm del lado menor, o %)
+    # borde de los minis: igual (mismos mm que el grande, por defecto),
+    # proporcional (se reduce con el mini) o sin (sin borde)
+    "mini_borde_modo": "igual",
+    "mini_tamanos_lista": [20.0],  # tamaño deseado (mm del lado menor, o %)
     # Optimización
     "opt_metodo": "auto",        # auto | rapido | greedy | largest | voronoi | genetic
     "opt_calidad": "normal",     # exacta | normal | rapida (resolución de siluetas)
+    "opt_tiempo_auto": True,     # presupuesto automático por método (si no, el de abajo)
     "opt_tiempo_max_s": 8.0,
+    # Simplificación de siluetas simples (círculo/rect/triángulo/polígono):
+    # cuánto tiene que parecerse (0..1) y cuántos lados se admiten
+    "simplificar": True,
+    "simplificar_threshold": 0.96,
+    "simplificar_max_vertices": 12,
     "auto_recalcular": True,     # recalcular con cada cambio (si no, con el botón)
     # Estimación de corte (Cricut Maker 5)
     "corte_velocidad_mm_s": 50.0,
@@ -276,3 +286,93 @@ PRESETS_INTERESANTES: dict[str, dict] = {
     "vinilo": {"espacio_mm": 1.5, "margen_mm": 1.0, "offset_activo": False,
                "rotacion": "libre", "opt_metodo": "genetic"},
 }
+
+# ------------------------------------------------------------------ modos --
+# Tres modos pensados para el flujo real de trabajo. Cada uno ajusta la FORMA
+# que ve el optimizador (círculos, cajas o siluetas) y lo que conviene:
+#   · chapas    → todo redondo: círculos, sin girar (el ángulo no importa)
+#   · pegatinas → siluetas reales y cualquier ángulo (el modo principal)
+#   · carteles  → rectángulos: empaquetado por cajas (exacto y rapidísimo)
+MODOS_INTERESANTES: dict[str, dict] = {
+    "chapas": {
+        "modo_forma": "redondas", "rotacion": "no",
+        "espacio_mm": 0.5, "margen_mm": 0.5, "offset_activo": False,
+        "usar_minis": False, "opt_calidad": "normal",
+    },
+    "pegatinas": {
+        "modo_forma": "siluetas", "rotacion": "libre",
+        "espacio_mm": 2.0, "margen_mm": 1.0, "offset_activo": True,
+        "offset_mm": 1.0, "offset_modo": "extender",
+    },
+    "carteles": {
+        "modo_forma": "rectangulos", "rotacion": "90",
+        "espacio_mm": 2.0, "margen_mm": 1.0, "offset_activo": False,
+    },
+}
+
+# Modos personalizados: 3 huecos con nombre editable que guardan los ajustes
+# actuales (se pueden reescribir tantas veces como se quiera).
+SLOTS_FILE = DATA_DIR / "modos.json"
+SLOTS = 3
+
+# Solo se guarda lo que define un MODO de trabajo (nada de tema, idioma,
+# ventana o pikmin: eso no debería cambiar al cargar un modo)
+AJUSTES_MODO = (
+    "modo_forma", "rotacion", "mini_rotacion", "espacio_mm", "margen_mm",
+    "offset_activo", "offset_mm", "offset_modo", "offset_color",
+    "usar_minis", "mini_min_mm", "mini_max_rescale", "mini_tamanos",
+    "mini_borde_modo", "mini_usar_lista", "mini_lista_modo",
+    "mini_tamanos_lista", "opt_metodo", "opt_calidad", "opt_tiempo_auto",
+    "opt_tiempo_max_s", "dpi_salida", "lienzo", "color_formato",
+    "pagina", "pagina_w", "pagina_h", "maquina", "bleed_mm",
+)
+
+
+def load_slots() -> list[dict]:
+    """Los 3 huecos personalizados: [{nombre, ajustes}] (siempre 3)."""
+    try:
+        if SLOTS_FILE.exists():
+            data = json.loads(SLOTS_FILE.read_text("utf-8"))
+            slots = data.get("slots") if isinstance(data, dict) else data
+            if isinstance(slots, list):
+                out = []
+                for i in range(SLOTS):
+                    s = slots[i] if i < len(slots) else {}
+                    out.append({"nombre": str(s.get("nombre") or f"Modo {i + 1}"),
+                                "ajustes": s.get("ajustes") or None})
+                return out
+    except Exception:
+        pass
+    return [{"nombre": f"Modo {i + 1}", "ajustes": None} for i in range(SLOTS)]
+
+
+def save_slot(i: int, nombre: str, ajustes: dict) -> None:
+    """Guarda los ajustes actuales en el hueco `i` con su nombre."""
+    slots = load_slots()
+    if not (0 <= i < SLOTS):
+        return
+    recorte = {k: v for k, v in (ajustes or {}).items() if k in AJUSTES_MODO}
+    slots[i] = {"nombre": (nombre or f"Modo {i + 1}")[:40], "ajustes": recorte}
+    SLOTS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    SLOTS_FILE.write_text(json.dumps({"slots": slots}, ensure_ascii=False,
+                                     indent=2), "utf-8")
+
+
+def rename_slot(i: int, nombre: str) -> None:
+    """Cambia solo el nombre del hueco (sin tocar sus ajustes)."""
+    slots = load_slots()
+    if 0 <= i < SLOTS:
+        slots[i]["nombre"] = (nombre or f"Modo {i + 1}")[:40]
+        SLOTS_FILE.parent.mkdir(parents=True, exist_ok=True)
+        SLOTS_FILE.write_text(json.dumps({"slots": slots}, ensure_ascii=False,
+                                         indent=2), "utf-8")
+
+
+def clear_slot(i: int) -> None:
+    slots = load_slots()
+    if 0 <= i < SLOTS:
+        slots[i] = {"nombre": slots[i].get("nombre") or f"Modo {i + 1}",
+                    "ajustes": None}
+        SLOTS_FILE.parent.mkdir(parents=True, exist_ok=True)
+        SLOTS_FILE.write_text(json.dumps({"slots": slots}, ensure_ascii=False,
+                                         indent=2), "utf-8")

@@ -56,9 +56,9 @@ describe("Panel de ajustes", () => {
     render(<SettingsPanel settings={settings} saveSettings={saveSettings} />);
     expect(screen.queryByTestId("set-mini_min_mm")).toBeNull();
     await u.click(within(screen.getByTestId("sect-minis")).getByText("Minis"));
-    expect(screen.getByTestId("set-mini_min_mm")).toHaveValue(5);
-    // con la lista activada (por defecto) NO se enseña el tope en %: se
-    // cambia al modo automático y entonces sí aparece
+    // con la lista activada (por defecto) NO se enseña el mínimo ni el tope
+    // en %: la lista manda. Se cambia al modo automático y entonces sí salen.
+    expect(screen.queryByTestId("set-mini_min_mm")).toBeNull();
     expect(screen.queryByTestId("set-mini_max_rescale")).toBeNull();
   });
 
@@ -92,7 +92,9 @@ describe("Panel de ajustes", () => {
 
   it("cambiar un valor llama a guardar (el servidor relanza la optimización)", async () => {
     const u = userEvent.setup();
-    render(<SettingsPanel settings={settings} saveSettings={saveSettings} />);
+    // en modo automático (sin lista) el mínimo sí se muestra y se edita
+    render(<SettingsPanel settings={{ ...settings, mini_usar_lista: false }}
+                          saveSettings={saveSettings} />);
     await u.click(within(screen.getByTestId("sect-minis")).getByText("Minis"));
     await u.type(screen.getByTestId("set-mini_min_mm"), "5"); // 5 -> 55
     expect(saveSettings).toHaveBeenCalled();

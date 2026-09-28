@@ -320,3 +320,53 @@ def test_contornos_simplificados_bien_formados():
     assert abs(area_pol - ideal) / ideal < 0.06, f"área {area_pol:.1f} vs {ideal:.1f}"
     assert all(len(p) >= 3 for p in polys)
 
+
+
+def _rect(w_mm: float, h_mm: float, dpi: float = 300.0) -> Image.Image:
+    im = Image.new("RGBA", (max(4, int(round(w_mm / 25.4 * dpi))),
+                            max(4, int(round(h_mm / 25.4 * dpi)))),
+                   (90, 160, 120, 255))
+    return im
+
+
+def test_minis_no_quitan_sitio_a_las_copias():
+    """Los minis SOLO rellenan huecos: nunca reducen las copias que caben.
+
+    El mismo trabajo con minis apagados y encendidos debe colocar IGUAL (o
+    más) copias normales y no abrir más páginas; los minis son un extra.
+    """
+    circle = _circle(40)
+    assets = [{"id": "c", "name": "c", "w_mm": 40, "h_mm": 40, "copies": 12,
+               "mini_enabled": True, "mini_quota": 2.0}]
+    base = dict(SET, opt_tiempo_auto=False, opt_tiempo_max_s=4.0,
+                opt_calidad="normal")
+    res_off = sil_pack(assets, {"c": circle}, area_a4(),
+                       dict(base, usar_minis=False))
+    res_on = sil_pack(assets, {"c": circle}, area_a4(),
+                      dict(base, usar_minis=True, mini_min_mm=8.0,
+                           mini_max_rescale=70.0, mini_rotacion="libre"))
+    n_off = sum(1 for p in res_off.placements if not p.mini)
+    n_on = sum(1 for p in res_on.placements if not p.mini)
+    assert n_off == 12 and not res_off.unplaced, f"base rara: {n_off}"
+    assert n_on >= n_off, f"con minis se colocaron MENOS copias: {n_on} < {n_off}"
+    assert not res_on.unplaced
+    assert res_on.pages <= res_off.pages, "los minis no pueden añadir páginas"
+    assert any(p.mini for p in res_on.placements), "debería haber minis"
+
+
+def test_minis_no_se_colocan_si_alguna_copia_no_cabe():
+    """Si una copia normal no cabe, NO se colocan minis: el hueco es suyo.
+
+    El rectángulo de 200x290 mm no cabe (el área útil es ~186x272 mm), pero
+    su mini al 70% SÍ cabría: aun así no debe colocarse ningún mini.
+    """
+    grande = _rect(200.0, 290.0)
+    assets = [{"id": "g", "name": "g", "w_mm": 200.0, "h_mm": 290.0,
+               "copies": 1, "mini_enabled": True, "mini_quota": 1.0}]
+    st = dict(SET, usar_minis=True, mini_min_mm=5.0, mini_max_rescale=100.0,
+              mini_rotacion="libre", opt_tiempo_auto=False,
+              opt_tiempo_max_s=2.0)
+    res = sil_pack(assets, {"g": grande}, area_a4(), st)
+    assert res.unplaced, "la copia grande no cabe: debe quedar sin colocar"
+    assert not any(p.mini for p in res.placements), \
+        "con una copia sin colocar no se permiten minis"

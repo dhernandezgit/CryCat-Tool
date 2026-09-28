@@ -335,3 +335,48 @@ def test_metodo_rapido_cumple_restricciones():
     _caso([{"id": "c", "name": "c", "w_mm": 25.4, "h_mm": 25.4,
             "copies": 8, "mini_enabled": False}],
           {"c": circ}, dict(BASE, opt_metodo="rapido"))
+
+
+def _rect_mm(w_mm: float, h_mm: float, dpi: float = 300.0):
+    """Rectángulo macizo (modo carteles)."""
+    from PIL import Image
+    return Image.new("RGBA", (max(4, int(round(w_mm / 25.4 * dpi))),
+                              max(4, int(round(h_mm / 25.4 * dpi)))),
+                     (120, 170, 90, 255))
+
+
+def test_modo_chapas_redondas_sin_girar():
+    """MODO CHAPAS: círculos, todos a 0º, colocados y sin solapes reales."""
+    circ = trim(_circulo(300))          # círculo de verdad (25,4 mm)
+    assets = [{"id": "c", "name": "c", "w_mm": 25.4, "h_mm": 25.4,
+               "copies": 24, "mini_enabled": False}]
+    st = dict(BASE, modo_forma="redondas", rotacion="libre",
+              opt_metodo="greedy")
+    res = _caso_cajas(assets, {"c": circ}, st)
+    assert not res.unplaced
+    assert all(abs(p.angle) < 0.01 for p in res.placements), \
+        "las chapas no se giran: siempre ángulo 0"
+
+
+def test_modo_carteles_cajas_y_reserva_silueta():
+    """MODO CARTELES: primero CAJAS (exacto y rápido para rectángulos) y, si
+    el trabajo se complica (no cabe en una hoja por cajas), SILUETAS."""
+    rect = _rect_mm(40.0, 25.0)
+    assets = [{"id": "r", "name": "r", "w_mm": 40.0, "h_mm": 25.0,
+               "copies": 24, "mini_enabled": False}]
+    st = dict(BASE, modo_forma="rectangulos", rotacion="90")
+    res = _caso_cajas(assets, {"r": rect}, st)
+    assert not res.unplaced
+    assert res.method != "silueta", "los rectángulos deben ir por cajas"
+    # formas "complicadas": muchas estrellas; las cajas son conservadoras y
+    # no caben en una hoja -> entra la silueta y lo consigue
+    est = trim(_estrella(360))
+    assets2 = [{"id": "e", "name": "e", "w_mm": 30.5, "h_mm": 30.5,
+                "copies": 48, "mini_enabled": False}]
+    res2 = _caso_cajas(assets2, {"e": est},
+                       dict(BASE, modo_forma="rectangulos", rotacion="90"))
+    assert not res2.unplaced
+    # los métodos por cajas se etiquetan "heurística/orden" (bssf/area…);
+    # si la etiqueta NO lleva barra, es que entró el empaquetado por silueta
+    assert "/" not in res2.method, \
+        f"debe caer a siluetas si las cajas no bastan (método {res2.method})"

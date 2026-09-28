@@ -21,6 +21,7 @@ def client(tmp_path, monkeypatch):
     monkeypatch.setattr(cfg, "CONFIG_FILE", tmp_path / "config.json")
     monkeypatch.setattr(cfg, "SESSION_FILE", tmp_path / "session.json")
     monkeypatch.setattr(cfg, "PRESETS_FILE", tmp_path / "presets.json")
+    monkeypatch.setattr(cfg, "SLOTS_FILE", tmp_path / "modos.json")
     monkeypatch.setattr(cfg, "ASSETS_DIR", tmp_path / "assets")
     monkeypatch.setattr(cfg, "DATA_DIR", tmp_path)
     monkeypatch.setattr(cfg, "ICON_FILE", tmp_path / "icono.png")
@@ -121,7 +122,9 @@ def test_scale_pct_cambia_tamano(client):
             break
         time.sleep(0.05)
     p = c.get("/api/result").json()["placements"][0]
-    assert abs(p["w"] - round(base_w * 2, 2)) < 0.2
+    # `w0` es el tamaño PEDIDO sin girar: con cualquier ángulo la caja (w)
+    # puede cambiar, pero la pieza mide exactamente lo que se pidió
+    assert abs(p["w0"] - round(base_w * 2, 2)) < 0.2
 
 
 def test_scale_pct_limites(client):
@@ -173,6 +176,44 @@ def test_presets_validaciones(client):
     c, st, _ = client
     assert c.post("/api/presets", json={"name": "   "}).status_code == 400
     assert c.post("/api/presets/NoExiste/load").status_code == 404
+
+
+def test_modos_fabrica_y_huecos(client):
+    """Los 3 modos (chapas/pegatinas/carteles) y los 3 huecos personales."""
+    c, st, _ = client
+    d = c.get("/api/modos").json()
+    assert set(d["modos"]) == {"chapas", "pegatinas", "carteles"}
+    assert d["modos"]["chapas"]["modo_forma"] == "redondas"
+    assert d["modos"]["chapas"]["rotacion"] == "no"
+    assert d["modos"]["carteles"]["modo_forma"] == "rectangulos"
+    assert d["modos"]["carteles"]["rotacion"] == "90"
+    assert d["modos"]["pegatinas"]["modo_forma"] == "siluetas"
+    assert d["modos"]["pegatinas"]["rotacion"] == "libre"
+    assert len(d["slots"]) == 3
+    assert all(s["ajustes"] is None for s in d["slots"])
+    # guardar los ajustes actuales en el hueco 1 con un nombre
+    c.put("/api/settings", json={"modo_forma": "redondas", "espacio_mm": 1.5,
+                                 "tema": "umbreon"})
+    r = c.post("/api/modos/1", json={"nombre": "Mis chapas"}).json()
+    assert r["slots"][1]["nombre"] == "Mis chapas"
+    assert r["slots"][1]["ajustes"]["modo_forma"] == "redondas"
+    assert r["slots"][1]["ajustes"]["espacio_mm"] == 1.5
+    # lo cosmético (tema) NO se guarda en un modo
+    assert "tema" not in r["slots"][1]["ajustes"]
+    # renombrar sin tocar los ajustes
+    r = c.patch("/api/modos/1", json={"nombre": "Chapas 25"}).json()
+    assert r["slots"][1]["nombre"] == "Chapas 25"
+    assert r["slots"][1]["ajustes"]["espacio_mm"] == 1.5
+    # cambiar los ajustes y CARGAR el hueco: recupera los suyos
+    c.put("/api/settings", json={"modo_forma": "siluetas", "espacio_mm": 5.0})
+    r = c.post("/api/modos/1/load").json()
+    assert r["settings"]["modo_forma"] == "redondas"
+    assert r["settings"]["espacio_mm"] == 1.5
+    assert r["job"] is not None
+    # vaciar
+    r = c.delete("/api/modos/1").json()
+    assert r["slots"][1]["ajustes"] is None
+    assert c.post("/api/modos/1/load").status_code == 404
 
 
 def test_move_fija_y_reoptimiza_el_resto(client):
@@ -352,11 +393,13 @@ def test_defaults_extras_pikmin(client):
     s = c.get("/api/settings").json()["settings"]
     assert s["pikmin_activo"] is True
     assert s["pikmin_frecuencia_min"] == 5.0  # 5 minutos de media
-    assert s["mini_min_mm"] == 10.0  # los minis no bajan de 10 mm
+    assert s["mini_min_mm"] == 20.0  # por defecto, minis de 20 mm
     assert s["mini_max_rescale"] == 70.0
     assert s["mini_usar_lista"] is True
     assert s["mini_lista_modo"] == "mm"
     assert s["mini_tamanos_lista"] == [20.0]
+    assert s["mini_tamanos"] == "iguales"      # priorizar tamaños iguales
+    assert s["mini_borde_modo"] == "igual"     # mismo borde que el grande
     assert s["pikmin_sonido"] is True
     assert s["pikmin_sonido_morir"] is True
     assert s["volumen"] == 0.5
@@ -433,12 +476,12 @@ def test_auto_recalcular_desactivado_no_lanza_job(client):
     assert "id" in c.post("/api/optimize", json={"force": True}).json()
 
 
-def test_defaults_rotacion_90(client):
-    """Rotación por defecto 0/90/180/270, también en minis."""
+def test_defaults_rotacion_libre(client):
+    """Rotación por defecto: CUALQUIER ángulo, también en minis."""
     c, st, _ = client
     s = c.get("/api/settings").json()["settings"]
-    assert s["rotacion"] == "90"
-    assert s["mini_rotacion"] == "90"
+    assert s["rotacion"] == "libre"
+    assert s["mini_rotacion"] == "libre"
 
 
 def test_delete_y_clear(client):

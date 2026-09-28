@@ -375,11 +375,17 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
   }, [result?.pages, result?.placed, result?.minis]);
 
   // contorno: 4 opciones (exterior por defecto, sin bordes, ambos, ninguno)
-  const CONTS: Record<string, { etiqueta: string }> = {
-    final: { etiqueta: "Contorno exterior (con bordes)" },
-    orig: { etiqueta: "Contorno sin bordes" },
-    ambos: { etiqueta: "Contornos (con y sin bordes)" },
-    ninguno: { etiqueta: "Sin contornos" },
+  // `corto` es la etiqueta VISIBLE del botón (el color de cada modo imita el
+  // del contorno en la hoja: magenta el final, cian el del dibujo sin borde)
+  const CONTS: Record<string, { etiqueta: string; corto: string; clase: string }> = {
+    final: { etiqueta: "Contorno exterior (con bordes)", corto: "Contorno",
+             clase: "modo-final" },
+    orig: { etiqueta: "Contorno sin bordes", corto: "Sin borde",
+            clase: "modo-orig" },
+    ambos: { etiqueta: "Contornos (con y sin bordes)", corto: "Ambos",
+             clase: "modo-ambos" },
+    ninguno: { etiqueta: "Sin contornos", corto: "Sin contorno",
+               clase: "modo-ninguno" },
   };
   const modoCont = ui.contornoModo ?? "final";
   const verCont = ui.verBordes && modoCont !== "ninguno";
@@ -528,7 +534,7 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
         <div className="group">
           <button
             data-testid="btn-bordes"
-            className={ui.verBordes ? "primary" : ""}
+            className={`btn-contorno ${CONTS[modoCont].clase}`}
             data-tip={t("Contorno: {modo} (pulsa para cambiar)", {
               modo: t(CONTS[ui.contornoModo ?? "final"].etiqueta) })}
             onClick={() => setUi((u) => {
@@ -539,16 +545,17 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
                        verBordes: sig !== "ninguno" };
             })}
           >
-            <IconoBordes size={16} />
+            <IconoBordes size={16} /> {t(CONTS[modoCont].corto)}
           </button>
         </div>
         <div className="group">
           <button
             data-testid="btn-guias"
-            data-tip={t("Guías del área recortable (tecla G): solo en la vista previa")}
+            className={ui.guidesVisible ? "primary" : ""}
+            data-tip={t("Marcas de registro y guías del área recortable (tecla G): solo en la vista previa")}
             onClick={() => setUi((u) => ({ ...u, guidesVisible: !u.guidesVisible }))}
           >
-            <IconoGuias size={16} />
+            <IconoGuias size={16} /> {t("Marcas")}
           </button>
         </div>
         <button

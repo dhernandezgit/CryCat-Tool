@@ -215,3 +215,15 @@ def test_eta_no_supera_el_presupuesto(client):
         if j.get("done"):
             break
     assert visto
+
+
+def test_guardar_estado_antes_de_actualizar(monkeypatch):
+    """Antes de actualizar se guardan ajustes y sesión (estado exacto)."""
+    from crycat import config, store, version
+    llamadas: list[str] = []
+    monkeypatch.setattr(config.settings, "save",
+                        lambda: llamadas.append("ajustes"))
+    monkeypatch.setattr(store.session, "save",
+                        lambda: llamadas.append("sesion"))
+    version._guardar_estado()
+    assert llamadas == ["ajustes", "sesion"]

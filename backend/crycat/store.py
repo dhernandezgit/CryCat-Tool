@@ -39,6 +39,37 @@ class Asset:
         self.offset_color = ""     # "" = usar el global
         self.bg_removed = False
         self.demo = False          # figura de la muestra inicial (no se guarda)
+        # simplificación de la silueta para el empaquetado (por elemento)
+        self.simplificar = True
+        self._forma_cache: tuple | None = None
+
+    def forma_simplificada(self) -> str | None:
+        """Forma simple detectada (circulo/rectangulo/triangulo/poligono).
+
+        Se calcula una vez y se cachea; sirve para avisar en la interfaz de
+        que la pieza se empaquetará con una forma simplificada.
+        """
+        if not self.simplificar:
+            return None
+        clave = (round(self.scale_pct, 2), self.img.size, id(self.img),
+                 round(float(settings.get("simplificar_threshold", 0.96)), 3),
+                 int(settings.get("simplificar_max_vertices", 12) or 12))
+        cache = getattr(self, "_forma_cache", None)
+        if cache and cache[0] == clave:
+            return cache[1]
+        forma = None
+        try:
+            from .silhouette import _asset_mask, _forma_simple
+            m = _asset_mask(self.img, self.w_mm, self.h_mm, 0.25)
+            f = _forma_simple(
+                m, 0.25,
+                float(settings.get("simplificar_threshold", 0.96)),
+                int(settings.get("simplificar_max_vertices", 12) or 12))
+            forma = f[0] if f else None
+        except Exception:
+            forma = None
+        self._forma_cache = (clave, forma)
+        return forma
 
     @property
     def w_mm(self) -> float:
@@ -65,6 +96,8 @@ class Asset:
             "offset_color": self.offset_color,
             "bg_removed": self.bg_removed,
             "demo": self.demo,
+            "simplificar": self.simplificar,
+            "forma": self.forma_simplificada(),
             "warnings": self.warnings,
         }
 
@@ -194,7 +227,8 @@ class Session:
                     {"uid": p.uid, "asset_id": p.asset_id, "page": p.page,
                      "x": p.x, "y": p.y, "w": p.w, "h": p.h, "angle": p.angle,
                      "mini": p.mini, "scale": p.scale, "pinned": p.pinned,
-                     "rot90": p.rot90}
+                     "rot90": p.rot90, "w0": getattr(p, "w0", 0.0),
+                     "h0": getattr(p, "h0", 0.0)}
                     for p in (self.last.placements if self.last else [])
                     if p.asset_id not in demo_ids],
                 "pages": self.last.pages if self.last else 0,
@@ -243,6 +277,7 @@ class Session:
                 a.offset_color = str(meta.get("offset_color", "") or "")
                 a.scale_pct = float(meta.get("scale_pct", 100.0))
                 a.bg_removed = bool(meta.get("bg_removed", False))
+                a.simplificar = bool(meta.get("simplificar", True))
                 self.assets[a.id] = a
             except Exception:
                 continue

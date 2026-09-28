@@ -62,8 +62,10 @@ describe("Versión y actualización en la barra inferior", () => {
     expect(screen.getByTestId("version-nueva")).toHaveTextContent("v1.2.0");
     expect(screen.getByTestId("btn-actualizar")).toBeInTheDocument();
     fireEvent.click(aviso);
-    await waitFor(() => expect(screen.getByTestId("status-center"))
-      .toHaveTextContent(/Instalando y reiniciando/));
+    // ahora se abre un POPUP con el progreso real de la actualización
+    await waitFor(() => expect(
+      screen.getByTestId("dialogo-actualizacion")).toBeInTheDocument());
+    expect(screen.getByTestId("progreso-actualizacion")).toBeInTheDocument();
   });
 
   it("en modo desarrollo avisa y abre la página de descargas", async () => {

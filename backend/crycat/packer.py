@@ -31,7 +31,8 @@ from .geometry import CutArea, rect_inside_polygon, rotated_size
 from .i18n import tr
 
 EPS = 1e-7
-FREE_ANGLES = (45, 30, 60, 15, 75, 135, 120, 150, 105, 165)
+# "cualquier ángulo": pasos de 15º INCLUYENDO 90/180/270 (antes faltaban)
+FREE_ANGLES = (15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180, 270)
 
 
 @dataclass
@@ -51,7 +52,7 @@ class Placement:
     uid: str
     asset_id: str
     page: int
-    x: float          # mm, coords bbox (0,0 = esquina sup-izq del área útil)
+    x: float          # mm, coords ABSOLUTAS de la página (origen sup-izq)
     y: float
     w: float          # tamaño colocado (bbox del giro ya aplicado)
     h: float
@@ -60,6 +61,12 @@ class Placement:
     scale: float = 1.0
     pinned: bool = False
     rot90: bool = False
+    # tamaño PEDIDO sin girar (mm). En giros libres la caja `w`/`h` es
+    # conservadora (bbox del rectángulo girado) y el render debe escalar la
+    # imagen a ESTE tamaño, no a la caja: si no, la pieza se imprime más
+    # grande de lo pedido y el contorno no cuadra con el dibujo.
+    w0: float = 0.0
+    h0: float = 0.0
 
 
 @dataclass
@@ -72,6 +79,8 @@ class PackResult:
     elapsed_s: float = 0.0
     unplaced: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
+    cell: float = 0.0           # rejilla (mm) con la que se calculó
+    compacidad: float = 0.0     # área (mm²) del bbox ocupado: menor = más recogido
 
 
 def _inflate(w: float, h: float, spacing: float) -> tuple[float, float]:
@@ -153,7 +162,7 @@ class Bin:
         p = Placement(uid=inst.uid, asset_id=inst.asset_id, page=0,
                       x=x + self.spacing / 2, y=y + self.spacing / 2,
                       w=w, h=h, angle=angle, mini=inst.mini, scale=scale,
-                      rot90=rot90)
+                      rot90=rot90, w0=inst.w, h0=inst.h)
         self.placed.append(p)
         return p
 
@@ -309,13 +318,15 @@ def _place_minis(bins: list[Bin], requests: list[dict], settings: dict,
         hecho = False
         for req in requests:
             base = max(min(req["w"], req["h"]), 1e-6)
-            s_floor = min_mm / base
+            # con la LISTA activa el mínimo se ignora (manda la lista)
+            s_floor = 1e-6 if usar_lista else min_mm / base
             if s_floor > max_res:
                 continue
             got = None
+            suelo = 0.0 if usar_lista else min_mm
             if policy == "iguales" and req["asset_id"] in comunes:
                 got = _try_place_scaled(bins, req["w"], req["h"],
-                                        comunes[req["asset_id"]], min_mm,
+                                        comunes[req["asset_id"]], suelo,
                                         rot_mode)
             else:
                 base_lado = max(min(req["w"], req["h"]), 1e-6)
@@ -324,7 +335,7 @@ def _place_minis(bins: list[Bin], requests: list[dict], settings: dict,
                          else [v / 100.0 for v in lista_base])
                 for s in _escalas_mini(s_floor, max_res, usar_lista, lista):
                     got = _try_place_scaled(bins, req["w"], req["h"], s,
-                                            min_mm, rot_mode)
+                                            suelo, rot_mode)
                     if got:
                         comunes.setdefault(req["asset_id"], s)
                         break
@@ -449,13 +460,20 @@ def _run_pack(assets: list[dict], area: CutArea, settings: dict,
     result.pages = len(bins)
     result.placements = [p for b in bins for p in b.placed]
     used = sum(b.area.area_mm2 for b in bins)
-    # eficiencia REAL: área de las siluetas (no de las cajas) sobre lo usado
-    if fracs:
-        item_area = sum(p.w * p.h * fracs.get(p.asset_id, 1.0)
-                        for p in result.placements)
-    else:
-        item_area = sum(p.w * p.h for p in result.placements)
-    result.efficiency = item_area / used if used > 0 else 0.0
+    # eficiencia REAL: área de las siluetas (no de las cajas). OJO: la
+    # silueta no cambia de área al girar; el tamaño ORIGINAL del elemento
+    # (con su escala) es el que hay que usar, no el bbox rotado
+    por_id = {a["id"]: a for a in assets}
+    area_sil = 0.0
+    for p in result.placements:
+        a = por_id.get(p.asset_id)
+        if a is not None and fracs:
+            s = float(p.scale or 1.0)
+            area_sil += (float(a.get("w_mm", 0)) * float(a.get("h_mm", 0))
+                         * s * s * fracs.get(p.asset_id, 1.0))
+        else:
+            area_sil += p.w * p.h
+    result.efficiency = area_sil / used if used > 0 else 0.0
     if fracs and result.placements:
         vals = [fracs.get(p.asset_id, 1.0) for p in result.placements]
         result.densidad = min(1.0, max(0.05, sum(vals) / len(vals)))
@@ -483,11 +501,11 @@ def optimize(assets: list[dict], area: CutArea, settings: dict,
         from .geometry import inset_area
         area = inset_area(area, margen)
 
-    # Estrategia: se prueba primero el empaquetado por CAJAS, que es
-    # instantáneo. Si el trabajo es HOLGADO (cabe todo en una hoja), ese
-    # resultado vale y ya está. En cuanto NO quepa, se pasa al método de
-    # SILUETAS, que es el normal: usa la forma real y coloca de verdad.
-    fallback_silueta = False
+    # Estrategia: el empaquetado por CAJAS es un ATAJO para trabajos HOLGADOS
+    # (cabe todo de sobra en una hoja) y para cuando no hay siluetas. Si el
+    # trabajo NO es holgado (o hay minis, que aprovechan los huecos), se va
+    # DIRECTO al empaquetado por silueta: las pasadas por cajas se tirarían y
+    # solo gastan tiempo (bug real: hasta 12 pasadas inútiles antes de empezar).
     fracs = sil_fracs(masks) if masks else None
 
     pinned = [p for p in (pinned or []) if p.pinned]
@@ -496,7 +514,51 @@ def optimize(assets: list[dict], area: CutArea, settings: dict,
     n_prev = sum(max(0, int(a.get("copies", 1))) for a in assets) + \
         len(pinned or [])
     t_max = max(0.5, tiempo_optimo(settings, n_prev))
+    deadline = t0 + t_max
     normals, _ = _expand_items(assets, settings)
+
+    ocupa = sum(float(a.get("w_mm", 0)) * float(a.get("h_mm", 0))
+                * max(0, int(a.get("copies", 1))) for a in assets)
+    holgado = ocupa < 0.15 * max(1.0, area.area_mm2)
+    # MODO CHAPAS: las piezas son redondas y no se giran (ángulo 0) en
+    # NINGÚN camino (ni cajas ni siluetas)
+    forma = str(settings.get("modo_forma", "siluetas"))
+    if forma == "redondas":
+        settings = dict(settings, rotacion="no", mini_rotacion="no")
+    # MODO CARTELES: los rectángulos SON cajas, así que se prueba PRIMERO el
+    # empaquetado por cajas (exacto y rapidísimo). Si se complica (queda algo
+    # sin colocar o no cabe en una hoja) se recurre a las SILUETAS con el
+    # presupuesto que quede.
+    rectangulos = forma == "rectangulos"
+    if (not rectangulos and masks
+            and (settings.get("usar_minis") or not holgado)):
+        from .silhouette import pack as sil_pack
+
+        # LÍNEA BASE por CAJAS (2 variantes, rapidísimas y seguras): la
+        # silueta solo se queda si MEJORA (menos páginas/sin colocar). Así
+        # nunca se devuelve un resultado peor que el de las cajas.
+        def _clave_cajas(r):
+            return (len(r.unplaced), max(0, r.pages), -r.efficiency)
+
+        # LÍNEA BASE por cajas: UNA variante y con tope de tiempo (para no
+        # robar presupuesto). Con rectángulos (o formas que llenan su caja)
+        # suele ganar; con círculos pierde y decide la silueta.
+        base: PackResult | None = None
+        if not settings.get("usar_minis"):
+            fin_base = min(deadline, time.time() + min(2.0, 0.3 * t_max))
+            r = _run_pack(assets, area, settings, pinned,
+                          _sort_instances(normals, "area"), "bssf",
+                          "bssf/area", fin_base, fracs=fracs)
+            if r.placements:
+                base = r
+        restante = (max(0.5, deadline - time.time()) if base is not None
+                    else None)
+        res = sil_pack(assets, masks, area, settings, pinned, progress,
+                       presupuesto_s=restante)
+        if base is not None and _clave_cajas(base) < _clave_cajas(res):
+            base.elapsed_s = time.time() - t0
+            return base
+        return res
 
     if method == "maxrects":
         variants = [(o, h) for o in ("area", "alto") for h in ("bssf", "baf", "bl")]
@@ -508,7 +570,6 @@ def optimize(assets: list[dict], area: CutArea, settings: dict,
 
     best: PackResult | None = None
     rnd = random.Random(20260925)
-    deadline = t0 + t_max
     i = 0
     while True:
         if i < len(variants):
@@ -531,7 +592,8 @@ def optimize(assets: list[dict], area: CutArea, settings: dict,
             best = res
         i += 1
         if progress:
-            progress(min(0.99, i / (i + 2)), best.pages)
+            # escala de la fase por cajas: 5%..90% (el resto es el cierre)
+            progress(0.05 + 0.85 * min(0.99, i / (i + 2)), best.pages)
         # mientras la hoja no esté llenísima, basta con un resultado rápido
         if (method == "auto" and not best.unplaced
                 and best.efficiency < 0.80):
@@ -542,20 +604,16 @@ def optimize(assets: list[dict], area: CutArea, settings: dict,
         elif time.time() > deadline or i >= 120:
             break
     assert best is not None
-    # Criterio para aceptar el resultado por cajas (que es rapidísimo):
-    #   * NUNCA si hay minis: las cajas las desperdiciarían y no cabría nada.
-    #   * Solo si el trabajo es HOLGADO (ocupa poco de una hoja) y cabe en una.
-    # En cualquier otro caso manda la SILUETA, que es la funcionalidad normal.
-    ocupa = sum(float(a.get("w_mm", 0)) * float(a.get("h_mm", 0))
-                * max(0, int(a.get("copies", 1))) for a in assets)
-    # cajas SOLO si la hoja está casi vacía (la excepción que pediste): con
-    # más carga manda SIEMPRE la silueta, que encaja y aprovecha de verdad
-    holgado = ocupa < 0.15 * max(1.0, area.area_mm2)
-    if masks and (settings.get("usar_minis") or not holgado
-                  or best.unplaced or best.pages > 1):
-        # el intento por cajas no basta: el método de verdad decide
+    # El resultado por cajas solo vale si el trabajo era HOLGADO y cabe en una
+    # hoja; si no (aquí solo se llega con trabajos holgados o sin máscaras),
+    # manda la SILUETA, que encaja y aprovecha de verdad. En modo carteles
+    # esto es el "si se complica": cajas primero y siluetas si no basta.
+    if masks and (best.unplaced or best.pages > 1):
         from .silhouette import pack as sil_pack
-        return sil_pack(assets, masks, area, settings, pinned, progress)
+        # presupuesto RESTANTE: el intento por cajas ya gastó parte
+        restante = max(0.5, deadline - time.time())
+        return sil_pack(assets, masks, area, settings, pinned, progress,
+                        presupuesto_s=restante)
     best.elapsed_s = time.time() - t0
     return best
 

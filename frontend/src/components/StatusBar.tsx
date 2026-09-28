@@ -5,6 +5,7 @@ import { useIdioma, useT } from "../i18n";
 import { IconoMute, IconoVolumen, IconoInfo, IconoAlerta,
          IconoCheck, IconoDescargar, IconoComprobar, IconoAyuda,
          IconoCarpeta, IconoCorazon, IconoAviso } from "./iconos";
+import ActualizacionDialog from "./ActualizacionDialog";
 
 export interface EstimateInfo {
   maquina: string;
@@ -50,6 +51,7 @@ export default function StatusBar({ job, backendOk, result, estimate,
   const [ver, setVer] = useState<VersionInfo | null>(null);
   const [comprobando, setComprobando] = useState(false);
   const [aviso, setAviso] = useState("");
+  const [dlgAct, setDlgAct] = useState(false);
   const comprobadoAuto = useRef(false);
   const clicsGato = useRef<number[]>([]);
 
@@ -77,7 +79,8 @@ export default function StatusBar({ job, backendOk, result, estimate,
   }, []);
 
   const actualizando = ver?.actualizacion?.estado === "descargando" ||
-    ver?.actualizacion?.estado === "instalando";
+    ver?.actualizacion?.estado === "instalando" ||
+    ver?.actualizacion?.estado === "reiniciando";
 
   // mientras se actualiza, refrescar el estado con frecuencia
   useEffect(() => {
@@ -126,10 +129,8 @@ export default function StatusBar({ job, backendOk, result, estimate,
     const s = job?.eta_s;
     if (!running || s === undefined || s === null || s <= 0.5) return "";
     const tope = job?.tope_s;
-    return tope
-      ? t(" · ~{x} restante (máx {y})", { x: formatoTiempo(s),
-                                          y: formatoTiempo(tope) })
-      : t(" · {x} restante", { x: formatoTiempo(s) });
+    // el tope va solo en el tooltip: en el texto, un restante claro
+    return t(" · ~{x} restante", { x: formatoTiempo(s) });
   }, [job?.eta_s, running, t]);
 
   const corteTxt = useMemo(() => {
@@ -157,7 +158,8 @@ export default function StatusBar({ job, backendOk, result, estimate,
     try {
       const r = await api.updateVersion();
       if (r.ok) {
-        setAviso(t("Instalando y reiniciando…"));
+        // popup con el progreso REAL; la página se recargará sola al final
+        setDlgAct(true);
       } else if (r.modo === "dev" && r.url) {
         setAviso(t("Modo desarrollo: se actualiza con git"));
         await api.openReleases().catch(() => undefined);
@@ -176,6 +178,9 @@ export default function StatusBar({ job, backendOk, result, estimate,
     : "";
 
   return (
+    <>
+    {dlgAct && <ActualizacionDialog ver={ver}
+                                    onCerrar={() => setDlgAct(false)} />}
     <div className="statusbar" data-testid="statusbar">
       <div className="brand">
         <img
@@ -242,7 +247,12 @@ export default function StatusBar({ job, backendOk, result, estimate,
             <div className="progress" data-testid="progress">
               <div style={{ width: `${Math.max(4, pct)}%` }} />
             </div>
-            <span className="eta" data-testid="eta">{pct}%{etaTxt}</span>
+            <span className="eta" data-testid="eta"
+                  title={job?.tope_s
+                    ? t("Tiempo máximo de este cálculo: {y}", { y: formatoTiempo(job.tope_s) })
+                    : undefined}>
+              {pct}%{etaTxt}
+            </span>
             <img
               className="piensa"
               data-testid="piensa"
@@ -349,5 +359,6 @@ export default function StatusBar({ job, backendOk, result, estimate,
         </span>
       </div>
     </div>
+    </>
   );
 }

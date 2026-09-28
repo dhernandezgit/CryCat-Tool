@@ -58,6 +58,7 @@ export interface AppSettings {
   espacio_mm: number;
   margen_mm: number;
   rotacion: "no" | "90" | "libre";
+  modo_forma?: "siluetas" | "redondas" | "rectangulos";
   dpi_salida: number;
   pagina: string;
   pagina_w: number;
@@ -409,7 +410,37 @@ export const api = {
     req<{ ok: boolean; names: string[] }>(
       `/api/presets/${encodeURIComponent(name)}`, { method: "DELETE" }
     ),
+
+  // ------------------------------------------------------- modos --
+  modos: () =>
+    req<{ modos: Record<string, Partial<AppSettings>>;
+          slots: ModoSlot[] }>("/api/modos"),
+  saveModo: (i: number, nombre: string) =>
+    req<{ ok: boolean; slots: ModoSlot[] }>(`/api/modos/${i}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ nombre }),
+    }),
+  renameModo: (i: number, nombre: string) =>
+    req<{ ok: boolean; slots: ModoSlot[] }>(`/api/modos/${i}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ nombre }),
+    }),
+  loadModo: (i: number) =>
+    req<{ ok: boolean; settings: AppSettings; job: Job | null }>(
+      `/api/modos/${i}/load`, { method: "POST" }
+    ),
+  deleteModo: (i: number) =>
+    req<{ ok: boolean; slots: ModoSlot[] }>(`/api/modos/${i}`,
+      { method: "DELETE" }),
 };
+
+/** Hueco de modo personalizado: nombre editable + ajustes guardados. */
+export interface ModoSlot {
+  nombre: string;
+  ajustes: Partial<AppSettings> | null;
+}
 
 /** Rasteriza un SVG en el navegador a PNG (calidad ~300 ppp). */
 export async function svgToPng(file: File): Promise<Blob> {

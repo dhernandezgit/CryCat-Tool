@@ -143,6 +143,21 @@ def comprobar_en_segundo_plano(delay: float = 2.0) -> None:
     threading.Thread(target=t, daemon=True).start()
 
 
+def _guardar_estado() -> None:
+    """Persiste ajustes y sesión (imágenes + colocaciones) ANTES de actualizar.
+
+    Los datos viven fuera del ejecutable, pero se fuerza el guardado para que
+    al abrir la versión nueva el estado sea EXACTO: mismos ajustes, mismas
+    imágenes y la misma colocación, sin depender del autoguardado.
+    """
+    try:
+        from . import config, store
+        config.settings.save()
+        store.session.save()
+    except Exception:
+        pass
+
+
 def _progreso(estado_txt: str, progreso: float | None = None,
               mensaje: str | None = None) -> None:
     with _lock:
@@ -190,7 +205,7 @@ def _script_windows(pid: int, nuevo: Path, actual: Path) -> Path:
         "  ping -n 2 127.0.0.1 >nul\r\n"
         "  goto espera\r\n"
         ")\r\n"
-        "start \"\" %ACTUAL%\r\n"
+        "start \"\" %ACTUAL% --no-browser\r\n"
         'del "%~f0"\r\n',
         "utf-8")
     return ruta
@@ -206,7 +221,7 @@ def _script_linux(pid: int, nuevo: Path, actual: Path) -> Path:
         'while kill -0 "$PID" 2>/dev/null; do sleep 0.3; done\n'
         'mv -f "$NUEVO" "$ACTUAL"\n'
         'chmod +x "$ACTUAL"\n'
-        'setsid "$ACTUAL" >/dev/null 2>&1 < /dev/null &\n'
+        'setsid "$ACTUAL" --no-browser >/dev/null 2>&1 < /dev/null &\n'
         'rm -f "$0"\n',
         "utf-8")
     ruta.chmod(0o755)
@@ -249,14 +264,26 @@ def actualizar_y_reiniciar() -> dict:
         try:
             actual = Path(sys.executable)
             nuevo = actual.with_name(actual.name + ".nuevo")
+            # 1) estado EXACTO: se guardan ajustes y sesión antes de tocar nada
+            _guardar_estado()
+            # 2) limpiar restos de un intento anterior
+            try:
+                if nuevo.exists():
+                    nuevo.unlink()
+            except Exception:
+                pass
             _progreso("descargando", 0.0, tr("Descargando actualización…"))
             _descargar(url, nuevo, st.get("asset_size"))
-            _progreso("instalando", 100.0, tr("Instalando y reiniciando…"))
+            _progreso("instalando", 100.0, tr("Instalando la versión nueva…"))
             script = (_script_windows if sys.platform == "win32"
                       else _script_linux)(os.getpid(), nuevo, actual)
             _lanzar_desacoplado(script, os.getpid(), nuevo, actual)
+            # 3) el script espera, REEMPLAZA el ejecutable antiguo (se borra
+            #    solo) y abre el nuevo backend; la página se recargará sola
+            _progreso("reiniciando", 100.0,
+                      tr("Reiniciando con la versión nueva…"))
             time.sleep(1.0)
-            os._exit(0)   # el script auxiliar espera y reemplaza el ejecutable
+            os._exit(0)
         except Exception as e:
             _progreso("error", None, tr("No se pudo actualizar: {e}", e=e))
 

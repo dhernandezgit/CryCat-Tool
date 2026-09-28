@@ -197,9 +197,14 @@ async def iniciar() -> str:
     from .config import settings
     destino = "/tmp/crycat-exports"     # escribible en el sistema virtual
     os.makedirs(destino, exist_ok=True)
-    # modo web: sin hilos reales, sin comprobar versiones y export a /tmp
+    # modo web: sin hilos reales, sin comprobar versiones y export a /tmp.
+    # El navegador es MUCHO más lento que el escritorio (Pyodide): mismo
+    # interfaz, pero con presupuesto corto y rejilla rápida para que la
+    # optimización no congele la pestaña (el usuario puede subirlo luego).
     settings.set({"web_inline_jobs": True, "comprobar_versiones": False,
-                  "carpeta_export": destino, "auto_recalcular": True})
+                  "carpeta_export": destino, "auto_recalcular": True,
+                  "opt_tiempo_auto": False, "opt_tiempo_max_s": 4.0,
+                  "opt_calidad": "rapida"})
     from .server import create_app
     _app = create_app()
 

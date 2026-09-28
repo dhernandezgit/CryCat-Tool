@@ -127,7 +127,9 @@ def _pl_dict(p: Placement) -> dict:
     return {"uid": p.uid, "asset_id": p.asset_id, "page": p.page,
             "x": round(p.x, 3), "y": round(p.y, 3), "w": round(p.w, 3),
             "h": round(p.h, 3), "angle": p.angle, "mini": p.mini,
-            "scale": round(p.scale, 4), "pinned": p.pinned, "rot90": p.rot90}
+            "scale": round(p.scale, 4), "pinned": p.pinned, "rot90": p.rot90,
+            "w0": round(getattr(p, "w0", 0.0) or 0.0, 3),
+            "h0": round(getattr(p, "h0", 0.0) or 0.0, 3)}
 
 
 def create_app(store: Session = session) -> FastAPI:
@@ -171,29 +173,35 @@ def create_app(store: Session = session) -> FastAPI:
                     j["progress"] = frac
                     j["pages"] = pages
                     elapsed = time.time() - t0
-                    # ETA honesta y ACTUALIZADA: se mezcla (a) la
-                    # extrapolación de lo que llevamos y (b) el HISTORIAL de
-                    # duraciones reales para cantidades parecidas (interpolado
-                    # por número de piezas). Acotada por el tope real del job.
+                    # ETA con SENTIDO: la fracción de trabajo es honesta (por
+                    # fases), así que el total se deduce del ritmo observado
+                    # (elapsed/frac) y, si aún no hay ritmo, del historial. El
+                    # restante es (total - elapsed), suavizado para que no
+                    # baile, y nunca pasa del presupuesto del trabajo.
                     from .config import tiempo_optimo
                     n_pz = int(j.get("n_piezas", 0) or 0)
                     tope = tiempo_optimo(st, n_pz)
                     j["tope_s"] = round(tope, 1)
-                    esperado = _esperado_para(n_pz)
-                    ext = elapsed / frac if frac > 0.05 else None
-                    base = esperado or ext
-                    if base:
-                        restante = base * (1.0 - frac)
-                        if ext and frac > 0.2:
-                            restante = 0.5 * restante + 0.5 * ext * (1.0 - frac)
-                        prev = j.get("eta_s")
-                        if prev:
-                            restante = 0.6 * restante + 0.4 * prev
-                        j["eta_s"] = round(min(tope, max(0.0, restante)), 1)
+                    if frac > 0.05:
+                        total = max(elapsed / frac, elapsed)
                     else:
-                        j["eta_s"] = round(max(0.0, tope - elapsed), 1)
+                        total = _esperado_para(n_pz) or min(tope, 3.0)
+                    total = min(tope, max(total, elapsed))
+                    restante = max(0.0, total - elapsed)
+                    prev = j.get("eta_s")
+                    if prev and prev > 0:
+                        restante = 0.55 * restante + 0.45 * prev
+                        # pasada la fase inicial, el restante solo BAJA: si
+                        # subiera, parecería que el trabajo se alarga solo
+                        if frac > 0.2:
+                            restante = min(restante, prev)
+                    j["eta_s"] = round(min(max(0.0, tope - elapsed),
+                                           max(0.0, restante)), 1)
                     j["message"] = mensajes_funny()[
                         int(elapsed * 3) % len(mensajes_funny())]
+
+            # la barra arranca YA (aunque la primera fase tarde en reportar)
+            progress(0.01, 0)
 
             try:
                 res = optimize(assets, area, st,
@@ -305,13 +313,49 @@ def create_app(store: Session = session) -> FastAPI:
         cfg.save_presets(p)
         return {"ok": True, "names": sorted(p.keys())}
 
+    # ------------------------------------------------------------- modos ---
+    @app.get("/api/modos")
+    def get_modos():
+        """Los 3 modos de trabajo y los 3 huecos personalizados."""
+        return {"modos": cfg.MODOS_INTERESANTES, "slots": cfg.load_slots()}
+
+    @app.post("/api/modos/{i}")
+    def save_modo(i: int, payload: dict):
+        """Guarda los ajustes ACTUALES en el hueco personalizado `i`."""
+        nombre = str((payload or {}).get("nombre") or "").strip()
+        cfg.save_slot(i, nombre, settings.as_dict())
+        return {"ok": True, "slots": cfg.load_slots()}
+
+    @app.patch("/api/modos/{i}")
+    def rename_modo(i: int, payload: dict):
+        """Cambia solo el NOMBRE del hueco (los ajustes no se tocan)."""
+        nombre = str((payload or {}).get("nombre") or "").strip()
+        cfg.rename_slot(i, nombre)
+        return {"ok": True, "slots": cfg.load_slots()}
+
+    @app.post("/api/modos/{i}/load")
+    def load_modo(i: int):
+        slots = cfg.load_slots()
+        if not (0 <= i < len(slots)) or not slots[i].get("ajustes"):
+            raise HTTPException(404, tr("ese modo personalizado está vacío"))
+        settings.set(slots[i]["ajustes"])
+        job = start_job()
+        return {"ok": True, "settings": settings.as_dict(), "job": job}
+
+    @app.delete("/api/modos/{i}")
+    def delete_modo(i: int):
+        cfg.clear_slot(i)
+        return {"ok": True, "slots": cfg.load_slots()}
+
     @app.put("/api/settings")
     def put_settings(payload: dict):
         page_changed = any(k in payload for k in
                            ("pagina_w", "pagina_h", "maquina", "espacio_mm",
                             "margen_mm", "rotacion", "usar_minis", "mini_min_mm",
                             "mini_rotacion", "mini_usar_lista",
-                            "mini_tamanos_lista",
+                            "mini_tamanos_lista", "modo_forma",
+                            "simplificar", "simplificar_threshold",
+                            "simplificar_max_vertices",
                             "opt_metodo", "opt_tiempo_max_s", "dpi_salida",
                             "lienzo", "color_formato", "offset_activo",
                             "offset_mm", "offset_modo", "offset_color"))
@@ -422,6 +466,10 @@ def create_app(store: Session = session) -> FastAPI:
                 del a._cache_offset
         if "scale_pct" in payload:
             a.scale_pct = min(1000.0, max(5.0, float(payload["scale_pct"])))
+        if "simplificar" in payload:
+            # simplificación de la silueta SOLO de este elemento
+            a.simplificar = bool(payload["simplificar"])
+            a._forma_cache = None
         store.save()
         return a.to_dict()
 

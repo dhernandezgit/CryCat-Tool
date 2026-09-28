@@ -279,8 +279,10 @@ export default function SettingsPanel({ settings, saveSettings,
             {t("Automático (mínimo + %)")}
           </button>
         </div>
-        {num("Tamaño mínimo", "mini_min_mm", 1, 50, 0.5, "mm", undefined,
-             "Ningún mini bajará de este tamaño: evita piezas imposibles de recortar (10 mm va bien para pegatinas).")}
+        {!settings.mini_usar_lista && (
+          num("Tamaño mínimo", "mini_min_mm", 1, 50, 0.5, "mm", undefined,
+              "Ningún mini bajará de este tamaño: evita piezas imposibles de recortar (10 mm va bien para pegatinas).")
+        )}
         {!settings.mini_usar_lista && (
           num("Tamaño máximo del mini (% del original)", "mini_max_rescale",
               10, 100, 5, "%", undefined,
@@ -301,7 +303,10 @@ export default function SettingsPanel({ settings, saveSettings,
           ["proporcional", "Proporcional (se reduce con el mini)"],
           ["igual", "Mantener el mismo borde (mm del original)"],
           ["sin", "Sin borde"],
-        ], undefined, "Qué hacer con el borde de cada mini al reducirlo")}
+        ], undefined, "Qué hacer con el borde de cada mini al reducirlo")}</Av>
+        {/* la lista de tamaños deseados es ESENCIAL cuando se elige el modo
+            lista: se muestra también en modo básico (si no, no habría forma
+            de configurarla) */}
         {settings.mini_usar_lista && (
           <div className="ctl">
             <label>{t("Tamaños deseados")}</label>
@@ -359,10 +364,10 @@ export default function SettingsPanel({ settings, saveSettings,
                     "{mm} mm); cada mini se escala igual respecto a su original.",
                     { nombre: refMini.name, mm: refBase.toFixed(1) })
                 : t("El tamaño en mm se calcula por imagen; añade imágenes para " +
-                    "verlo. Cada valor es el tamaño del mini respecto al original.")}
+                    "verlo. Cada valor es el tamaño del mini respecto a su original.")}
             </div>
           </div>
-        )}</Av>
+        )}
         </Grupo>
       </Section>
 

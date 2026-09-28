@@ -146,6 +146,50 @@ def _content_image(asset_img: Image.Image, p: Placement) -> Image.Image:
     return img
 
 
+def _content_trimmed(asset_img: Image.Image, p: Placement,
+                     px: float = 0.0, objetivo: bool = True) -> Image.Image:
+    """Contenido REAL de la pieza: rotada y recortada a su alfa.
+
+    Al girar con `expand=True` el marco crece con esquinas transparentes; si
+    se escala el marco (y no el contenido) la pieza queda más pequeña que su
+    caja y desplazada, y el contorno deja de cuadrar con el dibujo. Por eso
+    render y contornos parten SIEMPRE de este contenido recortado.
+
+    `px`: píxeles por mm del lienzo. Con `objetivo=True` y el tamaño pedido
+    (`w0`/`h0`) la imagen se escala ANTES de girar a ese tamaño — el mismo
+    que usa la máscara del optimizador —, así la pieza mide exacto lo pedido
+    aunque la caja del giro libre sea conservadora.
+    """
+    img = asset_img
+    if objetivo and px > 0 and p.w0 > 0 and p.h0 > 0:
+        tw = max(1, round(p.w0 * px))
+        th = max(1, round(p.h0 * px))
+        if (tw, th) != img.size:
+            k = min(tw / img.width, th / img.height)
+            nw = max(1, round(img.width * k))
+            nh = max(1, round(img.height * k))
+            if (nw, nh) != img.size:
+                img = img.resize((nw, nh), Image.Resampling.LANCZOS)
+    return trim(_content_image(img, p))
+
+
+def _fit_box(img: Image.Image, tw: int, th: int) -> tuple[Image.Image, float]:
+    """Encaja el contenido en la caja SIN deformar y SIN agrandarlo.
+
+    La caja del optimizador es conservadora en los giros libres (el bbox del
+    rectángulo girado, mayor que el contenido real). Si se escalara el
+    contenido hacia arriba para "llenar" la caja, la pieza se imprimiría más
+    grande de lo pedido y podría pisar a las vecinas (el optimizador reservó
+    la caja del tamaño REAL). Por eso solo se REDUCE (minis) o se deja igual.
+    """
+    k = min(1.0, tw / img.width, th / img.height)
+    if k >= 1.0 - 1e-9:
+        return img, 1.0
+    nw = max(1, round(img.width * k))
+    nh = max(1, round(img.height * k))
+    return img.resize((nw, nh), Image.Resampling.LANCZOS), k
+
+
 def render_page(area: CutArea, placements: list[Placement], images: dict[str, Image.Image],
                 dpi: float, full_page: bool = False, color: str = "rgba") -> Image.Image:
     """Renderiza una página a PIL RGBA (fondo transparente).
@@ -170,16 +214,13 @@ def render_page(area: CutArea, placements: list[Placement], images: dict[str, Im
         src = images.get(p.asset_id)
         if src is None:
             continue
-        img = _content_image(src, p)
+        img = _content_trimmed(src, p, px_per_mm)
         tw = max(1, round(p.w * px_per_mm))
         th = max(1, round(p.h * px_per_mm))
-        if (tw, th) != img.size:
-            # Escala SIEMPRE uniforme: se ajusta a la caja sin deformar la
-            # imagen (la proporción del original se conserva).
-            k = min(tw / img.width, th / img.height)
-            nw = max(1, round(img.width * k))
-            nh = max(1, round(img.height * k))
-            img = img.resize((nw, nh), Image.Resampling.LANCZOS)
+        # Escala SIEMPRE uniforme: se ajusta a la caja sin deformar la
+        # imagen (la proporción del original se conserva). El contenido se
+        # ancla a la esquina de su caja (igual que los contornos).
+        img, _ = _fit_box(img, tw, th)
         x = round(p.x * px_per_mm - off_x * px_per_mm)
         y = round(p.y * px_per_mm - off_y * px_per_mm)
         canvas.alpha_composite(img, (max(0, x), max(0, y)))
@@ -224,67 +265,78 @@ def contornos_bordes(canvas: Image.Image, placements: list[Placement],
     for p in placements:
         fin = con_borde.get(p.asset_id)
         orig = sin_borde.get(p.asset_id)
-        pares: list[tuple[object, tuple[int, int, int], object]] = []
+        tw = max(1, round(p.w * px))
+        th = max(1, round(p.h * px))
+        x = int(round(p.x * px - bx * px))
+        y = int(round(p.y * px - by * px))
+
+        # la silueta final (con borde) manda: su contenido recortado se ancla
+        # a la caja, igual que en el render
+        fin_img = None
+        k = 1.0
         if fin is not None and modo in ("final", "ambos"):
-            pares.append((fin, color_final, p))
-        if orig is not None and modo in ("orig", "ambos"):
-            # el dibujo sin borde va CENTRADO dentro de la pieza final
-            # (el borde crece por igual a los cuatro lados)
-            if fin is not None and fin.size[0] and fin.size[1]:
-                w_o = p.w * orig.size[0] / fin.size[0]
-                h_o = p.h * orig.size[1] / fin.size[1]
-                x_o = p.x + (p.w - w_o) / 2.0
-                y_o = p.y + (p.h - h_o) / 2.0
-                pares.append((orig, color_sin,
-                              Placement(uid=p.uid, asset_id=p.asset_id,
-                                        page=p.page, x=x_o, y=y_o, w=w_o,
-                                        h=h_o, angle=p.angle, mini=p.mini,
-                                        scale=p.scale, rot90=p.rot90)))
-            else:
-                pares.append((orig, color_sin, p))
-        for fuente, color, pp in pares:
             try:
-                img = _content_image(fuente, pp)
+                fin_img, k = _fit_box(
+                    _content_trimmed(fin, p, px), tw, th)
+            except Exception:
+                fin_img = None
+        if fin_img is not None:
+            base = _dibujar_contorno(base, fin_img, color_final, x, y,
+                                     fase, grosor_px, guiones=True)
+
+        if orig is not None and modo in ("orig", "ambos"):
+            try:
+                o_img = _content_trimmed(orig, p, px, objetivo=False)
             except Exception:
                 continue
-            # MISMO escalado que el render: sin esto el contorno se dibuja al
-            # tamaño nativo de la imagen y queda desplazado (bug del X/Y)
-            tw = max(1, round(pp.w * px))
-            th = max(1, round(pp.h * px))
-            if (tw, th) != img.size:
-                k = min(tw / img.width, th / img.height)
-                nw = max(1, round(img.width * k))
-                nh = max(1, round(img.height * k))
-                img = img.resize((nw, nh), Image.Resampling.LANCZOS)
-            m = np.asarray(img.convert("RGBA").getchannel("A")) > 1
-            if not m.any():
-                continue
-            ys, xs = np.where(m)
-            ox, oy = int(xs.min()), int(ys.min())
-            cont = m & ~ndimage.binary_erosion(m, iterations=1)
-            if not cont.any():
-                continue
-            # trazo GRUESO y PUNTEADO: la silueta final en guiones y la del
-            # dibujo sin borde en puntos complementarios (se alternan)
-            if grosor_px > 1:
-                cont = ndimage.binary_dilation(cont,
-                                               iterations=grosor_px - 1)
-            yy, xx = np.mgrid[0:m.shape[0], 0:m.shape[1]]
-            # periodo 12 (el mismo de las cartas): los fotogramas avanzan de 3
-            # en 3 y los puntos "caminan" por el contorno (hormigas marchando)
-            desfase = (xx + yy + fase) % 12
-            if color == color_final:
-                cont = cont & (desfase < 8)       # guiones
+            if fin_img is not None:
+                # el dibujo sin borde va CENTRADO dentro de la pieza final
+                # (el borde crece por igual a los cuatro lados) y con el
+                # MISMO factor de escala, para que el trazo sea uniforme
+                ow = max(1, round(o_img.width * k))
+                oh = max(1, round(o_img.height * k))
+                o_img = o_img.resize((ow, oh), Image.Resampling.LANCZOS)
+                ox_ = x + (fin_img.width - ow) // 2
+                oy_ = y + (fin_img.height - oh) // 2
             else:
-                cont = cont & (desfase >= 8)      # puntos (la otra mitad)
-            if not cont.any():
-                continue
-            parche = np.zeros((m.shape[0], m.shape[1], 4), dtype=np.uint8)
-            parche[cont] = (color[0], color[1], color[2], 255)
-            capa = Image.fromarray(parche, "RGBA")
-            x = int(round(pp.x * px - bx * px)) - ox
-            y = int(round(pp.y * px - by * px)) - oy
-            base.alpha_composite(capa, (x, y))
+                o_img, _ = _fit_box(o_img, tw, th)
+                ox_, oy_ = x, y
+            base = _dibujar_contorno(base, o_img, color_sin, ox_, oy_,
+                                     fase, grosor_px, guiones=False)
+    return base
+
+
+def _dibujar_contorno(base: Image.Image, img: Image.Image,
+                      color: tuple[int, int, int], x: int, y: int,
+                      fase: int, grosor_px: int,
+                      guiones: bool = True) -> Image.Image:
+    """Dibuja el contorno punteado del contenido `img` en (x, y)."""
+    import numpy as np
+    from scipy import ndimage
+
+    m = np.asarray(img.convert("RGBA").getchannel("A")) > 1
+    if not m.any():
+        return base
+    cont = m & ~ndimage.binary_erosion(m, iterations=1)
+    if not cont.any():
+        return base
+    # trazo GRUESO y PUNTEADO: la silueta final en guiones y la del
+    # dibujo sin borde en puntos complementarios (se alternan)
+    if grosor_px > 1:
+        cont = ndimage.binary_dilation(cont, iterations=grosor_px - 1)
+    yy, xx = np.mgrid[0:m.shape[0], 0:m.shape[1]]
+    # periodo 12 (el mismo de las cartas): los fotogramas avanzan de 3
+    # en 3 y los puntos "caminan" por el contorno (hormigas marchando)
+    desfase = (xx + yy + fase) % 12
+    if guiones:
+        cont = cont & (desfase < 8)       # guiones
+    else:
+        cont = cont & (desfase >= 8)      # puntos (la otra mitad)
+    if not cont.any():
+        return base
+    parche = np.zeros((m.shape[0], m.shape[1], 4), dtype=np.uint8)
+    parche[cont] = (color[0], color[1], color[2], 255)
+    base.alpha_composite(Image.fromarray(parche, "RGBA"), (x, y))
     return base
 
 
