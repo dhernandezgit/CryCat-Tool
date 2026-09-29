@@ -10685,7 +10685,7 @@ function xh() {
     )
   ] }) }) : /* @__PURE__ */ i.jsx("div", { style: { padding: 30 }, children: zm("es", "Cargando CryCat…") });
 }
-const wh = "1790691636632", $d = document.getElementById("root"), Xo = [
+const wh = "1790692851323", $d = document.getElementById("root"), Xo = [
   "Cargando peluches de apoyo emocional…",
   "Afilando tijeras de pegatinas…",
   "Preparando boba teas…",

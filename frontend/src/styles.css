@@ -1131,7 +1131,7 @@ button.primary {
 
 /* -------- botón Optimizar flotante (centro, con estrellitas) -------- */
 .viewer-flotantes .vf-centro { display: flex; pointer-events: auto; }
-.btn-optimizar-flotante {
+.viewer-flotantes button.btn-optimizar-flotante {
   font: inherit; font-size: 21px; font-weight: 900; cursor: pointer;
   padding: 14px 52px; border-radius: 999px; letter-spacing: .5px;
   border: 2.5px solid var(--accent2);
@@ -1139,5 +1139,5 @@ button.primary {
   box-shadow: 0 8px 24px rgba(120, 30, 70, .45);
   display: inline-flex; align-items: center; gap: 14px;
 }
-.btn-optimizar-flotante:hover { filter: brightness(1.07); transform: translateY(-1px); }
-.btn-optimizar-flotante .estrella { font-size: 13px; opacity: .95; }
+.viewer-flotantes button.btn-optimizar-flotante:hover { filter: brightness(1.07); transform: translateY(-1px); }
+.viewer-flotantes .btn-optimizar-flotante .estrella { font-size: 15px; opacity: .95; }
