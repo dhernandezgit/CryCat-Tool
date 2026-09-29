@@ -59,6 +59,8 @@ export interface AppSettings {
   margen_mm: number;
   rotacion: "no" | "90" | "libre";
   modo_forma?: "siluetas" | "redondas" | "rectangulos";
+  ver_contornos?: boolean;
+  contorno_modo?: "final" | "orig" | "ambos" | "ninguno";
   dpi_salida: number;
   pagina: string;
   pagina_w: number;

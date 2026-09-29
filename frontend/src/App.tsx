@@ -54,6 +54,9 @@ export default function App() {
           ...u,
           guidesVisible: s.settings.ver_guias,
           eyeTransparent: s.settings.fondo_transparente,
+          // el contorno viene ACTIVADO por defecto (exterior)
+          verBordes: s.settings.ver_contornos !== false,
+          contornoModo: (s.settings.contorno_modo as never) ?? "final",
         }));
         setAssets((await api.listAssets()).map(normalizeAsset));
         setResult(await api.result());
@@ -133,6 +136,9 @@ export default function App() {
 
   const optimize = useCallback(async () => {
     setOptimizando(true);
+    // ceder un frame: en la web (Pyodide) el cálculo bloquea el hilo y, sin
+    // esto, la barra de progreso no llegaba a dibujarse nunca
+    await new Promise((r) => setTimeout(r, 60));
     try {
       const j = await api.optimize();
       setJob(j);
@@ -147,12 +153,16 @@ export default function App() {
   // recálculo forzado desde el botón (rápido u óptimo), recolocando todo
   const recalc = useCallback(
     async (modo: "rapido" | "optimo") => {
+      setOptimizando(true);
+      await new Promise((r) => setTimeout(r, 60));
       try {
         const j = await api.optimize(modo, true);
         setJob(j);
         pollJob(j.id);
       } catch {
         setBackendOk(false);
+      } finally {
+        setOptimizando(false);
       }
     },
     [pollJob]
@@ -169,6 +179,23 @@ export default function App() {
   useEffect(() => {
     scheduleOptimizeRef.current = scheduleOptimize;
   }, [scheduleOptimize]);
+
+  // PROGRESO REAL de la web: el worker de Pyodide avisa en cada avance y aquí
+  // se refleja en la barra inferior (en escritorio ya llega por /api/job)
+  useEffect(() => {
+    const alProgreso = (e: Event) => {
+      const d = (e as CustomEvent).detail as { progress: number;
+                                               pages: number };
+      setJob((j) => ({
+        ...(j ?? { id: "web", status: "running" as const, done: false,
+                   message: "", progress: 0, pages: 0 }),
+        progress: d.progress,
+        pages: d.pages,
+      }));
+    };
+    window.addEventListener("crycat:progreso", alProgreso);
+    return () => window.removeEventListener("crycat:progreso", alProgreso);
+  }, []);
 
   // muestra inicial: si no hay imágenes, figuras geométricas de ejemplo
   const demoPedida = useRef(false);
@@ -381,7 +408,7 @@ export default function App() {
         </div>
       </div>
       <StatusBar job={job} backendOk={backendOk} result={result}
-                 estimate={estimate}
+                 estimate={estimate} optimizando={optimizando}
                  volumen={settings.volumen ?? 0.5}
                  mute={settings.mute ?? false}
                  onVolumen={(v) => saveSettings({ volumen: v })}

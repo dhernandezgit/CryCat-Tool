@@ -132,6 +132,12 @@ def _pl_dict(p: Placement) -> dict:
             "h0": round(getattr(p, "h0", 0.0) or 0.0, 3)}
 
 
+# Gancho opcional de progreso: la versión web lo usa para informar a la barra
+# desde el worker de Pyodide (en escritorio se queda en None).
+progreso_hook = None
+progreso_n = 0   # cuántas veces se ha avisado del progreso (diagnóstico)
+
+
 def create_app(store: Session = session) -> FastAPI:
     app = FastAPI(title="CryCat", version=__version__)
     # recupera la sesión anterior (imágenes + colocaciones)
@@ -218,6 +224,13 @@ def create_app(store: Session = session) -> FastAPI:
                                            max(0.0, restante)), 1)
                     j["message"] = mensajes_funny()[
                         int(elapsed * 3) % len(mensajes_funny())]
+                    global progreso_n
+                    progreso_n += 1
+                    if progreso_hook is not None:
+                        try:
+                            progreso_hook(frac, pages)
+                        except Exception:
+                            pass
 
             # la barra arranca YA (aunque la primera fase tarde en reportar)
             progress(0.01, 0)
@@ -268,6 +281,7 @@ def create_app(store: Session = session) -> FastAPI:
     @app.get("/api/health")
     def health():
         return {"ok": True, "app": "CryCat", "version": __version__,
+                "progreso_n": progreso_n,
                 "time": dt.datetime.now().isoformat(timespec="seconds")}
 
     @app.get("/api/settings")
@@ -382,6 +396,7 @@ def create_app(store: Session = session) -> FastAPI:
                             "mini_tamanos_lista", "modo_forma",
                             "simplificar", "simplificar_threshold",
                             "simplificar_max_vertices",
+                            "ver_contornos", "contorno_modo",
                             "opt_metodo", "opt_tiempo_max_s", "dpi_salida",
                             "lienzo", "color_formato", "offset_activo",
                             "offset_mm", "offset_modo", "offset_color"))

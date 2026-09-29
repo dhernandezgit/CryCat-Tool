@@ -15,10 +15,7 @@ export async function cargarCryCat(onEstado) {
   const di = (t, paso) => onEstado && onEstado(t, paso);
 
   di("Cargando Python en el navegador (WebAssembly)…", 1);
-  await cargarScript("https://cdn.jsdelivr.net/pyodide/v0.26.2/full/pyodide.js");
-  const pyodide = await globalThis.loadPyodide({
-    indexURL: "https://cdn.jsdelivr.net/pyodide/v0.26.2/full/",
-  });
+  const pyodide = await cargarPyodide();
 
   di("Cargando Pillow, NumPy, SciPy, micropip y pydantic…", 2);
   // pydantic viene compilado en Pyodide (pydantic-core en WebAssembly): hay
@@ -62,6 +59,19 @@ sys.path.insert(0, "/motor")
   _py = pyodide;
   di("Motor listo", 5);
   return _py;
+}
+
+const CDN = "https://cdn.jsdelivr.net/pyodide/v0.26.2/full/";
+
+/** Carga Pyodide en el hilo principal (script clásico) o en un WORKER (ESM). */
+async function cargarPyodide() {
+  if (typeof document === "undefined") {
+    // worker: no hay <script>; se usa el módulo ESM de Pyodide
+    const mod = await import(CDN + "pyodide.mjs");
+    return await mod.loadPyodide({ indexURL: CDN });
+  }
+  await cargarScript(CDN + "pyodide.js");
+  return await globalThis.loadPyodide({ indexURL: CDN });
 }
 
 function cargarScript(src) {

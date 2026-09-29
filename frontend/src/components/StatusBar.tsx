@@ -125,6 +125,8 @@ export default function StatusBar({ job, backendOk, result, estimate,
   }, [aviso, actualizando, running, job, mensajes, idx, result, t, ver]);
 
   const pct = Math.round((job?.progress ?? 0) * 100);
+  // sin job todavía (web: el cálculo bloquea el hilo) -> barra en marcha
+  const indeterminado = running && !job;
   const etaTxt = useMemo(() => {
     const s = job?.eta_s;
     if (!running || s === undefined || s === null || s <= 0.5) return "";
@@ -244,7 +246,8 @@ export default function StatusBar({ job, backendOk, result, estimate,
 
         {running && (
           <>
-            <div className="progress" data-testid="progress">
+            <div className={`progress${indeterminado ? " indeterminado" : ""}`}
+                 data-testid="progress">
               <div style={{ width: `${Math.max(4, pct)}%` }} />
             </div>
             <span className="eta" data-testid="eta"

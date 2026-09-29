@@ -530,12 +530,6 @@ def optimize(assets: list[dict], area: CutArea, settings: dict,
     # sin colocar o no cabe en una hoja) se recurre a las SILUETAS con el
     # presupuesto que quede.
     rectangulos = forma == "rectangulos"
-    if rectangulos and masks and fracs:
-        # "si se complica": si las piezas NO llenan su caja (no son
-        # rectángulos de verdad), las cajas desperdician sitio -> siluetas
-        densidad = sum(fracs.values()) / max(1, len(fracs))
-        if densidad < 0.92:
-            rectangulos = False
     if (not rectangulos and masks
             and (settings.get("usar_minis") or not holgado)):
         from .silhouette import pack as sil_pack
@@ -614,7 +608,7 @@ def optimize(assets: list[dict], area: CutArea, settings: dict,
     # hoja; si no (aquí solo se llega con trabajos holgados o sin máscaras),
     # manda la SILUETA, que encaja y aprovecha de verdad. En modo carteles
     # esto es el "si se complica": cajas primero y siluetas si no basta.
-    if masks and (best.unplaced or (best.pages > 1 and not rectangulos)):
+    if masks and not rectangulos and (best.unplaced or best.pages > 1):
         from .silhouette import pack as sil_pack
         # presupuesto RESTANTE: el intento por cajas ya gastó parte
         restante = max(0.5, deadline - time.time())

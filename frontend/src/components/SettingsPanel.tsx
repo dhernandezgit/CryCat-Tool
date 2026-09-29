@@ -197,10 +197,13 @@ export default function SettingsPanel({ settings, saveSettings,
                toggle={toggle}
                icon={<IconoAjustar size={15} />}>
         <Grupo titulo="Colocación">
+        {/* los dos valores básicos, en la MISMA fila */}
+        <div className="ctl-fila">
         {num("Espacio entre elementos", "espacio_mm", 0, 20, 0.5, "mm", undefined,
              "Separación mínima entre piezas al colocarlas. Para chapa, 0,5; para pegatinas que se recortan una a una, 2 mm.")}
-        {num("Margen de seguridad a los límites", "margen_mm", 0, 20, 0.5, "mm", undefined,
+        {num("Margen a los límites", "margen_mm", 0, 20, 0.5, "mm", undefined,
              "Cuánto se separan las piezas del borde del área recortable. Súbelo si tu Cricut corta justo al límite.")}
+        </div>
         {sel("Rotación admitida", "rotacion", [
           ["no", "No girar"],
           ["90", "Giros de 0º / 90º / 180º / 270º"],

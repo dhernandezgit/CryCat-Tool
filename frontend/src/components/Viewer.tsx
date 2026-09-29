@@ -537,13 +537,16 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
             className={`btn-contorno ${CONTS[modoCont].clase}`}
             data-tip={t("Contorno: {modo} (pulsa para cambiar)", {
               modo: t(CONTS[ui.contornoModo ?? "final"].etiqueta) })}
-            onClick={() => setUi((u) => {
+            onClick={() => {
               const orden = ["final", "orig", "ambos", "ninguno"] as const;
-              const i = orden.indexOf(u.contornoModo ?? "final");
+              const i = orden.indexOf(ui.contornoModo ?? "final");
               const sig = orden[(i + 1) % 4];
-              return { ...u, contornoModo: sig,
-                       verBordes: sig !== "ninguno" };
-            })}
+              setUi((u) => ({ ...u, contornoModo: sig,
+                              verBordes: sig !== "ninguno" }));
+              // se guarda para que el modo elegido persista entre sesiones
+              void saveSettings({ contorno_modo: sig,
+                                  ver_contornos: sig !== "ninguno" });
+            }}
           >
             <IconoBordes size={16} /> {t(CONTS[modoCont].corto)}
           </button>

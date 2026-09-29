@@ -1080,3 +1080,19 @@ button.primary {
 }
 .modo-slot .slot-btn:hover { color: var(--text); }
 .modo-slot .slot-btn.danger:hover { color: var(--danger); border-color: var(--danger); }
+
+/* dos controles básicos en la misma fila (General) */
+.ctl-fila { display: flex; gap: 8px; align-items: flex-start; }
+.ctl-fila > .ctl { flex: 1; min-width: 0; }
+.ctl-fila .row { gap: 4px; }
+.ctl-fila input[type="number"] { width: 100%; min-width: 0; }
+
+/* barra de progreso en marcha (web: mientras el cálculo bloquea el hilo) */
+.progress.indeterminado > div {
+  width: 32% !important;
+  animation: barra-marcha-lenta 1.2s ease-in-out infinite;
+}
+@keyframes barra-marcha-lenta {
+  0%   { transform: translateX(-110%); }
+  100% { transform: translateX(340%); }
+}

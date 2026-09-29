@@ -358,25 +358,25 @@ def test_modo_chapas_redondas_sin_girar():
         "las chapas no se giran: siempre ángulo 0"
 
 
-def test_modo_carteles_cajas_y_reserva_silueta():
-    """MODO CARTELES: primero CAJAS (exacto y rápido para rectángulos) y, si
-    el trabajo se complica (no cabe en una hoja por cajas), SILUETAS."""
+def test_modo_carteles_cajas_siempre_rapido():
+    """MODO CARTELES: SIEMPRE por cajas (nada de siluetas) y muy rápido."""
+    import time
     rect = _rect_mm(40.0, 25.0)
     assets = [{"id": "r", "name": "r", "w_mm": 40.0, "h_mm": 25.0,
                "copies": 24, "mini_enabled": False}]
     st = dict(BASE, modo_forma="rectangulos", rotacion="90")
+    t0 = time.time()
     res = _caso_cajas(assets, {"r": rect}, st)
+    dt = time.time() - t0
     assert not res.unplaced
-    assert res.method != "silueta", "los rectángulos deben ir por cajas"
-    # formas "complicadas": muchas estrellas; las cajas son conservadoras y
-    # no caben en una hoja -> entra la silueta y lo consigue
+    # los métodos por cajas se etiquetan "heurística/orden" (bssf/area…)
+    assert "/" in res.method, f"deberían ser cajas: {res.method}"
+    assert dt < 2.0, f"los rectángulos deben ser rapidísimos: {dt:.2f}s"
+    # aunque las piezas NO sean rectángulos, tampoco se usan siluetas
     est = trim(_estrella(360))
     assets2 = [{"id": "e", "name": "e", "w_mm": 30.5, "h_mm": 30.5,
                 "copies": 48, "mini_enabled": False}]
     res2 = _caso_cajas(assets2, {"e": est},
                        dict(BASE, modo_forma="rectangulos", rotacion="90"))
     assert not res2.unplaced
-    # los métodos por cajas se etiquetan "heurística/orden" (bssf/area…);
-    # si la etiqueta NO lleva barra, es que entró el empaquetado por silueta
-    assert "/" not in res2.method, \
-        f"debe caer a siluetas si las cajas no bastan (método {res2.method})"
+    assert "/" in res2.method, f"sin siluetas en carteles: {res2.method}"

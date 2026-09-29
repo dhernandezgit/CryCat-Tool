@@ -208,6 +208,26 @@ async def iniciar() -> str:
     from .server import create_app
     _app = create_app()
 
+    # PROGRESO REAL en la web: el worker de Pyodide llama a la función JS
+    # `crycatProgreso` (definida en worker-crycat.js) en cada avance; así la
+    # barra de la barra inferior se mueve aunque el cálculo bloquee el hilo.
+    try:
+        import js  # type: ignore
+        from . import server as _srv
+
+        def _aviso(frac, pages):
+            try:
+                js.crycatProgreso(float(frac), int(pages))
+            except Exception as e:
+                try:
+                    js.crycatError(str(e))
+                except Exception:
+                    pass
+
+        _srv.progreso_hook = _aviso
+    except Exception:
+        pass
+
     # En el navegador no se pueden crear hilos: Starlette/FastAPI mandan los
     # endpoints síncronos a un hilo del pool, así que se ejecutan en línea.
     import anyio.to_thread

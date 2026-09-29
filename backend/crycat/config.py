@@ -92,7 +92,7 @@ PRESETS_FILE = DATA_DIR / "presets.json"
 DEFAULTS: dict = {
     "_v": CONFIG_VERSION,
     # General
-    "espacio_mm": 2.0,
+    "espacio_mm": 0.5,
     "margen_mm": 1.0,            # margen de seguridad a los límites (mm)
     "rotacion": "libre",         # no | 90 (0/90/180/270) | libre (por defecto)
     "dpi_salida": 300,
@@ -104,6 +104,9 @@ DEFAULTS: dict = {
     # Forma de las piezas (modos rápidos): siluetas (pegatinas), redondas
     # (chapas: círculos, ángulo 0) o rectangulos (carteles: cajas, giros 90)
     "modo_forma": "siluetas",
+    # contornos de la vista previa: ACTIVADOS por defecto (exterior)
+    "ver_contornos": True,
+    "contorno_modo": "final",
     # Minis (por defecto: 20 mm, tamaños IGUALES, cualquier ángulo y con el
     # MISMO borde en mm que el elemento grande, no proporcional)
     "mini_min_mm": 20.0,
@@ -296,7 +299,7 @@ PRESETS_INTERESANTES: dict[str, dict] = {
 MODOS_INTERESANTES: dict[str, dict] = {
     "silueta": {
         "modo_forma": "siluetas", "rotacion": "libre",
-        "espacio_mm": 2.0, "margen_mm": 1.0, "offset_activo": True,
+        "espacio_mm": 0.5, "margen_mm": 1.0, "offset_activo": True,
         "offset_mm": 1.0, "offset_modo": "extender",
     },
     "rectangulos": {

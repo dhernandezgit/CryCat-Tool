@@ -175,7 +175,19 @@ const estado = (t: string, paso?: number) => {
   }
 };
 
-let py: any = null;
+let obrero: Worker | null = null;
+let listo = false;
+let idPeticion = 0;
+const pendientes = new Map<number, (r: any) => void>();
+
+/** Pide algo al worker y espera su respuesta. */
+function pedirWorker(msg: Record<string, unknown>): Promise<any> {
+  return new Promise((res) => {
+    const id = ++idPeticion;
+    pendientes.set(id, res);
+    obrero!.postMessage({ ...msg, id });
+  });
+}
 
 // ---------------------------------------------------------------- puente --
 const b64DeArray = (buf: ArrayBuffer) => {
@@ -237,13 +249,13 @@ async function apiLocal(metodo: string, url: string, init?: RequestInit) {
   } else if (typeof b === "string") {
     cuerpo = b64DeArray(new TextEncoder().encode(b).buffer);
   }
-  const codigo =
-    "import json\nfrom crycat import webapi\n" +
-    "await webapi.peticion(" + JSON.stringify(metodo) + ", " +
-    JSON.stringify(ruta) + ", " +
-    JSON.stringify(JSON.stringify(cabeceras)) + ", " +
-    JSON.stringify(cuerpo) + ")";
-  const salida = JSON.parse(await py.runPythonAsync(codigo));
+  const salida = await pedirWorker({
+    tipo: "api", method: metodo, path: ruta,
+    headers: JSON.stringify(cabeceras), body: cuerpo,
+  });
+  if (salida && salida.error) {
+    return new Response("error: " + salida.error, { status: 500 });
+  }
   return new Response(arrayDeB64(salida.body), {
     status: salida.status || 200,
     headers: salida.headers || { "content-type": "application/json" },
@@ -257,7 +269,7 @@ function instalarPuente() {
   window.fetch = async (entrada: any, init?: RequestInit) => {
     const url = typeof entrada === "string" ? entrada
               : (entrada && entrada.url) ? entrada.url : String(entrada);
-    if (url.includes("/api/") && py) {
+    if (url.includes("/api/") && listo) {
       try {
         return await apiLocal((init?.method || "GET").toUpperCase(), url, init);
       } catch (e) {
@@ -288,16 +300,40 @@ async function main() {
       }
     }
 
-    // 2) Pyodide + el paquete real de CryCat (el cargador vive un nivel
-    //    por encima del bundle: /web/pyodide-crycat.js)
-    const url = new URL(`../pyodide-crycat.js?v=${VERSION}`,
-                        import.meta.url).href;
-    const mod = await import(/* @vite-ignore */ url);
-    py = await mod.cargarCryCat(estado);
-
-    estado("Instalando FastAPI en el navegador (solo la primera vez)…", 6);
-    await py.runPythonAsync(
-      "import asyncio\nfrom crycat import webapi\nawait webapi.iniciar()");
+    // 2) el motor va en un WORKER: la interfaz sigue viva mientras calcula y
+    //    el progreso llega de verdad (worker-crycat.js)
+    // el worker vive junto a la página (/web/worker-crycat.js); se construye
+    // la URL en tiempo de ejecución para que el empaquetador no la toque
+    const urlObrero = new URL(`worker-crycat.js?v=${VERSION}`,
+                              location.href).href;
+    obrero = new Worker(urlObrero, { type: "module" });
+    obrero.onmessage = (ev: MessageEvent) => {
+      const d = ev.data || {};
+      if (d.tipo === "estado") {
+        estado(d.t, d.paso);
+      } else if (d.tipo === "progreso") {
+        // avance REAL del cálculo -> la barra inferior se mueve
+        window.dispatchEvent(new CustomEvent("crycat:progreso",
+          { detail: { progress: d.frac, pages: d.pages } }));
+      } else if (d.tipo === "api") {
+        const r = pendientes.get(d.id);
+        pendientes.delete(d.id);
+        if (r) r(d.salida ?? { error: d.error || "error" });
+      } else if (d.tipo === "error") {
+        pintarCarga("No se pudo iniciar el motor: " + d.error, true);
+      }
+    };
+    await new Promise<void>((res) => {
+      const alListo = (ev: MessageEvent) => {
+        if (ev.data && ev.data.tipo === "listo") {
+          obrero!.removeEventListener("message", alListo);
+          res();
+        }
+      };
+      obrero!.addEventListener("message", alListo);
+      obrero!.postMessage({ tipo: "iniciar" });
+    });
+    listo = true;
 
     // 3) atender las peticiones que llegan del service worker
     navigator.serviceWorker.addEventListener("message", async (ev: any) => {
@@ -306,14 +342,11 @@ async function main() {
       const puerto: MessagePort = ev.ports && ev.ports[0];
       if (!puerto) return;
       try {
-        const codigo =
-          "import json\nfrom crycat import webapi\n" +
-          "await webapi.peticion(" +
-          JSON.stringify(d.method) + ", " + JSON.stringify(d.path) + ", " +
-          JSON.stringify(JSON.stringify(d.headers || {})) + ", " +
-          JSON.stringify(d.body || "") + ")";
-        const salida = await py.runPythonAsync(codigo);
-        puerto.postMessage(JSON.parse(salida));
+        const salida = await pedirWorker({
+          tipo: "api", method: d.method, path: d.path,
+          headers: JSON.stringify(d.headers || {}), body: d.body || "",
+        });
+        puerto.postMessage(salida);
       } catch (e: any) {
         puerto.postMessage({
           status: 500,
