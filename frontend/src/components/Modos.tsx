@@ -1,23 +1,21 @@
-/** Selector de MODOS de trabajo (sustituye a los perfiles).
+/** Selector de MODO de empaquetado: Silueta (por defecto) o Rectángulos.
 
- *  Tres modos grandes — chapas (izquierda), pegatinas (centro, el principal)
- *  y carteles (derecha) — más TRES huecos personalizados, bajos, con nombre
- *  editable, donde guardar los ajustes actuales tantas veces como se quiera.
+ *  · Silueta     → usa la forma real de cada pieza y cualquier ángulo.
+ *  · Rectángulos → empaqueta por CAJAS (exacto y hasta 100× más rápido para
+ *                  piezas rectangulares, con giros de 90°).
  */
 import { useEffect, useState } from "react";
-import { api, type AppSettings, type ModoSlot } from "../api";
+import { api, type AppSettings } from "../api";
 import { useT } from "../i18n";
-import { IconoChapa, IconoPegatina, IconoCartel, IconoGuardar,
-         IconoBorrar, IconoAjustar } from "./iconos";
+import { IconoPegatina, IconoCartel } from "./iconos";
 
 const MODOS: { clave: string; nombre: string; desc: string;
                Icono: (p: { size?: number }) => JSX.Element;
                forma: string }[] = [
-  { clave: "chapas", nombre: "Chapas", desc: "Redondas, sin girar",
-    Icono: IconoChapa, forma: "redondas" },
-  { clave: "pegatinas", nombre: "Pegatinas", desc: "Siluetas, cualquier ángulo",
+  { clave: "silueta", nombre: "Silueta", desc: "Forma real, cualquier ángulo",
     Icono: IconoPegatina, forma: "siluetas" },
-  { clave: "carteles", nombre: "Carteles", desc: "Rectángulos, giros de 90°",
+  { clave: "rectangulos", nombre: "Rectángulos",
+    desc: "Por cajas, giros de 90° · ¡rápido!",
     Icono: IconoCartel, forma: "rectangulos" },
 ];
 
@@ -31,22 +29,16 @@ export default function Modos({ settings, saveSettings }: Props) {
   const [fabrica, setFabrica] = useState<Record<string, Partial<AppSettings>>>(
     {},
   );
-  const [slots, setSlots] = useState<ModoSlot[]>([]);
-  const [editando, setEditando] = useState<number | null>(null);
-  const [nombre, setNombre] = useState("");
   const [aviso, setAviso] = useState("");
 
   useEffect(() => {
     api.modos()
-      .then((d) => {
-        setFabrica(d.modos ?? {});
-        setSlots(d.slots ?? []);
-      })
+      .then((d) => setFabrica(d.modos ?? {}))
       .catch(() => undefined);
   }, []);
 
   const forma = settings.modo_forma ?? "siluetas";
-  const activo = MODOS.find((m) => m.forma === forma)?.clave ?? "pegatinas";
+  const activo = MODOS.find((m) => m.forma === forma)?.clave ?? "silueta";
 
   const aplicarModo = async (clave: string) => {
     const ajustes = fabrica[clave];
@@ -57,44 +49,6 @@ export default function Modos({ settings, saveSettings }: Props) {
     }));
   };
 
-  const cargarSlot = async (i: number) => {
-    const s = slots[i];
-    if (!s?.ajustes) return;
-    await saveSettings(s.ajustes);
-    setAviso(t("Modo «{n}» aplicado", { n: s.nombre }));
-  };
-
-  const guardarSlot = async (i: number) => {
-    const n = editando === i ? nombre : slots[i]?.nombre ?? "";
-    try {
-      const r = await api.saveModo(i, n);
-      setSlots(r.slots);
-      setEditando(null);
-      setAviso(t("Ajustes guardados en «{n}»", { n: r.slots[i].nombre }));
-    } catch {
-      setAviso(t("No se pudo guardar el modo"));
-    }
-  };
-
-  const renombrar = async (i: number, n: string) => {
-    const limpio = n.trim();
-    setEditando(null);
-    if (!limpio || limpio === slots[i]?.nombre) return;
-    try {
-      setSlots((await api.renameModo(i, limpio)).slots);
-    } catch {
-      setAviso(t("No se pudo cambiar el nombre"));
-    }
-  };
-
-  const borrarSlot = async (i: number) => {
-    try {
-      setSlots((await api.deleteModo(i)).slots);
-    } catch {
-      setAviso(t("No se pudo vaciar el hueco"));
-    }
-  };
-
   return (
     <div className="modos" data-testid="modos">
       <div className="modos-grandes">
@@ -103,95 +57,17 @@ export default function Modos({ settings, saveSettings }: Props) {
             key={m.clave}
             type="button"
             data-testid={`modo-${m.clave}`}
-            className={`modo-btn${m.clave === "pegatinas" ? " principal" : ""}${
+            className={`modo-btn${m.clave === "silueta" ? " principal" : ""}${
               activo === m.clave ? " on" : ""}`}
             title={t("Modo {n}: {d}", { n: t(m.nombre), d: t(m.desc) })}
             onClick={() => aplicarModo(m.clave)}
           >
-            <m.Icono size={m.clave === "pegatinas" ? 26 : 21} />
+            <m.Icono size={m.clave === "silueta" ? 26 : 22} />
             <b>{t(m.nombre)}</b>
             <span>{t(m.desc)}</span>
           </button>
         ))}
       </div>
-
-      <div className="modos-slots" data-testid="modos-slots">
-        {slots.map((s, i) => (
-          <div key={i}
-               className={`modo-slot${s.ajustes ? " lleno" : ""}`}
-               data-testid={`slot-${i}`}>
-            {editando === i ? (
-              <input
-                autoFocus
-                type="text"
-                className="slot-input"
-                data-testid={`slot-${i}-nombre`}
-                value={nombre}
-                maxLength={40}
-                placeholder={t("Nombre del modo")}
-                onChange={(e) => setNombre(e.target.value)}
-                onBlur={() => renombrar(i, nombre)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") renombrar(i, nombre);
-                  if (e.key === "Escape") setEditando(null);
-                }}
-              />
-            ) : (
-              <button
-                type="button"
-                className="slot-nombre"
-                data-testid={`slot-${i}-editar`}
-                title={t("Cambiar el nombre de este modo")}
-                onClick={() => { setEditando(i); setNombre(s.nombre); }}
-              >
-                {s.nombre}
-              </button>
-            )}
-            {s.ajustes ? (
-              <>
-                <button
-                  type="button"
-                  className="slot-btn"
-                  data-testid={`slot-${i}-cargar`}
-                  title={t("Aplicar este modo")}
-                  onClick={() => cargarSlot(i)}
-                >
-                  <IconoAjustar size={14} />
-                </button>
-                <button
-                  type="button"
-                  className="slot-btn"
-                  data-testid={`slot-${i}-guardar`}
-                  title={t("Sobrescribir con los ajustes actuales")}
-                  onClick={() => guardarSlot(i)}
-                >
-                  <IconoGuardar size={14} />
-                </button>
-                <button
-                  type="button"
-                  className="slot-btn danger"
-                  data-testid={`slot-${i}-borrar`}
-                  title={t("Vaciar este hueco")}
-                  onClick={() => borrarSlot(i)}
-                >
-                  <IconoBorrar size={14} />
-                </button>
-              </>
-            ) : (
-              <button
-                type="button"
-                className="slot-btn guardar"
-                data-testid={`slot-${i}-guardar`}
-                title={t("Guardar aquí los ajustes actuales")}
-                onClick={() => guardarSlot(i)}
-              >
-                <IconoGuardar size={14} />
-              </button>
-            )}
-          </div>
-        ))}
-      </div>
-
       {aviso && <div className="hint" data-testid="modos-aviso">{aviso}</div>}
     </div>
   );

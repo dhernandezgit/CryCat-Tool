@@ -288,23 +288,18 @@ PRESETS_INTERESANTES: dict[str, dict] = {
 }
 
 # ------------------------------------------------------------------ modos --
-# Tres modos pensados para el flujo real de trabajo. Cada uno ajusta la FORMA
-# que ve el optimizador (círculos, cajas o siluetas) y lo que conviene:
-#   · chapas    → todo redondo: círculos, sin girar (el ángulo no importa)
-#   · pegatinas → siluetas reales y cualquier ángulo (el modo principal)
-#   · carteles  → rectángulos: empaquetado por cajas (exacto y rapidísimo)
+# Dos modos, cada uno porque MEJORA de verdad:
+#   · silueta     → la forma real de cada pieza y cualquier ángulo (defecto)
+#   · rectangulos → piezas rectangulares por CAJAS: exacto y hasta 100× más
+#                   rápido en tiempo (mismos resultados o mejores)
+# (el modo de círculos se quitó: no mejoraba al de siluetas)
 MODOS_INTERESANTES: dict[str, dict] = {
-    "chapas": {
-        "modo_forma": "redondas", "rotacion": "no",
-        "espacio_mm": 0.5, "margen_mm": 0.5, "offset_activo": False,
-        "usar_minis": False, "opt_calidad": "normal",
-    },
-    "pegatinas": {
+    "silueta": {
         "modo_forma": "siluetas", "rotacion": "libre",
         "espacio_mm": 2.0, "margen_mm": 1.0, "offset_activo": True,
         "offset_mm": 1.0, "offset_modo": "extender",
     },
-    "carteles": {
+    "rectangulos": {
         "modo_forma": "rectangulos", "rotacion": "90",
         "espacio_mm": 2.0, "margen_mm": 1.0, "offset_activo": False,
     },

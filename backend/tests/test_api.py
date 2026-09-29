@@ -179,16 +179,14 @@ def test_presets_validaciones(client):
 
 
 def test_modos_fabrica_y_huecos(client):
-    """Los 3 modos (chapas/pegatinas/carteles) y los 3 huecos personales."""
+    """Los 2 modos (silueta/rectángulos) y los huecos personales."""
     c, st, _ = client
     d = c.get("/api/modos").json()
-    assert set(d["modos"]) == {"chapas", "pegatinas", "carteles"}
-    assert d["modos"]["chapas"]["modo_forma"] == "redondas"
-    assert d["modos"]["chapas"]["rotacion"] == "no"
-    assert d["modos"]["carteles"]["modo_forma"] == "rectangulos"
-    assert d["modos"]["carteles"]["rotacion"] == "90"
-    assert d["modos"]["pegatinas"]["modo_forma"] == "siluetas"
-    assert d["modos"]["pegatinas"]["rotacion"] == "libre"
+    assert set(d["modos"]) == {"silueta", "rectangulos"}
+    assert d["modos"]["silueta"]["modo_forma"] == "siluetas"
+    assert d["modos"]["silueta"]["rotacion"] == "libre"
+    assert d["modos"]["rectangulos"]["modo_forma"] == "rectangulos"
+    assert d["modos"]["rectangulos"]["rotacion"] == "90"
     assert len(d["slots"]) == 3
     assert all(s["ajustes"] is None for s in d["slots"])
     # guardar los ajustes actuales en el hueco 1 con un nombre

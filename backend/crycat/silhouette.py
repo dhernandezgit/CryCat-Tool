@@ -953,6 +953,11 @@ def _one_pass(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
     #    minis: ese espacio es para las copias (los minis solo rellenan lo
     #    que sobra de verdad, nunca quitan sitio ni tiempo a lo que debe caber).
     if settings.get("usar_minis") and not unplaced:
+        # los minis son RELLENO: nunca pueden eternizar el trabajo. Aunque la
+        # pasada no tenga límite (la semilla), la fase de minis sí lo tiene.
+        fin_minis = time.time() + 2.0
+        if deadline is not None:
+            fin_minis = min(fin_minis, deadline)
         min_mm = float(settings.get("mini_min_mm", 5.0))
         max_res = min(0.99, max(0.01, float(
             settings.get("mini_max_rescale", 100.0))) / 100.0)
@@ -1030,14 +1035,14 @@ def _one_pass(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
             comunes: dict[str, float] = {}
             total = 0
             while total < 800:
-                if deadline is not None and time.time() > deadline:
+                if time.time() > fin_minis:
                     break
                 # primero el elemento más subrepresentado según su cuota
                 cand.sort(key=lambda a: pesos[a["id"]] / peso_total
                           - counts[a["id"]] / (total + 1.0), reverse=True)
                 hecho = False
                 for a in cand:
-                    if deadline is not None and time.time() > deadline:
+                    if time.time() > fin_minis:
                         break
                     img = masks[a["id"]]
                     base = max(min(a["w_mm"], a["h_mm"]), 1e-6)
@@ -1059,7 +1064,7 @@ def _one_pass(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
                                                        a["w_mm"], a["h_mm"])
                         for s in _escalas_candidatas(s_floor, max_res, usar_lista,
                                                      escala_lista):
-                            if deadline is not None and time.time() > deadline:
+                            if time.time() > fin_minis:
                                 break
                             img_m, w_m, h_m = imagen_mini(a, s)
                             if _try_place(ctx, a["id"], a.get("name", ""),
@@ -1250,6 +1255,10 @@ def _sin_solapes(res: PackResult, assets: list[dict],
     (una pieza sin compañía nunca puede solapar). Así el resultado SIEMPRE
     cumple: nada fuera del área, nada solapado y nada sin colocar.
 
+    REGLA DE LOS MINIS: se validan DESPUÉS de todas las copias normales y,
+    si un mini no cabe sin abrir una hoja nueva, se DESCARTA. Los minis son
+    relleno: nunca pueden quitar una copia de su página ni añadir páginas.
+
     `cell_hint`: si las colocaciones se hicieron en una rejilla más gruesa,
     se valida con ESA rejilla (mismo criterio) para no "corregir" piezas que
     solo difieren por el redondeo de la rejilla (eso movía piezas sin motivo).
@@ -1271,7 +1280,12 @@ def _sin_solapes(res: PackResult, assets: list[dict],
     ctx.out_cache = extra.get("out_cache", {})
     ctx.new_page()
     movidas = 0
-    for p in sorted(res.placements, key=lambda q: (q.page, q.y, q.x)):
+    descartados = 0
+    conservadas: list[Placement] = []
+    # primero TODAS las copias normales y luego los minis: así un mini nunca
+    # puede desplazar a una copia (los minis solo rellenan lo que sobra)
+    for p in sorted(res.placements,
+                    key=lambda q: (bool(q.mini), q.page, q.y, q.x)):
         a = por_id.get(p.asset_id)
         img = masks.get(p.asset_id)
         if a is None or img is None:
@@ -1299,7 +1313,7 @@ def _sin_solapes(res: PackResult, assets: list[dict],
             ok = (float(oc[ty, tx]) < 0.5 and
                   int(np.count_nonzero((occ[ty:ty + h, tx:tx + w] > 0) & dm)) == 0)
         if not ok:
-            # recolocar en el primer hueco válido (o en hoja nueva)
+            # recolocar en el primer hueco válido de las hojas que ya hay
             colocado = False
             for pi in range(len(ctx.pages)):
                 got = ctx.best_for(pi, dm, rm)
@@ -1309,7 +1323,12 @@ def _sin_solapes(res: PackResult, assets: list[dict],
                 pi_ok = pi
                 colocado = True
                 break
+            if not colocado and p.mini:
+                # un mini que no cabe sin hoja nueva se DESCARTA (es relleno)
+                descartados += 1
+                continue
             if not colocado:
+                # una copia normal: última red, hoja nueva para ella sola
                 pi_ok = ctx.new_page()
                 got = ctx.best_for(pi_ok, dm, rm)
                 if got is None:
@@ -1326,6 +1345,9 @@ def _sin_solapes(res: PackResult, assets: list[dict],
         occ_sil = ctx.pages_sil[p.page]
         occ_sil[ty:ty + h, tx:tx + w] = np.maximum(
             occ_sil[ty:ty + h, tx:tx + w], rm.astype(np.float32))
+        conservadas.append(p)
+    if descartados:
+        res.placements = conservadas
     if movidas:
         res.warnings.append(
             tr("se recolocaron {n} piezas para garantizar que no haya solapes",
@@ -1581,11 +1603,11 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
             if _clave(res_gen) < _clave(best):
                 best = res_gen
     else:  # greedy: Largest First como solución inicial + multi-arranque paralelo
-        # TRABAJOS GRANDES (semilla lenta): la rejilla fina tarda demasiado
-        # por pasada (una sola se comería el presupuesto), así que se hacen
-        # MUCHAS pasadas GRUESAS en paralelo: más intentos, mejor resultado y
-        # bastante menos tiempo. En trabajos pequeños se afina como siempre.
-        lento = t_seed > 1.0
+        # ENFOQUE SEGÚN EL NÚMERO DE ELEMENTOS: en trabajos grandes (o con
+        # semilla lenta) la rejilla fina tarda demasiado por pasada, así que
+        # se hacen MUCHAS pasadas GRUESAS en paralelo (más intentos, mejor
+        # resultado y menos tiempo). En trabajos pequeños se afina como siempre.
+        lento = n_total > 50 or t_seed > 1.0
         ajustes_pase = semilla if lento else settings
         if not lento:
             res_g = _one_pass(assets, masks, area, settings, pinned, "area",
