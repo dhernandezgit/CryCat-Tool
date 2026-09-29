@@ -24,13 +24,18 @@ beforeEach(() => {
 });
 
 describe("Selector de modos", () => {
-  it("solo ofrece Silueta (principal, por defecto) y Rectángulos", async () => {
+  it("ofrece Silueta (activo por defecto) o Rectángulos, bien claros", async () => {
     render(<Modos settings={settings} saveSettings={saveSettings} />);
     await waitFor(() =>
       expect(screen.getByTestId("modo-silueta")).toBeInTheDocument());
-    expect(screen.getByTestId("modo-silueta")).toHaveClass("principal");
+    // control segmentado: el activo marcado (y con su check)
     expect(screen.getByTestId("modo-silueta")).toHaveClass("on");
+    expect(screen.getByTestId("modo-silueta")).toHaveAttribute(
+      "aria-selected", "true");
+    expect(screen.getByTestId("modo-silueta").querySelector(".modo-check"))
+      .toBeTruthy();
     expect(screen.getByTestId("modo-rectangulos")).toBeInTheDocument();
+    expect(screen.getByTestId("modo-rectangulos")).not.toHaveClass("on");
     // los huecos personalizados y los otros modos ya no existen
     expect(screen.queryByTestId("modos-slots")).toBeNull();
     expect(screen.queryByTestId("modo-chapas")).toBeNull();

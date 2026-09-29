@@ -51,20 +51,25 @@ export default function Modos({ settings, saveSettings }: Props) {
 
   return (
     <div className="modos" data-testid="modos">
-      <div className="modos-grandes">
+      <div className="modos-seg" role="tablist"
+           title={t("Modo de empaquetado: elige UNO")}>
         {MODOS.map((m) => (
           <button
             key={m.clave}
             type="button"
+            role="tab"
+            aria-selected={activo === m.clave}
             data-testid={`modo-${m.clave}`}
-            className={`modo-btn${m.clave === "silueta" ? " principal" : ""}${
-              activo === m.clave ? " on" : ""}`}
+            className={`modo-btn${activo === m.clave ? " on" : ""}`}
             title={t("Modo {n}: {d}", { n: t(m.nombre), d: t(m.desc) })}
             onClick={() => aplicarModo(m.clave)}
           >
-            <m.Icono size={m.clave === "silueta" ? 26 : 22} />
-            <b>{t(m.nombre)}</b>
-            <span>{t(m.desc)}</span>
+            <m.Icono size={24} />
+            <span className="modo-txt">
+              <b>{t(m.nombre)}</b>
+              <i>{t(m.desc)}</i>
+            </span>
+            {activo === m.clave && <span className="modo-check">✓</span>}
           </button>
         ))}
       </div>

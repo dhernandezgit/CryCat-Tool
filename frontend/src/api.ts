@@ -327,6 +327,13 @@ export const api = {
       body: JSON.stringify({ modo: modo ?? null, force }),
     }),
   job: (id: string) => req<Job>(`/api/job/${id}`),
+  /** Restaura una colocación anterior (deshacer/rehacer con resultados). */
+  restoreResult: (res: Result) =>
+    req<{ ok: boolean }>("/api/result/restore", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(res),
+    }),
   result: () => req<Result>("/api/result"),
   version: () => req<VersionInfo>("/api/version"),
   checkVersion: () => req<VersionInfo>("/api/version/check", { method: "POST" }),

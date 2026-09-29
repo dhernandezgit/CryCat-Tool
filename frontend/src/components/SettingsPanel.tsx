@@ -5,6 +5,7 @@ import { useT } from "../i18n";
 import { THEMES } from "../themes";
 import FolderPicker from "./FolderPicker";
 import AccionesRapidas from "./AccionesRapidas";
+import Modos from "./Modos";
 import Toggle from "./Toggle";
 import { IconoAjustar, IconoMini, IconoRecalcular, IconoFondo, IconoBordes,
          IconoGuias, IconoGuardar, IconoImprimir, IconoRotar, IconoTijeras,
@@ -185,6 +186,8 @@ export default function SettingsPanel({ settings, saveSettings,
         <h2>{t("Ajustes")}</h2>
         <span className="count-badge">{settings.tema}</span>
       </div>
+      {/* los dos modos, ARRIBA del todo y bien claros: o uno u otro */}
+      <Modos settings={settings} saveSettings={saveSettings} />
       <AccionesRapidas settings={settings} saveSettings={saveSettings} />
       <>
       {!experto && (

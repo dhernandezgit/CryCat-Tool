@@ -1,10 +1,8 @@
 import { type AppSettings } from "../api";
 import { useT } from "../i18n";
 import { IconoMini, IconoRecalcular, IconoRotar } from "./iconos";
-import Modos from "./Modos";
 
-/** Acciones rápidas del panel de ajustes: minis, recálculo, modo y rotación,
- *  más el selector de MODOS (chapas / pegatinas / carteles + personalizados). */
+/** Acciones rápidas del panel de ajustes: minis, recálculo, modo y rotación. */
 export default function AccionesRapidas({ settings, saveSettings }: {
   settings: AppSettings;
   saveSettings: (p: Partial<AppSettings>) => Promise<void>;
@@ -61,7 +59,6 @@ export default function AccionesRapidas({ settings, saveSettings }: {
           <IconoRotar size={16} /> {ROT_ETIQUETA[settings.rotacion] ?? "90°"}
         </button>
       </div>
-      <Modos settings={settings} saveSettings={saveSettings} />
     </div>
   );
 }

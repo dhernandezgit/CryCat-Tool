@@ -214,6 +214,35 @@ def test_modos_fabrica_y_huecos(client):
     assert c.post("/api/modos/1/load").status_code == 404
 
 
+def test_restaurar_resultado_anterior(client):
+    """Deshacer/rehacer puede devolver la colocación ANTERIOR tal cual."""
+    import time
+    c, st, _ = client
+    upload(c, "a.png")
+    c.post("/api/optimize")
+    for _ in range(200):
+        if c.get("/api/result").json()["pages"]:
+            break
+        time.sleep(0.05)
+    r1 = c.get("/api/result").json()
+    assert r1["placed"] >= 1
+    # sin colocaciones -> error claro
+    assert c.post("/api/result/restore",
+                  json={"placements": [], "pages": 1}).status_code == 400
+    # restaurar la de antes: mismas piezas, posiciones y hojas
+    r = c.post("/api/result/restore", json={
+        "placements": r1["placements"], "pages": r1["pages"],
+        "efficiency": r1["efficiency"], "method": r1["method"]})
+    assert r.status_code == 200
+    r2 = c.get("/api/result").json()
+    assert r2["pages"] == r1["pages"]
+    assert len(r2["placements"]) == len(r1["placements"])
+    for a, b in zip(r1["placements"], r2["placements"]):
+        assert a["uid"] == b["uid"]
+        assert abs(a["x"] - b["x"]) < 1e-6 and abs(a["y"] - b["y"]) < 1e-6
+        assert abs(a["angle"] - b["angle"]) < 1e-6
+
+
 def test_move_fija_y_reoptimiza_el_resto(client):
     """Mover un elemento lo fija y reoptimiza el resto respetándolo."""
     import time

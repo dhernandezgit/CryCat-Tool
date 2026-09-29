@@ -24,7 +24,7 @@ from . import config as cfg
 from .config import settings
 from .funmsgs import mensajes as mensajes_funny
 from .i18n import tr
-from .packer import Placement, optimize, try_move
+from .packer import PackResult, Placement, optimize, try_move
 from .store import Asset, Session, new_id, session
 
 dist_dir = Path(__file__).parent / "web"
@@ -886,6 +886,35 @@ def create_app(store: Session = session) -> FastAPI:
             "minis": sum(1 for p in r.placements if p.mini),
             "placed": len(r.placements),
         }
+
+    @app.post("/api/result/restore")
+    def restore_result(payload: dict):
+        """Restaura una colocación ANTERIOR (deshacer/rehacer del historial).
+
+        Vuelve a dejar el resultado tal cual estaba: mismas piezas, mismas
+        posiciones y mismas hojas (no se reoptimiza).
+        """
+        pls = (payload or {}).get("placements") or []
+        if not pls:
+            raise HTTPException(400, tr("no hay colocación que restaurar"))
+        placements = []
+        for p in pls:
+            placements.append(Placement(
+                uid=str(p.get("uid", "")), asset_id=str(p.get("asset_id", "")),
+                page=int(p.get("page", 0)), x=float(p.get("x", 0)),
+                y=float(p.get("y", 0)), w=float(p.get("w", 0)),
+                h=float(p.get("h", 0)), angle=float(p.get("angle", 0)),
+                mini=bool(p.get("mini")), scale=float(p.get("scale", 1) or 1),
+                pinned=bool(p.get("pinned")), rot90=bool(p.get("rot90")),
+                w0=float(p.get("w0", 0) or 0), h0=float(p.get("h0", 0) or 0)))
+        store.set_result(PackResult(
+            placements=placements,
+            pages=max(1, int(payload.get("pages", 1) or 1)),
+            efficiency=float(payload.get("efficiency", 0) or 0),
+            densidad=float(payload.get("densidad", 0.75) or 0.75),
+            method=str(payload.get("method", "") or ""),
+            unplaced=[]))
+        return {"ok": True}
 
     @app.get("/api/estimate")
     def estimate_cut():

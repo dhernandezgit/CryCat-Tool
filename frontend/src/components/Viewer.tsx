@@ -561,14 +561,6 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
             <IconoGuias size={16} /> {t("Marcas")}
           </button>
         </div>
-        <button
-          className="recalc-btn"
-          data-testid="btn-recalcular"
-          data-tip={t("Optimizar: vuelve a colocar todo (ignora los fijados)")}
-          onClick={() => onRecalc(sobraEspacio ? "rapido" : "optimo")}
-        >
-          <IconoRecalcular size={16} /> {t("Optimizar")}
-        </button>
         <div className="group">
           {pages > 1 && largePage === null && (
             <>
@@ -632,6 +624,18 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
             disabled={!puedeRehacer}
           >
             <IconoRehacer size={16} />
+          </button>
+        </div>
+        <div className="vf-centro">
+          <button
+            className="btn-optimizar-flotante"
+            data-testid="btn-recalcular"
+            data-tip={t("Optimizar: vuelve a colocar todo (ignora los fijados)")}
+            onClick={() => onRecalc(sobraEspacio ? "rapido" : "optimo")}
+          >
+            <span className="estrella">✦</span>
+            <IconoRecalcular size={18} /> {t("Optimizar")}
+            <span className="estrella">✦</span>
           </button>
         </div>
         <div className="vf-der">

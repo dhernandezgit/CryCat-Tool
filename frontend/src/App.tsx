@@ -240,8 +240,11 @@ export default function App() {
   );
 
   // ---- historial local (deshacer/rehacer) ----
-  const undoRef = useRef<Asset[][]>([]);
-  const redoRef = useRef<Asset[][]>([]);
+  // cada foto guarda los ELEMENTOS y también el RESULTADO de la optimización:
+  // deshacer/rehacer devuelve las piezas a donde estaban (no reoptimiza)
+  type Foto = { assets: Asset[]; result: Result | null };
+  const undoRef = useRef<Foto[]>([]);
+  const redoRef = useRef<Foto[]>([]);
   const [hist, setHist] = useState({ puedeDeshacer: false, puedeRehacer: false });
   const historialOn = settings?.historial !== false;
   const histMax = settings?.historial_max ?? 40;
@@ -272,38 +275,49 @@ export default function App() {
     return patch;
   }, [camposHist]);
 
-  /** Guarda el estado actual para poder deshacer. */
+  /** Guarda el estado actual (elementos + resultado) para poder deshacer. */
   const recordar = useCallback(() => {
     if (!historialOn) return;
-    undoRef.current = [...undoRef.current, assets].slice(-histMax);
+    undoRef.current = [...undoRef.current, { assets, result }].slice(-histMax);
     redoRef.current = [];
     sincHist();
-  }, [assets, historialOn, histMax]);
+  }, [assets, result, historialOn, histMax]);
+
+  /** Aplica una foto: elementos (parámetros) y la colocación de entonces. */
+  const aplicarFoto = useCallback(async (foto: Foto) => {
+    setAssets(foto.assets);
+    sincHist();
+    // se aplica en el servidor solo lo que el historial tenga activado
+    for (const a of foto.assets) {
+      await api.patchAsset(a.id, parcheHist(a) as never).catch(() => undefined);
+    }
+    if (foto.result) {
+      // devuelve el RESULTADO anterior tal cual (sin reoptimizar)
+      await api.restoreResult(foto.result).catch(() => undefined);
+      setResult(foto.result);
+      try {
+        setEstimate(await api.estimate());
+      } catch {
+        /* sin estimación */
+      }
+    } else {
+      await refresh();
+    }
+  }, [parcheHist, refresh]);
 
   const deshacer = useCallback(async () => {
     const prev = undoRef.current.pop();
     if (!prev) return;
-    redoRef.current = [...redoRef.current, assets];
-    setAssets(prev);
-    sincHist();
-    // se aplica en el servidor solo lo que el historial tenga activado
-    for (const a of prev) {
-      await api.patchAsset(a.id, parcheHist(a) as never).catch(() => undefined);
-    }
-    await refresh();
-  }, [assets, refresh, parcheHist]);
+    redoRef.current = [...redoRef.current, { assets, result }];
+    await aplicarFoto(prev);
+  }, [assets, result, aplicarFoto]);
 
   const rehacer = useCallback(async () => {
     const sig = redoRef.current.pop();
     if (!sig) return;
-    undoRef.current = [...undoRef.current, assets];
-    setAssets(sig);
-    sincHist();
-    for (const a of sig) {
-      await api.patchAsset(a.id, parcheHist(a) as never).catch(() => undefined);
-    }
-    await refresh();
-  }, [assets, refresh, parcheHist]);
+    undoRef.current = [...undoRef.current, { assets, result }];
+    await aplicarFoto(sig);
+  }, [assets, result, aplicarFoto]);
 
   // atajos habituales: Ctrl+Z deshacer, Ctrl+Y / Ctrl+Shift+Z rehacer
   useEffect(() => {
