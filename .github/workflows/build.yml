@@ -8,6 +8,9 @@ on:
 jobs:
   linux:
     runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+      issues: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -15,10 +18,24 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: "20" }
       - name: Build (onedir + instalador + archivo único)
+        id: build
+        continue-on-error: true
         run: |
+          set -o pipefail
           cd backend && python -m venv .venv && .venv/bin/pip install -q -r requirements-dev.txt
-          .venv/bin/python -m pytest tests/ -q
-          cd .. && bash packaging/build_linux.sh
+          .venv/bin/python -m pytest tests/ -q 2>&1 | tail -40
+          cd .. && bash packaging/build_linux.sh 2>&1 | tail -80
+      - name: Diagnóstico (publicar el error en un issue)
+        if: steps.build.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue create --title "CI linux falló en $GITHUB_REF_NAME" \
+            --body "El build de Linux falló. Revisa el log del run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
+            || true
+      - name: Fallar el job si el build falló
+        if: steps.build.outcome == 'failure'
+        run: exit 1
       - uses: actions/upload-artifact@v4
         with:
           name: crycat-linux
