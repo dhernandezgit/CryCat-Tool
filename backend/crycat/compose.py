@@ -203,7 +203,22 @@ def marcas_delimitar(canvas: Image.Image, area: CutArea, dpi: float,
     de la optimización: solo se pintan al final sobre la página.
     """
     px = dpi / 25.4
-    bx, by, bw, bh = area.bbox
+    # Los cuadrados deben quedar DENTRO del polígono recortable de la Cricut
+    # (el área tiene escalones en las esquinas): se usan las esquinas de la
+    # banda central (el mayor rectángulo inscrito), no las del bbox.
+    pts = list(getattr(area, "poly", None) or [])
+    if pts:
+        ys = [p[1] for p in pts]
+        ymin, ymax = min(ys), max(ys)
+        margen_b = max(0.5, (ymax - ymin) * 0.02)
+        xs_top = [p[0] for p in pts if p[1] <= ymin + margen_b]
+        xs_bot = [p[0] for p in pts if p[1] >= ymax - margen_b]
+        x_ini = max(min(xs_top), min(xs_bot) if xs_bot else -1e9)
+        x_fin = min(max(xs_top), max(xs_bot) if xs_bot else 1e9)
+        bx, by = x_ini, ymin
+        bw, bh = max(1e-6, x_fin - x_ini), max(1e-6, ymax - ymin)
+    else:
+        bx, by, bw, bh = area.bbox
     m = max(0.0, float(margen_mm or 0.0))
     if m > 0:
         bx += m
@@ -274,7 +289,7 @@ def contornos_bordes(canvas: Image.Image, placements: list[Placement],
                      area: CutArea, dpi: float,
                      color_final: tuple[int, int, int] = (226, 18, 94),
                      color_sin: tuple[int, int, int] = (0, 148, 211),
-                     grosor_px: int = 8,
+                     grosor_px: int = 0,
                      fase: int = 0,
                      full_page: bool = False,
                      modo: str = "final",
@@ -292,6 +307,9 @@ def contornos_bordes(canvas: Image.Image, placements: list[Placement],
     if modo == "ninguno":
         return canvas
     px = dpi / 25.4
+    # trazo fino (~0,4 mm): antes eran 8 px fijos y a 300 ppp quedaba grueso
+    if grosor_px <= 0:
+        grosor_px = max(2, int(round(0.4 * px)))
     # OJO con el sistema de coordenadas del lienzo:
     #  · lienzo "recortable" → el origen es el bbox del área (se resta)
     #  · lienzo "página"     → las coordenadas son ABSOLUTAS de la página

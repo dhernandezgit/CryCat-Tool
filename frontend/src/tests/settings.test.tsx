@@ -212,3 +212,32 @@ describe("Panel de ajustes", () => {
     expect(saveSettings).toHaveBeenCalledWith({ hist_copias: false });
   });
 });
+
+describe("Marcas y medidas nuevas", () => {
+  it("«Marcas para delimitar» está en General (modo básico incluido)", async () => {
+    const u = userEvent.setup();
+    render(<SettingsPanel settings={settings} saveSettings={saveSettings} />);
+    const chk = screen.getByTestId("set-marcas-delimitar");
+    expect(chk).not.toBeChecked();
+    await u.click(chk);
+    expect(saveSettings).toHaveBeenCalledWith({ marcas_delimitar: true });
+  });
+
+  it("la lista de minis en mm permite medir por lado menor, mayor o círculo", async () => {
+    const u = userEvent.setup();
+    render(<SettingsPanel settings={settings} saveSettings={saveSettings} />);
+    await u.click(screen.getByTestId("sect-minis").querySelector(".sect-head")!);
+    const sel = screen.getByTestId("mini-lista-medida") as HTMLSelectElement;
+    expect(sel.value).toBe("circulo");   // círculo equivalente por defecto
+    expect([...sel.options].map((o) => o.value)).toEqual(
+      ["circulo", "menor", "mayor"]);
+    await u.selectOptions(sel, "mayor");
+    expect(saveSettings).toHaveBeenCalledWith({ mini_lista_medida: "mayor" });
+  });
+
+  it("el menú Borde sigue visible en modo básico", () => {
+    render(<SettingsPanel settings={{ ...settings, modo: "rapido" }}
+                           saveSettings={saveSettings} />);
+    expect(screen.getByText("Borde")).toBeInTheDocument();
+  });
+});

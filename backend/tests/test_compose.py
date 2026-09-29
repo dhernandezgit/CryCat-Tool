@@ -184,3 +184,72 @@ def test_sangrado_de_impresion():
     assert a[0, 0, 3] == 0                  # la esquina sigue vacía
     ys, xs = np.where(a[:, :, 3] > 200)
     assert xs.min() < 5 and ys.min() < 5    # pero el color llega al borde
+
+
+def _marca_alpha(nombre: str):
+    import numpy as np
+    from pathlib import Path
+    raiz = Path(__file__).resolve().parents[2]
+    im = Image.open(raiz / "frontend" / "public" / "marcas" / f"{nombre}.png")
+    return np.asarray(im.convert("RGBA").split()[3]) > 128
+
+
+def test_marca_superior_izquierda_triangulo_arriba_sin_tocar_barras():
+    """La marca superior izquierda es como la oficial: triángulo hacia
+    ARRIBA, separado de las barras (con hueco) y del mismo grosor que las
+    otras esquinas (3 mm)."""
+    a = _marca_alpha("esquina_flecha")
+    # el triángulo apunta hacia arriba: se ensancha al bajar
+    anchos = [int(a[y, :40].sum()) for y in range(0, 36)]
+    assert anchos[0] < anchos[-1], "el triángulo debe apuntar hacia ARRIBA"
+    # nada toca las barras: hueco entre el triángulo y las dos barras
+    assert not a[40:70, :36].any(), "el triángulo no debe tocar la barra vertical"
+    assert not a[:36, 40:70].any(), "el triángulo no debe tocar la barra horizontal"
+    # barras del mismo grosor que las otras marcas (3 mm = 36 px a 300 ppp)
+    assert int(a[:, 150].sum()) == 36, "barra horizontal fina"
+    assert int(a[150, :].sum()) == 36, "barra vertical fina"
+    # y las otras esquinas siguen siendo L cerradas del mismo grosor
+    for nombre in ("esquina", "esquina_sd", "esquina_ii", "esquina_id"):
+        b = _marca_alpha(nombre)
+        assert int(b[:, 150].sum()) == 36
+        assert int(b[150, :].sum()) == 36
+
+
+def _dentro_poly(x: float, y: float, poly: list) -> bool:
+    n = len(poly)
+    dentro = False
+    j = n - 1
+    for i in range(n):
+        xi, yi = poly[i]
+        xj, yj = poly[j]
+        if ((yi > y) != (yj > y)) and \
+                (x < (xj - xi) * (y - yi) / (yj - yi + 1e-12) + xi):
+            dentro = not dentro
+        j = i
+    return dentro
+
+
+def test_marcas_delimitar_dentro_de_los_limites():
+    """Los cuadrados de referencia delimitan DENTRO del polígono recortable
+    (con margen), no fuera de los límites de corte de la Cricut."""
+    import numpy as np
+    area = cut_area(210.0, 297.0, "maker3")
+    margen = 1.0
+    img = compose.render_page(area, [], {}, 100.0, True, "rgba",
+                              delimitar_mm=2.0, delimitar_margen_mm=margen)
+    a = np.asarray(img.convert("RGBA"))
+    blanco = (a[:, :, 0] > 250) & (a[:, :, 1] > 250) & (a[:, :, 2] > 250)
+    ys, xs = np.nonzero(blanco)
+    assert len(xs) > 0, "deben pintarse los cuadrados"
+    px = 100.0 / 25.4
+    fuera = [(x / px, y / px) for x, y in zip(xs, ys)
+             if not _dentro_poly(x / px, y / px, area.poly)]
+    assert not fuera, f"{len(fuera)} píxeles fuera del área de corte"
+    # los cuadrados están arriba-izquierda y abajo-derecha, pegados al margen
+    bx, by, _, _ = area.bbox
+    y0 = min(ys) / px
+    assert abs(y0 - (by + margen)) < 0.4, y0
+    # sin delimitar no hay nada
+    img2 = compose.render_page(area, [], {}, 100.0, True, "rgba")
+    a2 = np.asarray(img2.convert("RGBA"))
+    assert not ((a2[:, :, 0] > 250) & (a2[:, :, 3] > 200)).any()

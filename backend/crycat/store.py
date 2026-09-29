@@ -137,6 +137,7 @@ class Session:
         self._lock = threading.RLock()
         self.assets: dict[str, Asset] = {}
         self.last: PackResult | None = None
+        self.result_rev = 0     # sube con cada colocación (caché de vistas)
         self.area: CutArea | None = None
         self.load()
 
@@ -205,7 +206,7 @@ class Session:
         for a in self.assets.values():
             off = _offset_de(a)
             if off is None:
-                out[a.id] = a.img
+                out[a.id] = _recortada(a.img)
                 continue
             mm, modo, color = off
             # El borde es SIEMPRE un valor en mm DEL RESULTADO, independiente
@@ -237,6 +238,7 @@ class Session:
     def set_result(self, res: PackResult) -> None:
         with self._lock:
             self.last = res
+            self.result_rev += 1
             self.save()
 
     def pinned(self) -> list[Placement]:

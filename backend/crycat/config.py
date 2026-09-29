@@ -122,7 +122,7 @@ DEFAULTS: dict = {
     "mini_tamanos": "iguales",   # iguales (por defecto) | grandes
     "mini_usar_lista": True,     # por defecto manda la LISTA de tamaños
     "mini_lista_modo": "mm",
-    "mini_lista_medida": "menor",   # la lista en mm se mide así: menor | mayor | circulo
+    "mini_lista_medida": "circulo",  # la lista en mm se mide así: circulo (defecto) | menor | mayor
     # borde de los minis: igual (mismos mm que el grande, por defecto),
     # proporcional (se reduce con el mini) o sin (sin borde)
     "mini_borde_modo": "igual",

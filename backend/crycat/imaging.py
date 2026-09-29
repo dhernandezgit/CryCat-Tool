@@ -335,40 +335,32 @@ def detect_anomalous_lines(img: Image.Image, min_span: float = 0.8,
 
 def _union_mask(dentro: np.ndarray, r: int,
                 primero_hull: bool) -> np.ndarray:
-    """Máscara que UNE todos los trozos: envolvente convexa + ancho.
+    """Máscara que UNE todos los trozos.
 
-    * `primero_hull=True`  → envolvente y luego engordada (borde RECTO).
-    * `primero_hull=False` → engordada y luego envolvente (borde CURVO).
-    Si no hay OpenCV se cae a la dilatación euclídea normal (unión suave).
+    * `primero_hull=True`  → envolvente convexa (borde RECTO): llena todo el
+      hueco entre los trozos.
+    * `primero_hull=False` → unión MÍNIMA (borde CURVO): los trozos crecen
+      `r` píxeles y se fusionan solo donde se tocan. Es lo que usa «Unir
+      todo en una pieza»: el borde MÍNIMO que deja todo unido, sin rellenar
+      el hueco entero (antes usaba la envolvente y salía un borde gigante).
     """
     from scipy import ndimage
 
     m = dentro.astype(np.uint8)
+    if not primero_hull:
+        return ndimage.distance_transform_edt(~(m > 0)) <= max(0, r)
     try:
         import cv2
-        if primero_hull:
-            gordo = ndimage.binary_dilation(m, iterations=max(0, r)) \
-                if r > 0 else m
-            cs, _ = cv2.findContours(gordo.astype(np.uint8),
-                                     cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-            if not cs:
-                return gordo > 0
-            pts = np.vstack([c.reshape(-1, 2) for c in cs])
-            hull = cv2.convexHull(pts)
-            salida = np.zeros_like(m)
-            cv2.fillPoly(salida, [hull], 1)
-            return salida > 0
-        cs, _ = cv2.findContours(m, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+        gordo = ndimage.binary_dilation(m, iterations=max(0, r)) \
+            if r > 0 else m
+        cs, _ = cv2.findContours(gordo.astype(np.uint8),
+                                 cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
         if not cs:
-            return m > 0
+            return gordo > 0
         pts = np.vstack([c.reshape(-1, 2) for c in cs])
         hull = cv2.convexHull(pts)
         salida = np.zeros_like(m)
         cv2.fillPoly(salida, [hull], 1)
-        if r > 0:
-            yy, xx = np.mgrid[-r:r + 1, -r:r + 1]
-            disco = (xx * xx + yy * yy) <= (r * r + 0.5)
-            salida = ndimage.binary_dilation(salida > 0, structure=disco)
         return salida > 0
     except Exception:
         return ndimage.binary_dilation(m, iterations=max(1, r)) > 0

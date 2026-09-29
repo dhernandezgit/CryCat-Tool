@@ -362,7 +362,7 @@ export const api = {
       paginas: { pagina: number; formas: number; segundos: number }[];
       desglose: { corte_s?: number; viaje_s?: number; extra_s?: number };
     }>("/api/estimate"),
-  pageUrl: (i: number, v: number, sim = false, bordes = false,
+  pageUrl: (i: number, v: number | string, sim = false, bordes = false,
             fase = 0, cont = "final") =>
     `${apiBase().replace(/\/$/, "")}/api/pages/${i}.png?v=${v}` +
     `${sim ? "&sim=1" : ""}${bordes ? "&bordes=1" : ""}` +

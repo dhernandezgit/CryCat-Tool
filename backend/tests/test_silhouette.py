@@ -434,3 +434,72 @@ def test_minis_multipagina_no_quitan_copias():
     assert not res_on.unplaced
     assert n_on >= n_off, f"con minis menos copias: {n_on} < {n_off}"
     assert res_on.pages <= res_off.pages
+
+
+def test_minis_lista_mm_se_respeta_sin_tope():
+    """Con la lista en mm manda el tamaño pedido: ni el 99% ni max_rescale.
+
+    Un mini de 20 mm en un elemento reducido al 50% (efectivo 20 mm) medía
+    14 mm con el tope del 70%; ahora mide 20 mm.
+    """
+    img = _square(40)          # 40 mm originales, el usuario lo dejó al 50%
+    assets = [{"id": "c", "name": "c", "w_mm": 20.0, "h_mm": 20.0,
+               "w_mm_base": 40.0, "h_mm_base": 40.0, "scale_pct": 50.0,
+               "copies": 2, "mini_enabled": True, "mini_quota": 1.0}]
+    st = dict(SET, usar_minis=True, mini_min_mm=5.0, mini_max_rescale=70.0,
+              mini_tamanos="iguales", mini_rotacion="90",
+              mini_usar_lista=True, mini_lista_modo="mm",
+              mini_lista_medida="menor", mini_tamanos_lista=[20.0])
+    res = sil_pack(assets, {"c": img}, area_a4(), st)
+    minis = [p for p in res.placements if p.mini]
+    assert minis, "deben colocarse minis"
+    for m in minis:
+        assert abs(min(m.w0, m.h0) - 20.0) < 0.3, (m.w0, m.h0)
+
+
+def test_minis_lista_mm_puede_superar_al_elemento():
+    """Un mini pedido más grande que el elemento se hace grande (o no cabe).
+
+    Nunca debe salir un tamaño distinto al pedido por el tope del 99%.
+    """
+    img = _square(20)          # elemento de 20 mm
+    assets = [{"id": "c", "name": "c", "w_mm": 20.0, "h_mm": 20.0,
+               "w_mm_base": 20.0, "h_mm_base": 20.0, "scale_pct": 100.0,
+               "copies": 1, "mini_enabled": True, "mini_quota": 1.0}]
+    st = dict(SET, usar_minis=True, mini_min_mm=5.0, mini_max_rescale=70.0,
+              mini_tamanos="iguales", mini_rotacion="90",
+              mini_usar_lista=True, mini_lista_modo="mm",
+              mini_lista_medida="menor", mini_tamanos_lista=[30.0])
+    res = sil_pack(assets, {"c": img}, area_a4(), st)
+    minis = [p for p in res.placements if p.mini]
+    for m in minis:
+        assert abs(min(m.w0, m.h0) - 30.0) < 0.3, (m.w0, m.h0)
+
+
+def test_minis_medida_mayor_y_circulo():
+    """La lista en mm se mide por lado menor (defecto), mayor o círculo."""
+    rect = Image.new("RGBA", (472, 236), (200, 60, 90, 255))  # 40×20 mm @300
+    assets = [{"id": "c", "name": "c", "w_mm": 40.0, "h_mm": 20.0,
+               "w_mm_base": 40.0, "h_mm_base": 20.0, "scale_pct": 100.0,
+               "copies": 1, "mini_enabled": True, "mini_quota": 1.0}]
+    base = dict(SET, usar_minis=True, mini_min_mm=5.0, mini_max_rescale=100.0,
+                mini_tamanos="iguales", mini_rotacion="no",
+                mini_usar_lista=True, mini_lista_modo="mm",
+                mini_tamanos_lista=[20.0])
+    casos = {"menor": (40.0, 20.0), "mayor": (20.0, 10.0)}
+    for medida, (largo, corto) in casos.items():
+        st = dict(base, mini_lista_medida=medida)
+        res = sil_pack(assets, {"c": rect}, area_a4(), st)
+        minis = [p for p in res.placements if p.mini]
+        assert minis, f"sin minis con medida {medida}"
+        m = minis[0]
+        assert abs(max(m.w0, m.h0) - largo) < 0.4, (medida, m.w0, m.h0)
+        assert abs(min(m.w0, m.h0) - corto) < 0.4, (medida, m.w0, m.h0)
+    # círculo equivalente: el diámetro equivalente debe ser ~20 mm
+    st = dict(base, mini_lista_medida="circulo")
+    res = sil_pack(assets, {"c": rect}, area_a4(), st)
+    minis = [p for p in res.placements if p.mini]
+    assert minis
+    m = minis[0]
+    equiv = 2.0 * (m.w0 * m.h0 / 3.14159265) ** 0.5
+    assert abs(equiv - 20.0) < 0.5, equiv

@@ -375,12 +375,19 @@ def _angles_semilla(rot_mode: str) -> list[float]:
 
 
 def _angles_mini(rot_mode: str) -> list[float]:
-    """Ángulos de los MINIS (relleno): subconjunto reducido y rápido.
+    """Ángulos de los MINIS: los MISMOS permitidos que las piezas.
 
-    Siguen siendo ángulos PERMITIDOS; probar los 14 en cada intento hacía la
-    fase de minis interminable (14 s en modo libre) sin ganar apenas huecos.
+    En modo libre se prueban TODOS (cualquier ángulo), pero empezando por los
+    más habituales (0/90/45/135): la mayoría de huecos se rellenan con los
+    primeros y así la fase de minis no se eterniza.
     """
-    return _angles_semilla(rot_mode)
+    if rot_mode == "no":
+        return [0.0]
+    if rot_mode in ("90", "cuadrantes", "cuadrantes4"):
+        return [0.0, 90.0, 180.0, 270.0]
+    orden = [0.0, 90.0, 45.0, 135.0]
+    vistos = set(orden)
+    return orden + [a for a in _angles("libre") if a not in vistos]
 
 
 def _mask_for_placement(p: Placement, a: dict, img: Image.Image, cell: float,
@@ -692,26 +699,38 @@ def _try_place_voronoi(ctx: _Ctx, aid: str, name: str, w_mm: float,
 
 
 
+def _ref_medida(w_mm: float, h_mm: float, medida: str) -> float:
+    """Tamaño de referencia según cómo se mide (igual que en importación)."""
+    if medida == "mayor":
+        return max(max(w_mm, h_mm), 1e-6)
+    if medida == "circulo":
+        return max(2.0 * math.sqrt(max(0.0, w_mm * h_mm) / math.pi), 1e-6)
+    return max(min(w_mm, h_mm), 1e-6)
+
+
 def _escalas_lista(valores: list[float], modo: str, w_mm: float,
-                   h_mm: float, medida: str = "menor") -> list[float]:
+                   h_mm: float, medida: str = "circulo",
+                   mm_borde: float = 0.0,
+                   borde_mini: str = "proporcional") -> list[float]:
     """Lista de tamaños deseados → escalas del elemento.
 
-    En modo "mm" cada valor es el tamaño del mini MEDIDO como indique
+    En modo "mm" cada valor es el tamaño FINAL del mini MEDIDO como indique
     `medida` (igual que en el menú de importación):
       · menor   → lado menor
       · mayor   → lado mayor
       · circulo → diámetro del círculo equivalente (2·√(w·h/π))
+    Según el borde del mini, la referencia cambia: "sin" quita el borde del
+    mini, "igual" lo mantiene en mm (se descuenta del tamaño pedido) y
+    "proporcional" lo lleva dentro (referencia = el tamaño real).
     En modo "pct" el valor ya es el porcentaje respecto al original.
     """
-    if modo == "mm":
-        if medida == "mayor":
-            base = max(max(w_mm, h_mm), 1e-6)
-        elif medida == "circulo":
-            base = max(2.0 * math.sqrt(max(0.0, w_mm * h_mm) / math.pi), 1e-6)
-        else:
-            base = max(min(w_mm, h_mm), 1e-6)
-        return [v / base for v in valores]
-    return [v / 100.0 for v in valores]
+    if modo != "mm":
+        return [v / 100.0 for v in valores]
+    b = max(0.0, float(mm_borde or 0.0))
+    quita = 2.0 * b if borde_mini in ("sin", "igual") else 0.0
+    anade = 2.0 * b if borde_mini == "igual" else 0.0
+    base = _ref_medida(max(0.5, w_mm - quita), max(0.5, h_mm - quita), medida)
+    return [max(1e-6, v - anade) / base for v in valores]
 
 
 def _escalas_candidatas(s_floor: float, max_res: float, usar_lista: bool,
@@ -726,8 +745,9 @@ def _escalas_candidatas(s_floor: float, max_res: float, usar_lista: bool,
     if usar_lista and lista:
         # la lista MANDA: ni el tope de reescalado ni el 99% del original.
         # Un mini de 20 mm en un elemento de 14 mm debe medir 20 mm (antes
-        # se quedaba en 13,9 y parecía que la lista no se aplicaba).
-        max_res = 10.0
+        # se quedaba en 13,9 y parecía que la lista no se aplicaba). Tope de
+        # seguridad 3× para no construir máscaras enormes sin sentido.
+        max_res = 3.0
         out = sorted({min(max_res, max(s_floor, s)) for s in lista},
                      reverse=True)
         return [s for s in out if s >= s_floor - 1e-9]
@@ -854,7 +874,7 @@ def _rellenar_minis(ctx: _Ctx, assets: list[dict], masks: dict,
     lista_modo = str(settings.get("mini_lista_modo", "mm"))
     lista_mm = [max(0.5, float(v)) for v in
                 (settings.get("mini_tamanos_lista") or [])]
-    medida = str(settings.get("mini_lista_medida", "menor") or "menor")
+    medida = str(settings.get("mini_lista_medida", "circulo") or "circulo")
     borde_mini = str(settings.get("mini_borde_modo", "proporcional"))
     sin_borde = settings.get("_sin_borde") or {}
     off_glob = settings.get("_offset_global")
@@ -939,8 +959,12 @@ def _rellenar_minis(ctx: _Ctx, assets: list[dict], masks: dict,
                                       h_m, s, True, img_m, angles_m,
                                       new_page_ok=False, first_fit=True)
             else:
+                propio_a = float(a.get("offset_mm", 0) or 0)
+                mm_borde_a = (propio_a if propio_a > 0
+                              else (off_glob[0] if off_glob else 0.0))
                 escala_lista = _escalas_lista(lista_mm, lista_modo,
-                                              a["w_mm"], a["h_mm"], medida)
+                                              a["w_mm"], a["h_mm"], medida,
+                                              mm_borde_a, borde_mini)
                 for s in _escalas_candidatas(s_floor, max_res, usar_lista,
                                              escala_lista):
                     if time.time() > fin_minis:

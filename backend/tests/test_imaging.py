@@ -200,7 +200,8 @@ def test_thumbnail_no_supera_max():
 
 
 def test_aplicar_offset_une_trozos():
-    """Los modos unir_recto/unir_curvo fusionan los trozos en una forma."""
+    """unir_curvo = unión MÍNIMA (crecen y se fusionan donde se tocan);
+    unir_recto = envolvente (rellena el hueco); extender no une."""
     from PIL import ImageDraw
     from crycat.imaging import aplicar_offset
 
@@ -210,19 +211,26 @@ def test_aplicar_offset_une_trozos():
     d.rectangle((190, 50, 280, 110), fill=(120, 160, 220, 255))
     from crycat.imaging import trim as _trim
     base = _trim(im)
-    for modo in ("unir_recto", "unir_curvo"):
-        out = aplicar_offset(im, 12, modo, (90, 190, 120))
-        assert out.width > base.width and out.height > base.height
+
+    def centro(out):
         alpha = out.convert("RGBA").getchannel("A")
         mx = int(150 / 300 * out.width)
         my = int(80 / 160 * out.height)
-        assert alpha.getpixel((mx, my)) > 0, modo
+        return alpha.getpixel((mx, my))
+
+    # con radio grande los trozos se tocan y el centro queda lleno
+    out = aplicar_offset(im, 45, "unir_curvo", (90, 190, 120))
+    assert out.width > base.width and out.height > base.height
+    assert centro(out) > 0
+    # unión MÍNIMA: con radio pequeño NO rellena el hueco entero
+    out2 = aplicar_offset(im, 12, "unir_curvo", (90, 190, 120))
+    assert centro(out2) == 0, "unir_curvo no debe rellenar el hueco entero"
+    # la envolvente (recto) sí lo rellena con cualquier radio
+    out3 = aplicar_offset(im, 12, "unir_recto", (90, 190, 120))
+    assert centro(out3) > 0
     # extender NO une: el hueco sigue vacío
-    out = aplicar_offset(im, 12, "extender", (90, 190, 120))
-    alpha = out.convert("RGBA").getchannel("A")
-    mx = int(150 / 300 * out.width)
-    my = int(80 / 160 * out.height)
-    assert alpha.getpixel((mx, my)) == 0
+    out4 = aplicar_offset(im, 12, "extender", (90, 190, 120))
+    assert centro(out4) == 0
 
 
 def test_borde_independiente_de_la_escala(tmp_path, monkeypatch):

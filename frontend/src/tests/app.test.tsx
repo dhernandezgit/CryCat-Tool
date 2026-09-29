@@ -50,6 +50,8 @@ function mockFetch(url: string) {
     w: 100, h: 80, preview_png: "data:image/png;base64,AAAA",
   });
   if (u.includes("/api/assets/a1/limpiar-contorno")) return ok(asset);
+  if (u.includes("/api/assets/a1/contorno-preview"))
+    return ok({ png: "data:image/png;base64,QUJD" });
   if (u.includes("/api/assets/a1/preview")) return ok({});
   if (u === "/api/assets") return ok([asset]);
   if (u.includes("/api/placements/move")) return ok({ ok: true, placement: {} });
@@ -142,6 +144,48 @@ describe("App completa", () => {
     // y vuelve a la vista normal
     await waitFor(() =>
       expect(screen.queryByTestId("editor-blobs")).toBeNull()
+    );
+  });
+
+  it("el modo horizontal gira la hoja al otro lado (270°, no 90°)", async () => {
+    const u = userEvent.setup();
+    render(<App />);
+    await waitFor(() =>
+      expect(screen.getByTestId("canvas")).toBeInTheDocument());
+    await u.click(screen.getByText("Horizontal"));
+    const sheet = document.querySelector("img.sheet") as HTMLImageElement;
+    expect(sheet).not.toBeNull();
+    expect(sheet.style.transform).toContain("rotate(270deg)");
+    // y volver atrás deja el modo normal
+    await u.click(screen.getByText("Vertical"));
+    const sheet2 = document.querySelector("img.sheet") as HTMLImageElement;
+    expect(sheet2.style.transform).toBe("");
+  });
+
+  it("el editor de contorno tiene vista previa de quitar y de unir", async () => {
+    const u = userEvent.setup();
+    render(<App />);
+    await waitFor(() =>
+      expect(screen.getByTestId("file-panel")).toBeInTheDocument());
+    await u.click(await screen.findByTestId("limpiar-a1"));
+    const img = document.querySelector(".editor-lienzo img") as HTMLImageElement;
+    // el fondo es la vista coloreada de los trozos (misma escala que las cajas)
+    expect(img.src.startsWith("data:image/png;base64,")).toBe(true);
+    await u.click(screen.getByTestId("btn-ver-quitados"));
+    await waitFor(() =>
+      expect(vi.mocked(global.fetch as never)).toHaveBeenCalledWith(
+        "/api/assets/a1/contorno-preview",
+        expect.objectContaining({ method: "POST" })
+      )
+    );
+    await waitFor(() =>
+      expect(img.src).toBe("data:image/png;base64,QUJD"));
+    await u.click(screen.getByTestId("btn-ver-unido"));
+    await waitFor(() =>
+      expect(vi.mocked(global.fetch as never)).toHaveBeenCalledWith(
+        "/api/assets/a1/contorno-preview",
+        expect.objectContaining({ method: "POST" })
+      )
     );
   });
 

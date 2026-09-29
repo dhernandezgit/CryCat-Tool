@@ -850,3 +850,144 @@ def test_contornos_con_borde_incluye_las_dos_siluetas(client):
         xs = [x for poly in polys for x, _ in poly]
         return max(xs) - min(xs)
     assert ancho(pz["final"]) > ancho(pz["original"]) + 2.0
+
+
+def _subir_con_blob(c, nombre="blobs.png"):
+    """Sube una imagen con un trozo suelto y devuelve el dict del asset."""
+    import io
+    import numpy as np
+    from PIL import Image
+    arr = np.zeros((200, 200, 4), dtype=np.uint8)
+    arr[40:160, 40:160] = (60, 130, 200, 255)
+    arr[10:20, 10:20] = (200, 40, 60, 255)
+    buf = io.BytesIO()
+    Image.fromarray(arr, "RGBA").save(buf, "PNG")
+    return c.post("/api/assets",
+                  files={"file": (nombre, buf.getvalue(), "image/png")}).json()
+
+
+def test_tamano_sale_del_contenido_no_transparente(client):
+    """El tamaño se calcula del contenido no transparente, no del lienzo."""
+    import io
+    import numpy as np
+    from PIL import Image
+    c, st, _ = client
+    arr = np.zeros((300, 300, 4), dtype=np.uint8)
+    arr[100:200, 100:200] = (60, 130, 200, 255)   # 100 px = 8,47 mm a 300 ppp
+    buf = io.BytesIO()
+    Image.fromarray(arr, "RGBA").save(buf, "PNG")
+    d = c.post("/api/assets",
+               files={"file": ("margenes.png", buf.getvalue(), "image/png")}
+               ).json()
+    assert abs(d["w_mm"] - 100 / 300 * 25.4) < 0.3, d["w_mm"]
+    assert abs(d["w_mm_base"] - 100 / 300 * 25.4) < 0.3
+
+
+def test_limpiar_contorno_ajusta_el_tamano(client):
+    """Al quitar trozos sueltos, el tamaño se ajusta al contenido restante."""
+    c, st, _ = client
+    d = _subir_con_blob(c)
+    antes = d["w_mm"]
+    limpio = c.post(f"/api/assets/{d['id']}/limpiar-contorno", json={}).json()
+    assert abs(limpio["w_mm"] - 120 / 300 * 25.4) < 0.3, limpio["w_mm"]
+    assert limpio["w_mm"] < antes - 1.0
+
+
+def test_unir_todo_acepta_los_modos_de_union(client):
+    """«Unir todo» guarda el modo de unión (antes se descartaba y quedaba un
+    borde normal gigante) y retira el aviso de trozos sueltos."""
+    c, st, _ = client
+    d = _subir_con_blob(c)
+    assert any("TROZOS SUELTOS" in w for w in d["warnings"])
+    a = c.patch(f"/api/assets/{d['id']}",
+                json={"offset_mm": 2.0, "offset_modo": "unir_curvo"}).json()
+    assert a["offset_modo"] == "unir_curvo"
+    assert a["offset_mm"] == 2.0
+    assert not any("TROZOS SUELTOS" in w for w in a["warnings"])
+    # volviendo a un borde normal, el aviso reaparece (los trozos siguen ahí)
+    a2 = c.patch(f"/api/assets/{d['id']}",
+                 json={"offset_modo": "extender"}).json()
+    assert a2["offset_modo"] == "extender"
+    assert any("TROZOS SUELTOS" in w for w in a2["warnings"])
+
+
+def test_blobs_union_minima_conecta_los_trozos(client):
+    """El borde sugerido es el MÍNIMO que deja todo unido en una pieza."""
+    import io
+    import numpy as np
+    from PIL import Image
+    from scipy import ndimage
+    from crycat.imaging import aplicar_offset
+    c, st, _ = client
+    arr = np.zeros((300, 300, 4), dtype=np.uint8)
+    arr[60:240, 60:240] = (60, 130, 200, 255)     # principal
+    arr[250:290, 120:160] = (200, 40, 60, 255)    # cerca (10 px)
+    arr[20:60, 250:290] = (200, 200, 60, 255)     # lejos
+    buf = io.BytesIO()
+    Image.fromarray(arr, "RGBA").save(buf, "PNG")
+    d = c.post("/api/assets",
+               files={"file": ("unir.png", buf.getvalue(), "image/png")}).json()
+    info = c.get(f"/api/assets/{d['id']}/blobs").json()
+    u = info["union_mm"]
+    assert 0.5 <= u <= 20.0, u
+    a = st.get(d["id"])
+    radio = (u / max(0.05, a.scale_pct / 100.0)) / 25.4 * a.dpi_origen
+    img = aplicar_offset(a.img, radio, "unir_curvo", (255, 255, 255))
+    piezas = ndimage.label(np.asarray(img.getchannel("A")) > 20)[1]
+    assert piezas == 1, f"con {u} mm quedan {piezas} piezas"
+    # y un pelín menos NO debe bastar (es el mínimo, no un valor holgado)
+    img2 = aplicar_offset(a.img, radio * 0.6, "unir_curvo", (255, 255, 255))
+    assert ndimage.label(np.asarray(img2.getchannel("A")) > 20)[1] > 1
+
+
+def test_contorno_preview_quitar_y_unir(client):
+    """Vista previa de cómo queda al quitar trozos o unir (sin aplicar)."""
+    c, st, _ = client
+    d = _subir_con_blob(c)
+    info = c.get(f"/api/assets/{d['id']}/blobs").json()
+    quitar = [b["id"] for b in info["blobs"] if not b["principal"]]
+    r = c.post(f"/api/assets/{d['id']}/contorno-preview",
+               json={"quitar": quitar})
+    assert r.status_code == 200
+    assert r.json()["png"].startswith("data:image/png;base64,")
+    r2 = c.post(f"/api/assets/{d['id']}/contorno-preview",
+                json={"unir": 2.0})
+    assert r2.json()["png"].startswith("data:image/png;base64,")
+    # el asset no se ha tocado
+    assert c.get(f"/api/assets/{d['id']}/blobs").json()["blobs"] != []
+
+
+def test_pagina_con_marcas_delimitar_y_cache(client):
+    """La página lleva los cuadrados de referencia y se sirve cacheada."""
+    import io
+    import time
+    from PIL import Image
+    c, st, _ = client
+    d = c.post("/api/assets",
+               files={"file": ("p.png", png_bytes(sticker_rgba((150, 150))),
+                               "image/png")}).json()
+    c.post("/api/optimize", json={"force": True})
+    for _ in range(200):
+        if c.get("/api/result").json()["pages"]:
+            break
+        time.sleep(0.05)
+    c.put("/api/settings", json={"marcas_delimitar": True, "margen_mm": 1.0})
+    r1 = c.get("/api/pages/0.png?v=1")
+    r2 = c.get("/api/pages/0.png?v=2")
+    assert r1.status_code == 200 and r2.status_code == 200
+    assert r1.content == r2.content, "la página debería salir de la caché"
+    im = Image.open(io.BytesIO(r1.content)).convert("RGBA")
+    area = st.current_area()
+    px = float(c.get("/api/settings").json()["settings"]["dpi_salida"]) / 25.4
+    # los cuadrados van DENTRO del polígono recortable: se busca tinta blanca
+    import numpy as np
+    a = np.asarray(im)
+    ys, xs = np.nonzero((a[:, :, 0] > 250) & (a[:, :, 1] > 250)
+                        & (a[:, :, 2] > 250))
+    assert len(xs) > 0, "deben pintarse los cuadrados de referencia"
+    # apagado: se vuelve a renderizar sin cuadrados
+    c.put("/api/settings", json={"marcas_delimitar": False})
+    r3 = c.get("/api/pages/0.png?v=3")
+    im3 = Image.open(io.BytesIO(r3.content)).convert("RGBA")
+    p3 = im3.getpixel((int(xs[0]), int(ys[0])))
+    assert p3[3] == 0

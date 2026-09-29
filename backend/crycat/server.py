@@ -205,6 +205,10 @@ def create_app(store: Session = session) -> FastAPI:
             area = store.current_area()
             assets = store.asset_dicts()
             st = settings.as_dict()
+            # datos para los modos de borde de los minis (proporcional |
+            # igual | sin): imágenes sin borde y offset global efectivo
+            st["_sin_borde"] = store.images_sin_borde()
+            st["_offset_global"] = _offset_de_global()
             if modo == "rapido":
                 st["opt_metodo"] = "silueta_rapido"
                 st["opt_tiempo_max_s"] = min(2.0, float(st.get("opt_tiempo_max_s", 8)))
@@ -532,7 +536,10 @@ def create_app(store: Session = session) -> FastAPI:
         try:
             area = store.current_area()
             assets = store.asset_dicts()
-            res = optimize(assets, area, settings.as_dict(),
+            st_demo = settings.as_dict()
+            st_demo["_sin_borde"] = store.images_sin_borde()
+            st_demo["_offset_global"] = _offset_de_global()
+            res = optimize(assets, area, st_demo,
                            pinned=store.pinned(), masks=store.images())
             store.set_result(res)
         except Exception:
@@ -1148,13 +1155,23 @@ def create_app(store: Session = session) -> FastAPI:
         # caché de páginas: alternar contorno/fases era lento porque cada
         # cambio re-renderizaba a 300 ppp (1,3 s). Con la caché, tras el
         # primer render cada vista es instantánea.
-        clave_pag = (id(store.last),
+        clave_pag = (id(store.last), store.result_rev,
                      sum(int(getattr(a, "rev", 0)) for a in store.assets.values()),
                      int(i), round(dpi, 1),
                      bool(settings.get("lienzo") == "pagina"),
                      str(settings.get("color_formato", "rgba")),
                      int(bordes), int(fase) % 12, str(cont), int(sim),
-                     _delimitar_mm())
+                     _delimitar_mm(), _delimitar_margen(),
+                     # la simulación de impresión y el offset global también
+                     # cambian la vista: van en la clave o se vería la vieja
+                     bool(settings.get("sim_cmyk")),
+                     round(float(settings.get("sim_saturacion", 1.0) or 1.0), 2),
+                     round(float(settings.get("sim_contraste", 1.0) or 1.0), 2),
+                     round(float(settings.get("sim_brillo", 1.0) or 1.0), 2),
+                     bool(settings.get("offset_activo")),
+                     round(float(settings.get("offset_mm", 0) or 0), 2),
+                     str(settings.get("offset_modo", "")),
+                     str(settings.get("offset_color", "")))
         cache = _paginas_cache.get(clave_pag)
         if cache is not None:
             return Response(cache, media_type="image/png")
@@ -1179,7 +1196,7 @@ def create_app(store: Session = session) -> FastAPI:
                 float(settings.get("sim_brillo", 1.0)))
         img = img.convert("RGBA")
         datos = _png_bytes(img)
-        if len(_paginas_cache) > 40:
+        if len(_paginas_cache) > 16:
             _paginas_cache.clear()
         _paginas_cache[clave_pag] = datos
         return Response(datos, media_type="image/png")

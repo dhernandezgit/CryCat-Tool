@@ -349,13 +349,13 @@ export default function SettingsPanel({ settings, saveSettings,
               <div className="ctl">
                 <label>{t("Medir el tamaño por")}</label>
                 <select data-testid="mini-lista-medida"
-                        value={settings.mini_lista_medida ?? "menor"}
+                        value={settings.mini_lista_medida ?? "circulo"}
                         onChange={(e) =>
                           set({ mini_lista_medida:
                             e.target.value as "menor" | "mayor" | "circulo" })}>
+                  <option value="circulo">{t("Círculo equivalente (aprox.)")}</option>
                   <option value="menor">{t("Lado menor")}</option>
                   <option value="mayor">{t("Lado mayor")}</option>
-                  <option value="circulo">{t("Círculo equivalente (aprox.)")}</option>
                 </select>
               </div>
             )}
@@ -535,8 +535,8 @@ export default function SettingsPanel({ settings, saveSettings,
               ["extender", "Extender el color del borde (suave)"],
               ["blanco", "Blanco"],
               ["color", "Color personalizado"],
-              ["unir_recto", "Unir trozos: borde recto (envolvente)"],
-              ["unir_curvo", "Unir trozos: borde curvo (redondeado)"],
+              ["unir_recto", "Unir trozos: envolvente (borde recto)"],
+              ["unir_curvo", "Unir trozos: mínimo (borde redondeado)"],
             ])}
             {settings.offset_modo === "color" && (
               <div className="ctl">

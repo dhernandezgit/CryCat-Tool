@@ -426,6 +426,11 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
   };
   const modoCont = ui.contornoModo ?? "final";
   const verCont = ui.verBordes && modoCont !== "ninguno";
+  // la vista de la página depende también de ajustes que NO cambian el
+  // resultado (marcas para delimitar, lienzo, formato, resolución): se meten
+  // en la URL para que la imagen se refresque al cambiarlos
+  const claveVista = `${version}-${settings.marcas_delimitar ? 1 : 0}` +
+    `-${settings.lienzo}-${settings.color_formato}-${settings.dpi_salida}`;
 
   // con los contornos activados se prefetchán los fotogramas del parpadeo:
   // ver contornos es SOLO visual y debe cambiar al instante (antes cada
@@ -436,7 +441,7 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
     const nPag = Math.max(1, result.pages);
     for (let i = 0; i < nPag; i++) {
       for (const f of [0, 3, 6, 9]) {
-        urls.push(api.pageUrl(i, version,
+        urls.push(api.pageUrl(i, claveVista,
                               settings.simular_impresion === true, true, f,
                               modoCont));
       }
@@ -447,7 +452,7 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
       return im;
     });
     return () => imgs.forEach((im) => { im.src = ""; });
-  }, [verCont, version, result, modoCont, settings.simular_impresion]);
+  }, [verCont, claveVista, result, modoCont, settings.simular_impresion]);
 
 
   // solo visual: en el modo horizontal la hoja se enseña girada 90º para
@@ -480,7 +485,7 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
         <img className={`sheet${girada ? " girada" : ""}`}
              style={estiloGirada}
              onLoad={i === 0 ? ajustar : undefined}
-             src={api.pageUrl(i, version, settings.simular_impresion === true, verCont, faseBordes, modoCont)} alt={t("Página {i}", { i: i + 1 })} draggable={false} />
+             src={api.pageUrl(i, claveVista, settings.simular_impresion === true, verCont, faseBordes, modoCont)} alt={t("Página {i}", { i: i + 1 })} draggable={false} />
         {ui.guidesVisible && guidePath && (
           <svg className={`overlay-svg${girada ? " girada" : ""}`}
                style={estiloGirada}
@@ -608,21 +613,21 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
       <div className="viewer-top">
         <button
             data-testid="btn-bordes"
-            className={`btn-contorno ${CONTS[modoCont].clase}`}
-            data-tip={t("Contorno: {modo} (pulsa para cambiar)", {
-              modo: t(CONTS[ui.contornoModo ?? "final"].etiqueta) })}
+            className={`btn-contorno ${verCont ? "modo-final" : "modo-ninguno"}`}
+            data-tip={verCont
+              ? t("Quitar el contorno (solo vista previa)")
+              : t("Ver el contorno de corte: la línea más exterior, lo que se corta de verdad")}
             onClick={() => {
-              const orden = ["final", "orig", "ambos", "ninguno"] as const;
-              const i = orden.indexOf(ui.contornoModo ?? "final");
-              const sig = orden[(i + 1) % 4];
-              setUi((u) => ({ ...u, contornoModo: sig,
-                              verBordes: sig !== "ninguno" }));
-              // se guarda para que el modo elegido persista entre sesiones
-              void saveSettings({ contorno_modo: sig,
-                                  ver_contornos: sig !== "ninguno" });
+              // solo dos opciones: ver el contorno exterior o no verlo
+              const activar = !verCont;
+              setUi((u) => ({ ...u,
+                              contornoModo: activar ? "final" : "ninguno",
+                              verBordes: activar }));
+              void saveSettings({ contorno_modo: activar ? "final" : "ninguno",
+                                  ver_contornos: activar });
             }}
           >
-            <IconoBordes size={16} /> {t(CONTS[modoCont].corto)}
+            <IconoBordes size={16} /> {t("Contorno")}
         </button>
         <button
             data-testid="btn-guias"
