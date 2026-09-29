@@ -140,9 +140,20 @@ progreso_n = 0   # cuántas veces se ha avisado del progreso (diagnóstico)
 
 def create_app(store: Session = session) -> FastAPI:
     app = FastAPI(title="CryCat", version=__version__)
-    # recupera la sesión anterior (imágenes + colocaciones)
+    # recupera la sesión anterior (imágenes + colocaciones). El ÁREA también
+    # hay que dejarla lista: si no, /api/result la veía vacía y la app parecía
+    # no tener ninguna colocación al abrir (bug real)
     try:
         store.restore_images()
+        if store.last is not None:
+            store.current_area()
+            # la eficiencia no se guarda en la sesión: se recalcula al abrir
+            try:
+                from .silhouette import _recalcular_eficiencia
+                _recalcular_eficiencia(store.last, store.images(),
+                                       store.area, store.asset_dicts())
+            except Exception:
+                pass
     except Exception:
         pass
     jobs: dict[str, dict] = {}
@@ -426,7 +437,6 @@ def create_app(store: Session = session) -> FastAPI:
                             "mini_tamanos_lista", "modo_forma",
                             "simplificar", "simplificar_threshold",
                             "simplificar_max_vertices",
-                            "ver_contornos", "contorno_modo",
                             "opt_metodo", "opt_tiempo_max_s", "dpi_salida",
                             "lienzo", "color_formato", "offset_activo",
                             "offset_mm", "offset_modo", "offset_color"))

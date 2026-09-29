@@ -355,20 +355,21 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
   const sheetW = settings.lienzo === "pagina" ? result?.page_mm[0] ?? 0 : bw;
   const sheetH = settings.lienzo === "pagina" ? result?.page_mm[1] ?? 0 : bh;
 
-  /** Ajusta la vista para que la HOJA ENTERA se vea, centrada y sin recortes. */
+  /** Ajusta la vista: la HOJA ENTERA visible y en el CENTRO REAL del visor. */
   const ajustar = useCallback(() => {
     const el = canvasRef.current;
     if (!el) return;
     const caja = el.querySelector(".page-box") as HTMLElement | null;
     if (!caja) return;
+    const inner = el.querySelector(".canvas-inner") as HTMLElement | null;
     const cw = el.clientWidth, ch = el.clientHeight;
-    const w = caja.offsetWidth || 1, h = caja.offsetHeight || 1;
-    // margen del canvas-inner (18 px por lado) + un pelín de aire
-    const disponibleW = Math.max(40, cw - 40);
-    const disponibleH = Math.max(40, ch - 40);
-    const z = Math.min(1, disponibleW / w, disponibleH / h);
+    // el lienzo interno ES el contenido (con su aire); se ajusta y se centra
+    // sobre él: así la hoja queda entera y en el centro exacto del visor
+    const iw = (inner?.offsetWidth || caja.offsetWidth) || 1;
+    const ih = (inner?.offsetHeight || caja.offsetHeight) || 1;
+    const z = Math.min(1, cw / iw, ch / ih);
     setZoom(z);
-    setPan({ x: (cw - w * z) / 2 - 18, y: (ch - h * z) / 2 - 18 });
+    setPan({ x: (cw - iw * z) / 2, y: (ch - ih * z) / 2 });
   }, []);
 
   // al abrir/cambiar de página, modo de vista u orientación: ajustar solo
@@ -446,6 +447,7 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
       >
         <img className={`sheet${girada ? " girada" : ""}`}
              style={estiloGirada}
+             onLoad={i === 0 ? ajustar : undefined}
              src={api.pageUrl(i, version, settings.simular_impresion === true, verCont, faseBordes, modoCont)} alt={t("Página {i}", { i: i + 1 })} draggable={false} />
         {ui.guidesVisible && guidePath && (
           <svg className={`overlay-svg${girada ? " girada" : ""}`}
