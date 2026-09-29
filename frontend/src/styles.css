@@ -236,6 +236,22 @@ input::placeholder { color: #cbbfc8; opacity: 1; font-style: italic; }
 .page-box { position: relative; box-shadow: 0 2px 14px rgba(0,0,0,0.10); border-radius: 4px; overflow: hidden; flex: none; }
 .page-box .sheet { display: block; width: 100%; height: auto; }
 .page-box.white-bg .sheet { background: #fff; }
+.asset-card.sel { outline: 2.5px solid var(--accent); outline-offset: -2px; background: color-mix(in srgb, var(--accent) 8%, var(--panel)); }
+.item-box.sel { outline: 2px dashed var(--accent); outline-offset: 1px; }
+.bulk-card { border: 2px solid var(--accent); border-radius: 14px; padding: 8px 10px; margin: 0 0 10px; background: var(--panel); }
+.bulk-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.settings-panel.compacta { font-size: 11px; }
+.settings-panel.compacta .sect-body { padding: 2px 6px 6px; }
+.settings-panel.compacta .ctl { margin: 2px 0; }
+.settings-panel.compacta .ctl label { font-size: 10.5px; }
+.settings-panel.compacta input[type="number"],
+.settings-panel.compacta select { padding: 2px 4px; height: 24px; font-size: 11px; }
+.settings-panel.compacta .hint { display: none; }
+.settings-panel.compacta .grupo-titulo { margin-top: 4px; }
+.settings-panel.compacta .sect-head { padding: 4px 8px; }
+.settings-panel.compacta .modos-seg button,
+.settings-panel.compacta .acciones-rapidas .chip { padding: 3px 6px; font-size: 10.5px; }
+
 .page-box.fondo-blanco { background: #ffffff; }
 .page-box.fondo-transparente { background-image: linear-gradient(45deg, #e8e8e8 25%, transparent 25%), linear-gradient(-45deg, #e8e8e8 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #e8e8e8 75%), linear-gradient(-45deg, transparent 75%, #e8e8e8 75%); background-size: 18px 18px; background-position: 0 0, 0 9px, 9px -9px, -9px 0; }
 .page-box.fondo-rosa { background: #f7d9e3; }

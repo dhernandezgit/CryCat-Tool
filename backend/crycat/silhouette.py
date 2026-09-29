@@ -1478,8 +1478,11 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
             n0 = len(ctx_mini.placements)
             if progress:
                 progress(0.86, res.pages)
+            # los minis son lo ÚLTIMO: se les da margen para llenar de verdad
+            # (en modo automático cada tamaño nuevo cuesta máscaras y
+            # correlaciones: con poco tiempo solo se probaban los grandes)
             _rellenar_minis(ctx_mini, assets, masks, settings,
-                            deadline=time.time() + 4.0, progress=progress)
+                            deadline=time.time() + 10.0, progress=progress)
             nuevos = ctx_mini.placements[n0:]
             if nuevos:
                 res.placements.extend(nuevos)

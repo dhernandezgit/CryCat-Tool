@@ -118,6 +118,9 @@ export default function SettingsPanel({ settings, saveSettings,
     perfiles: false, corte: false, extras: false, offset: false,
   });
   const [pickerOpen, setPickerOpen] = useState(false);
+  // vista COMPRIMIDA: todos los menús desplegados y compactos de una vez
+  const [compacta, setCompacta] = useState(false);
+  const abierto = (id: keyof typeof open) => compacta || open[id];
 
   // imagen de referencia para la columna de mm: la más grande con minis
   // activados (o la más grande a secas); el backend escala por el lado menor
@@ -181,9 +184,15 @@ export default function SettingsPanel({ settings, saveSettings,
   );
 
   return (
-    <div className="file-panel settings-panel">
+    <div className={`file-panel settings-panel${compacta ? " compacta" : ""}`}>
       <div className="file-head">
         <h2>{t("Ajustes")}</h2>
+        <button className={`chip${compacta ? " on" : ""}`}
+                data-testid="btn-compacta"
+                title={t("Ver TODOS los menús desplegados y compactos")}
+                onClick={() => setCompacta((c) => !c)}>
+          {t("Compacta")}
+        </button>
         <span className="count-badge">{settings.tema}</span>
       </div>
       {/* los dos modos, ARRIBA del todo y bien claros: o uno u otro */}
@@ -196,7 +205,7 @@ export default function SettingsPanel({ settings, saveSettings,
         </div>
       )}
       {/* -------- General -------- */}
-      <Section id="general" title={t("General")} open={open.general}
+      <Section id="general" title={t("General")} open={abierto("general")}
                toggle={toggle}
                icon={<IconoAjustar size={15} />}>
         <Grupo titulo="Colocación">
@@ -272,7 +281,7 @@ export default function SettingsPanel({ settings, saveSettings,
       </Section>
 
       {/* -------- Minis -------- */}
-      <Section id="minis" title={t("Minis")} open={open.minis} toggle={toggle}
+      <Section id="minis" title={t("Minis")} open={abierto("minis")} toggle={toggle}
                icon={<IconoMini size={15} />}>
         <div className="hint">
           {t("Los minis rellenan huecos (no cuentan como copias): dan eficiencia y " +
@@ -405,7 +414,7 @@ export default function SettingsPanel({ settings, saveSettings,
       </Section>
 
       {/* -------- Optimización -------- */}
-{experto &&       <Section id="optimizacion" title={t("Optimización")} open={open.optimizacion} toggle={toggle}
+{experto &&       <Section id="optimizacion" title={t("Optimización")} open={abierto("optimizacion")} toggle={toggle}
                icon={<IconoRecalcular size={15} />}>
         {sel("Método", "opt_metodo", [
           ["greedy", "Greedy / Bottom-Left (rápido)"],
@@ -439,7 +448,7 @@ export default function SettingsPanel({ settings, saveSettings,
       </Section>}
 
       {/* -------- Imagen -------- */}
-{experto &&       <Section id="imagen" title={t("Imagen")} open={open.imagen} toggle={toggle}
+{experto &&       <Section id="imagen" title={t("Imagen")} open={abierto("imagen")} toggle={toggle}
                icon={<IconoFondo size={15} />}>
         <Grupo titulo="Impresión">
         {num("Sangrado de impresión", "bleed_mm", 0, 5, 0.2, "mm", undefined,
@@ -517,7 +526,7 @@ export default function SettingsPanel({ settings, saveSettings,
       </Section>}
 
       {/* -------- Borde (se muestra también en modo básico) -------- */}
-      <Section id="offset" title={t("Borde")} open={open.offset} toggle={toggle}
+      <Section id="offset" title={t("Borde")} open={abierto("offset")} toggle={toggle}
                icon={<IconoBordes size={15} />}>
         <div className="ctl">
           <label className="row">
@@ -559,7 +568,7 @@ export default function SettingsPanel({ settings, saveSettings,
 
       {/* -------- Estimación de corte -------- */}
       {experto && <Section id="corte" title={t("Estimación de corte")}
-               open={open.corte} toggle={toggle}
+               open={abierto("corte")} toggle={toggle}
                icon={<IconoTijeras size={15} />}>
         <div className="hint">
           {destacar(
@@ -581,7 +590,7 @@ export default function SettingsPanel({ settings, saveSettings,
 
       {/* -------- Historial -------- */}
       {experto && <Section id="historial" title={t("Historial (deshacer/rehacer)")}
-               open={open.historial} toggle={toggle}
+               open={abierto("historial")} toggle={toggle}
                icon={<IconoDeshacer size={15} />}>
         <div className="hint">
           {t("Guarda los cambios en tu equipo para poder deshacer y rehacer (Ctrl+Z / Ctrl+Y). Elige qué se guarda.")}
@@ -624,7 +633,7 @@ export default function SettingsPanel({ settings, saveSettings,
       </Section>}
 
       {/* -------- Visualización -------- */}
-      <Section id="visualizacion" title={t("Visualización")} open={open.visualizacion} toggle={toggle}
+      <Section id="visualizacion" title={t("Visualización")} open={abierto("visualizacion")} toggle={toggle}
                icon={<IconoGuias size={15} />}>
         <div className="ctl">
           <label>{t("Tema")}</label>
@@ -671,7 +680,7 @@ export default function SettingsPanel({ settings, saveSettings,
         </div>
       </Section>
 
-      <Section id="extras" title={t("Extras")} open={open.extras} toggle={toggle}
+      <Section id="extras" title={t("Extras")} open={abierto("extras")} toggle={toggle}
                icon={<IconoVolumen size={15} />}>
         <Grupo titulo="Sonido">
           <div className="ctl">

@@ -21,6 +21,8 @@ interface Props {
   onRefresh: () => Promise<void>;
   onJob: (j: Job) => void;
   onRecalc: (modo: "rapido" | "optimo") => void;
+  seleccion?: string[];
+  onSeleccion?: (id: string, multi: boolean) => void;
   editando?: Asset | null;
   onFinEdicion?: () => Promise<void>;
   onDeshacer: () => void;
@@ -38,7 +40,7 @@ interface DragState {
   mmPerPx: number;
 }
 
-export default function Viewer({ assets, result, settings, ui, setUi, saveSettings, onRefresh, onJob, onRecalc, editando, onFinEdicion, onDeshacer, onRehacer, puedeDeshacer, puedeRehacer }: Props) {
+export default function Viewer({ assets, result, settings, ui, setUi, saveSettings, onRefresh, onJob, onRecalc, editando, onFinEdicion, onDeshacer, onRehacer, puedeDeshacer, puedeRehacer, seleccion = [], onSeleccion }: Props) {
   const t = useT();
   const idioma = useIdioma();
   const [zoom, setZoom] = useState(1);
@@ -288,7 +290,8 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
   };
 
   const [guardado, setGuardado] = useState<
-    { files: string[]; folder: string; error?: string } | null>(null);
+    { files: string[]; folder: string; error?: string;
+      preview?: string } | null>(null);
 
   // Imprimir: primero ASEGURA que está guardado y luego imprime el PDF con
   // las marcas negras de Cricut (misma calidad, tamaño real)
@@ -296,7 +299,7 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
     try {
       const r = await api.export(ui.saveName || "crycat",
                                  settings.carpeta_export || undefined);
-      setGuardado({ files: r.files, folder: r.folder });
+      setGuardado({ files: r.files, folder: r.folder, preview: r.preview });
     } catch (e) {
       setGuardado({ files: [], folder: "", error: (e as Error).message });
       return;
@@ -341,7 +344,7 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
   const save = async () => {
     try {
       const r = await api.export(nombreGuardar);
-      setGuardado({ files: r.files, folder: r.folder });
+      setGuardado({ files: r.files, folder: r.folder, preview: r.preview });
     } catch (e) {
       setGuardado({ files: [], folder: "", error: (e as Error).message });
     }
@@ -355,7 +358,7 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
   const exportarEn = async (folder: string) => {
     try {
       const r = await api.export(nombreGuardar, folder);
-      setGuardado({ files: r.files, folder: r.folder });
+      setGuardado({ files: r.files, folder: r.folder, preview: r.preview });
     } catch (e) {
       setGuardado({ files: [], folder: "", error: (e as Error).message });
     }
@@ -575,7 +578,7 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
           return (
             <div
               key={p.uid}
-              className={`item-box ${p.pinned ? "pinned" : ""} ${drag?.uid === p.uid ? "dragging" : ""}`}
+              className={`item-box ${p.pinned ? "pinned" : ""} ${drag?.uid === p.uid ? "dragging" : ""}${seleccion.includes(p.asset_id) ? " sel" : ""}`}
               style={{
                 left: `${left}%`, top: `${top}%`,
                 width: `${(p.w / (sheetW || 1)) * 100}%`,
@@ -596,6 +599,9 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
                 block: "center", inline: "center", behavior: "smooth" });
               window.dispatchEvent(new CustomEvent("crycat:seleccion",
                 { detail: p.asset_id }));
+              // Ctrl/Cmd/Shift para seleccionar VARIOS (edición en bloque)
+              onSeleccion?.(p.asset_id,
+                            ev.ctrlKey || ev.metaKey || ev.shiftKey);
             }}
             >
               {p.pinned && <span className="pin"></span>}
@@ -947,6 +953,7 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
         open={!!guardado}
         files={guardado?.files ?? []}
         folder={guardado?.folder ?? ""}
+        preview={guardado?.preview}
         error={guardado?.error}
         onOpenFolder={(ruta) =>
           void api.fsOpen(ruta).catch(() => undefined)}

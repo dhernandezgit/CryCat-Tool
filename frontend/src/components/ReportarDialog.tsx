@@ -3,6 +3,8 @@ import { api, type AppSettings, type Job, type Result } from "../api";
 import { useT } from "../i18n";
 
 const REPO = "https://github.com/dhernandezgit/CryCat-Tool";
+// el informe se puede ENVIAR POR EMAIL (sin cuenta ni login de ningún tipo)
+const EMAIL = "daniel.hernandez@pixelabs.es";
 
 /** Sugerencias: al pulsarlas se añade la frase al informe. */
 const SUGERENCIAS: Array<[string, string]> = [
@@ -112,10 +114,23 @@ export default function ReportarDialog({ open, onClose, settings,
     return cuerpo.join("\n");
   };
 
+  const tituloInforme = () =>
+    `[CryCat] ${texto.trim().split("\n")[0].slice(0, 70) || "algo no va bien"}`;
+
+  /** Enviar por EMAIL: sin cuenta, sin login, llega directo. */
+  const enviarEmail = () => {
+    const url = `mailto:${EMAIL}?` + new URLSearchParams({
+      subject: tituloInforme(),
+      body: cuerpoInforme().slice(0, 1800),
+    }).toString();
+    window.location.href = url;
+    onClose();
+  };
+
+  /** Abrir en GitHub (opcional; requiere cuenta). */
   const abrir = () => {
-    const titulo = `[Bug] ${texto.trim().split("\n")[0].slice(0, 70) || "algo no va bien"}`;
     const url = `${REPO}/issues/new?` + new URLSearchParams({
-      title: titulo,
+      title: tituloInforme(),
       body: cuerpoInforme(),
       labels: "bug",
     }).toString();
@@ -128,8 +143,8 @@ export default function ReportarDialog({ open, onClose, settings,
       <div className="modal">
         <h3>{t("Reportar un bug")}</h3>
         <div className="hint">
-          {t("Se abrirá la página de GitHub con el informe ya escrito: " +
-             "revisa, ajusta y pulsa «Submit new issue».")}
+          {t("Rellena el informe y envíalo por EMAIL (no hace falta cuenta ni " +
+             "login). También puedes copiarlo o abrirlo en GitHub si prefieres.")}
         </div>
         <div className="hint">{t("Sugerencias (pulsa para añadirla):")}</div>
         <div className="reportar-chips">
@@ -203,8 +218,14 @@ export default function ReportarDialog({ open, onClose, settings,
           >
             {copiado ? t("¡Copiado!") : t("Copiar informe")}
           </button>
-          <button className="primary" data-testid="reportar-abrir" onClick={abrir}>
-            {t("Abrir issue en GitHub")}
+          <button data-testid="reportar-github"
+                  title={t("Abrir en GitHub (necesita cuenta)")}
+                  onClick={abrir}>
+            {t("GitHub")}
+          </button>
+          <button className="primary" data-testid="reportar-enviar"
+                  onClick={enviarEmail}>
+            {t("Enviar por email")}
           </button>
         </div>
       </div>

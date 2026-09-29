@@ -18,6 +18,9 @@ interface Props {
   verBordes?: boolean;
   contornoModo?: "final" | "orig" | "ambos" | "ninguno";
   destacado?: string;
+  seleccion?: string[];
+  onSeleccion?: (id: string, multi: boolean) => void;
+  onBulk?: (ids: string[], patch: Partial<Asset>) => Promise<void>;
 }
 
 function AssetCard({ a, result, onChange, onEditarContorno,
@@ -25,12 +28,15 @@ function AssetCard({ a, result, onChange, onEditarContorno,
                      bordeGlobalMm = 0,
                      faseBordes = 0, verBordes = true,
                      contornoModo = "final",
-                     destacado = false }: {
+                     destacado = false, sel = false,
+                     onSel }: {
   a: Asset; result: Result | null; onChange: () => Promise<void>;
   onEditarContorno?: (a: Asset) => void;
   onAntesDeCambiar?: () => void;
   bordeGlobal?: boolean;
   bordeGlobalMm?: number;
+  sel?: boolean;
+  onSel?: (id: string, multi: boolean) => void;
   faseBordes?: number;
   verBordes?: boolean;
   contornoModo?: "final" | "orig" | "ambos" | "ninguno";
@@ -107,8 +113,14 @@ function AssetCard({ a, result, onChange, onEditarContorno,
 
   return (
     <div ref={raizRef} data-asset={a.id}
-         className={`asset-card${destacado ? " destacada" : ""}`}
-         data-testid="asset-card">
+         className={`asset-card${destacado ? " destacada" : ""}${sel ? " sel" : ""}`}
+         data-testid="asset-card"
+         onClick={(e) => {
+           // clic en la tarjeta = seleccionar (Ctrl/Cmd/Shift para varios)
+           const t0 = e.target as HTMLElement;
+           if (t0.closest("button, input, select, textarea, a")) return;
+           onSel?.(a.id, e.ctrlKey || e.metaKey || e.shiftKey);
+         }}>
       <div className="preview">
         {/* la miniatura de la tarjeta va SIN contornos (rápida); los
             contornos se ven en la hoja. Antes, con los contornos activados,
@@ -360,7 +372,10 @@ export default function FilePanel({ assets, result, settings, onChange,
                                     onAntesDeCambiar, faseBordes = 0,
                                     verBordes = true,
                                     contornoModo = "final",
-                                    destacado = "" }: Props) {
+                                    destacado = "",
+                                    seleccion = [],
+                                    onSeleccion,
+                                    onBulk }: Props) {
   const t = useT();
   const inputRef = useRef<HTMLInputElement>(null);
   const [over, setOver] = useState(false);
@@ -424,9 +439,61 @@ export default function FilePanel({ assets, result, settings, onChange,
         />
       </div>
 
+      {seleccion.length >= 2 && (
+        <div className="bulk-card" data-testid="bulk-card">
+          <div className="bulk-head">
+            <b>{t("{n} elementos seleccionados", { n: seleccion.length })}</b>
+            <button className="chip" data-testid="bulk-quitar"
+                    onClick={() => onSeleccion?.(seleccion[0], false)}>
+              {t("Quitar selección")}
+            </button>
+          </div>
+          <div className="seg-row">
+            <span>{t("Copias")}</span>
+            <button className="quota-btn" data-testid="bulk-copias-menos"
+              onClick={() => onBulk?.(seleccion, {
+                copies: Math.max(0, (assets.find((x) => x.id === seleccion[0])?.copies ?? 1) - 1) })}>−</button>
+            <span className="quota-val">
+              {assets.find((x) => x.id === seleccion[0])?.copies ?? 1}
+            </span>
+            <button className="quota-btn" data-testid="bulk-copias-mas"
+              onClick={() => onBulk?.(seleccion, {
+                copies: (assets.find((x) => x.id === seleccion[0])?.copies ?? 1) + 1 })}>+</button>
+          </div>
+          <div className="scale-row">
+            <span>{t("Escala")}</span>
+            <input type="range" min={10} max={400} step={5}
+              data-testid="bulk-escala"
+              value={Math.round(assets.find((x) => x.id === seleccion[0])?.scale_pct ?? 100)}
+              onChange={(e) => onBulk?.(seleccion,
+                                        { scale_pct: Number(e.target.value) })} />
+            <span className="scale-val">
+              {Math.round(assets.find((x) => x.id === seleccion[0])?.scale_pct ?? 100)}%
+            </span>
+          </div>
+          <div className="seg-row">
+            <button className={`mini-toggle${assets.find((x) => x.id === seleccion[0])?.mini_enabled ? " on" : ""}`}
+              data-testid="bulk-mini"
+              onClick={() => onBulk?.(seleccion, {
+                mini_enabled: !assets.find((x) => x.id === seleccion[0])?.mini_enabled })}>
+              {t("Mini")}
+            </button>
+            <button className="mini-toggle" data-testid="bulk-borde"
+              onClick={() => onBulk?.(seleccion, {
+                offset_mm: (assets.find((x) => x.id === seleccion[0])?.offset_mm ?? 0) > 0
+                  ? 0 : 1 })}>
+              {t("Borde")}
+            </button>
+          </div>
+          <div className="hint">
+            {t("Los cambios se aplican a TODOS los elementos seleccionados.")}
+          </div>
+        </div>
+      )}
       <div className="asset-list" data-testid="asset-list">
         {assets.map((a) => (
           <AssetCard key={a.id} a={a} result={result} onChange={onChange}
+                     sel={seleccion.includes(a.id)} onSel={onSeleccion}
                      onEditarContorno={onEditarContorno}
                      onAntesDeCambiar={onAntesDeCambiar}
                      faseBordes={faseBordes}

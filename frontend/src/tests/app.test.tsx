@@ -60,6 +60,9 @@ function mockFetch(url: string) {
   if (u.includes("/api/job/")) return ok(jobDone);
   if (u.includes("/api/result")) return ok(result);
   if (u.includes("/api/pages/")) return ok({});
+  if (u.includes("/api/export"))
+    return ok({ ok: true, folder: "/tmp", files: ["/tmp/pagina-01.png"],
+                preview: "data:image/png;base64,QUJD" });
   return ok({});
 }
 
@@ -224,5 +227,40 @@ describe("App completa", () => {
       String(c[0]).includes("/api/assets/a1") &&
       String((c[1] as RequestInit)?.method) === "PATCH");
     expect(parches.length).toBeGreaterThanOrEqual(2);
+  });
+});
+
+describe("Nuevas funciones 2.8", () => {
+  it("la vista compacta de ajustes existe y despliega todo", async () => {
+    const u = userEvent.setup();
+    render(<App />);
+    await waitFor(() =>
+      expect(screen.getByTestId("settings-panel")).toBeInTheDocument());
+    const btn = screen.getByTestId("btn-compacta");
+    await u.click(btn);
+    // el panel de ajustes se marca como compacto (todos los menús abiertos)
+    expect(document.querySelector(".settings-panel.compacta")).not.toBeNull();
+    expect(screen.getByTestId("set-espacio_mm")).toBeInTheDocument();
+  });
+
+  it("el popup de guardado muestra la miniatura de lo guardado", async () => {
+    const u = userEvent.setup();
+    render(<App />);
+    await waitFor(() =>
+      expect(screen.getByTestId("btn-guardar")).toBeInTheDocument());
+    await u.click(screen.getByTestId("btn-guardar"));
+    await waitFor(() =>
+      expect(screen.getByTestId("save-dialog")).toBeInTheDocument());
+    expect(screen.getByTestId("save-preview")).toBeInTheDocument();
+  });
+
+  it("el diálogo de reportar envía por email (sin GitHub)", async () => {
+    const u = userEvent.setup();
+    render(<App />);
+    await waitFor(() =>
+      expect(screen.getByTestId("btn-reportar")).toBeInTheDocument());
+    await u.click(screen.getByTestId("btn-reportar"));
+    expect(await screen.findByTestId("reportar-enviar")).toBeInTheDocument();
+    expect(screen.getByTestId("reportar-github")).toBeInTheDocument();
   });
 });

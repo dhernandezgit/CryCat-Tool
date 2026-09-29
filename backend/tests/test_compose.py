@@ -266,3 +266,23 @@ def test_marcas_delimitar_en_los_limites_y_dentro():
     img2 = compose.render_page(area, [], {}, 100.0, True, "rgba")
     a2 = np.asarray(img2.convert("RGBA"))
     assert not ((a2[:, :, 0] > 250) & (a2[:, :, 3] > 200)).any()
+
+
+def test_marcas_negras_adaptan_a_la_caja_del_contenido():
+    """Las 4 marcas se colocan según la caja FINAL de todos los elementos:
+    el borde superior coincide con el píxel más alto, el izquierdo con el más
+    a la izquierda, y simétricamente abajo y derecha."""
+    import numpy as np
+    area = cut_area(210.0, 297.0, "maker3")
+    caja = (40.0, 50.0, 160.0, 240.0)
+    dpi = 100.0
+    img = Image.new("RGBA", (int(210 / 25.4 * dpi), int(297 / 25.4 * dpi)),
+                    (0, 0, 0, 0))
+    out = compose.con_marcas_cricut(img, area, dpi, caja)
+    a = np.asarray(out.convert("RGBA").split()[3]) > 128
+    ys, xs = np.nonzero(a)
+    px = dpi / 25.4
+    assert abs(ys.min() / px - caja[1]) < 0.6, ys.min() / px
+    assert abs(xs.min() / px - caja[0]) < 0.6, xs.min() / px
+    assert abs(ys.max() / px - caja[3]) < 0.6, ys.max() / px
+    assert abs(xs.max() / px - caja[2]) < 0.6, xs.max() / px

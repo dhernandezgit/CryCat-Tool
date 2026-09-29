@@ -88,6 +88,23 @@ def _offset_de_global() -> tuple[float, str, tuple[int, int, int]] | None:
     return _offset_actual()
 
 
+def _mini_preview(ruta) -> str:
+    """Miniatura (data URL) de un archivo guardado, para el popup."""
+    try:
+        import base64
+        from pathlib import Path as _P
+        img = Image.open(_P(str(ruta))).convert("RGBA")
+        img.thumbnail((420, 420), Image.Resampling.BILINEAR)
+        fondo = Image.new("RGBA", img.size, (255, 255, 255, 255))
+        fondo.alpha_composite(img)
+        buf = io.BytesIO()
+        fondo.convert("RGB").save(buf, "PNG", optimize=True)
+        return ("data:image/png;base64,"
+                + base64.b64encode(buf.getvalue()).decode("ascii"))
+    except Exception:
+        return ""
+
+
 def _png_bytes(img: Image.Image) -> bytes:
     """PNG en memoria (misma ruta que _png_response, para poder cachear)."""
     buf = io.BytesIO()
@@ -1145,7 +1162,9 @@ def create_app(store: Session = session) -> FastAPI:
                                   delimitar_mm=_delimitar_mm(),
             delimitar_margen_mm=_delimitar_margen())
             settings.set({"carpeta_export": str(base)})
-            return {"ok": True, "folder": str(base), "files": [str(archivo)]}
+            return {"ok": True, "folder": str(base),
+                    "files": [str(archivo)],
+                    "preview": _mini_preview(archivo)}
         # varias páginas: carpeta con las páginas (sin JSON)
         out = base / base_name
         n = 2
@@ -1162,7 +1181,8 @@ def create_app(store: Session = session) -> FastAPI:
             separacion_px=_separacion_px())
         settings.set({"carpeta_export": str(base)})
         return {"ok": True, "folder": str(out),
-                "files": [str(f) for f in written]}
+                "files": [str(f) for f in written],
+                "preview": _mini_preview(written[0]) if written else ""}
 
     _paginas_cache: dict = {}
 

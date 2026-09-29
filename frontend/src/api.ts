@@ -384,7 +384,8 @@ export const api = {
       body: JSON.stringify({ uid }),
     }),
   export: (name: string, folder?: string) =>
-    req<{ ok: boolean; folder: string; files: string[] }>("/api/export", {
+    req<{ ok: boolean; folder: string; files: string[];
+          preview?: string }>("/api/export", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name, folder }),

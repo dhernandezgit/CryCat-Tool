@@ -5,11 +5,12 @@ import { IconoCarpeta, IconoCheck } from "./iconos";
 /** Popup propio (no el del navegador) al guardar: qué se guardó, dónde y los
  *  pasos para Cricut Design Space. */
 export default function SaveDialog({ open, files, folder, error, onOpenFolder,
-                                     onClose }: {
+                                     onClose, preview }: {
   open: boolean;
   files: string[];
   folder: string;
   error?: string;
+  preview?: string;
   onOpenFolder?: (ruta: string) => void;
   onClose: () => void;
 }) {
@@ -40,6 +41,14 @@ export default function SaveDialog({ open, files, folder, error, onOpenFolder,
               <p className="error">{error}</p>
             ) : (
               <>
+                {preview && (
+                  <img src={preview} alt={t("Vista previa de lo guardado")}
+                       data-testid="save-preview"
+                       style={{ maxWidth: 220, maxHeight: 220, display: "block",
+                                margin: "0 auto 10px", borderRadius: 10,
+                                border: "2px solid var(--border)",
+                                background: "#fff" }} />
+                )}
                 <p className="hint">{t("Archivos:")}</p>
                 <ul className="lista-archivos">
                   {files.map((f) => (

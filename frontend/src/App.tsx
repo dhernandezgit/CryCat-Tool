@@ -246,6 +246,22 @@ export default function App() {
     [pollJob]
   );
 
+  // ---- selección múltiple de elementos (edición en bloque) ----
+  const [seleccion, setSeleccion] = useState<string[]>([]);
+  const alternarSeleccion = useCallback((id: string, multi: boolean) => {
+    setSeleccion((sel) => {
+      if (!multi) return sel.length === 1 && sel[0] === id ? [] : [id];
+      return sel.includes(id) ? sel.filter((x) => x !== id) : [...sel, id];
+    });
+  }, []);
+  const bulkPatch = useCallback(async (ids: string[],
+                                       patch: Partial<Asset>) => {
+    for (const id of ids) {
+      await api.patchAsset(id, patch as never).catch(() => undefined);
+    }
+    await refresh();
+  }, [refresh]);
+
   // ---- historial local (deshacer/rehacer) ----
   // cada foto guarda los ELEMENTOS, el RESULTADO y los AJUSTES: deshacer
   // devuelve TODO tal y como estaba (parámetros + colocación + vista)
@@ -460,6 +476,9 @@ export default function App() {
             saveSettings={saveSettings}
             onEditarContorno={(a) => setEditando(a)}
             onAntesDeCambiar={recordar}
+            seleccion={seleccion}
+            onSeleccion={alternarSeleccion}
+            onBulk={bulkPatch}
             verBordes={ui.verBordes}
             contornoModo={ui.contornoModo ?? "final"}
             destacado={destacado}
