@@ -693,15 +693,23 @@ def _try_place_voronoi(ctx: _Ctx, aid: str, name: str, w_mm: float,
 
 
 def _escalas_lista(valores: list[float], modo: str, w_mm: float,
-                   h_mm: float) -> list[float]:
+                   h_mm: float, medida: str = "menor") -> list[float]:
     """Lista de tamaños deseados → escalas del elemento.
 
-    En modo "mm" cada valor es el tamaño del LADO MENOR del mini (igual que el
-    mínimo): la escala sale de dividir por el lado menor del original. En modo
-    "pct" el valor ya es el porcentaje respecto al original.
+    En modo "mm" cada valor es el tamaño del mini MEDIDO como indique
+    `medida` (igual que en el menú de importación):
+      · menor   → lado menor
+      · mayor   → lado mayor
+      · circulo → diámetro del círculo equivalente (2·√(w·h/π))
+    En modo "pct" el valor ya es el porcentaje respecto al original.
     """
     if modo == "mm":
-        base = max(min(w_mm, h_mm), 1e-6)
+        if medida == "mayor":
+            base = max(max(w_mm, h_mm), 1e-6)
+        elif medida == "circulo":
+            base = max(2.0 * math.sqrt(max(0.0, w_mm * h_mm) / math.pi), 1e-6)
+        else:
+            base = max(min(w_mm, h_mm), 1e-6)
         return [v / base for v in valores]
     return [v / 100.0 for v in valores]
 
@@ -709,8 +717,14 @@ def _escalas_lista(valores: list[float], modo: str, w_mm: float,
 def _escalas_candidatas(s_floor: float, max_res: float, usar_lista: bool,
                         lista: list[float]) -> list[float]:
     """Escalas a probar para un mini: la lista dada (mayor a menor) o,
-    automáticamente, descendiendo desde el tope de reescalado."""
+    automáticamente, descendiendo desde el tope de reescalado.
+
+    Con la LISTA activa el tope `mini_max_rescale` se IGNORA (en la interfaz
+    ni se muestra): mandan los tamaños pedidos. Antes lo recortaba en
+    silencio y un mini de 20 mm en un elemento reducido salía a 15 mm.
+    """
     if usar_lista and lista:
+        max_res = 0.99
         out = sorted({min(max_res, max(s_floor, s)) for s in lista},
                      reverse=True)
         return [s for s in out if s >= s_floor - 1e-9]
@@ -837,6 +851,7 @@ def _rellenar_minis(ctx: _Ctx, assets: list[dict], masks: dict,
     lista_modo = str(settings.get("mini_lista_modo", "mm"))
     lista_mm = [max(0.5, float(v)) for v in
                 (settings.get("mini_tamanos_lista") or [])]
+    medida = str(settings.get("mini_lista_medida", "menor") or "menor")
     borde_mini = str(settings.get("mini_borde_modo", "proporcional"))
     sin_borde = settings.get("_sin_borde") or {}
     off_glob = settings.get("_offset_global")
@@ -922,7 +937,7 @@ def _rellenar_minis(ctx: _Ctx, assets: list[dict], masks: dict,
                                       new_page_ok=False, first_fit=True)
             else:
                 escala_lista = _escalas_lista(lista_mm, lista_modo,
-                                              a["w_mm"], a["h_mm"])
+                                              a["w_mm"], a["h_mm"], medida)
                 for s in _escalas_candidatas(s_floor, max_res, usar_lista,
                                              escala_lista):
                     if time.time() > fin_minis:

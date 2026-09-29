@@ -125,10 +125,10 @@ describe("Panel de ajustes", () => {
     );
   });
 
-  it("el menú de Offset permite activar borde, grosor, tipo y color", async () => {
+  it("el menú de Borde permite activar borde, grosor, tipo y color", async () => {
     const u = userEvent.setup();
     render(<SettingsPanel settings={settings} saveSettings={saveSettings} />);
-    await u.click(screen.getByText("Offset / borde"));
+    await u.click(screen.getByText("Borde"));
     const activo = screen.getByTestId("set-offset-activo");
     expect(activo).not.toBeChecked();
     await u.click(activo);

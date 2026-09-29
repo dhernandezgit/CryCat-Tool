@@ -240,8 +240,8 @@ function AssetCard({ a, result, onChange, onEditarContorno,
           )}
         </div>
 
-        {/* ---- Borde (plegable, solo si hay borde: propio o global) ---- */}
-        {(local.offset_mm > 0 || bordeGlobal) && (
+        {/* ---- Borde (plegable, SIEMPRE visible: así se puede ajustar el
+             borde antes de unir los trozos, sin abrir el editor) ---- */}
         <div className="fold">
           <button className="fold-head" data-testid={`fold-borde-${a.id}`}
                   onClick={() => setAbierto((o) => ({ ...o, borde: !o.borde }))}>
@@ -285,7 +285,6 @@ function AssetCard({ a, result, onChange, onEditarContorno,
             </div>
           )}
         </div>
-        )}
 
         {/* ---- Mini (plegable, solo si está activo) ---- */}
         {local.mini_enabled && (
@@ -327,7 +326,7 @@ function AssetCard({ a, result, onChange, onEditarContorno,
             {local.warnings.some((w) => /blob|trozos sueltos/i.test(w)) && (
               <button className="warn-link" data-testid={`limpiar-aviso-${a.id}`}
                       onClick={() => onEditarContorno?.(a)}>
-                {t("limpiar contorno")}
+                {t("LIMPIA EL CONTORNO")}
               </button>
             )}
           </div>

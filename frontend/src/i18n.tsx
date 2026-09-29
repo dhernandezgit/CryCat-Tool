@@ -333,7 +333,6 @@ export const EN: Record<string, string> = {
   "Borde de este elemento": "This item's border",
   "Extender": "Extend",
   "Color (borde)": "Color",
-  "Offset / borde": "Offset / border",
   "Estimación de corte": "Cut time estimate",
   "Visualización": "Appearance",
   "Perfiles de configuración": "Configuration profiles",
@@ -567,7 +566,7 @@ export const EN: Record<string, string> = {
     "(1 = even split; 3 = triple)",
   "Cuota": "Quota",
   "Colocadas: {n}": "Placed: {n}",
-  "limpiar contorno": "clean outline",
+  "LIMPIA EL CONTORNO": "CLEAN THE OUTLINE",
   "Incluir como mini": "Include as mini",
   ["Sugerencia: activa «Usar minis» en Ajustes para rellenar huecos con " +
    "copias pequeñas."]:

@@ -21,8 +21,8 @@ _T: dict[str, dict[str, str]] = {
             "silhouette packing was unavailable; placed by boxes",
         "error: {e}": "error: {e}",
         # --- avisos de imagen ---------------------------------------------
-        "{n} trozos sueltos (blobs) — usa «limpiar contorno»":
-            "{n} loose pieces (blobs) — use “clean outline”",
+        "{n} TROZOS SUELTOS — LIMPIA EL CONTORNO":
+            "{n} LOOSE PIECES — CLEAN THE OUTLINE",
         "AI/PDF rasterizado a {dpi} ppp": "AI/PDF rasterized at {dpi} dpi",
         "Línea anómala horizontal en fila {i}":
             "Odd horizontal line at row {i}",

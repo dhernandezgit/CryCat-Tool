@@ -57,6 +57,12 @@ def tiempo_optimo(d, n_elementos: int = 0) -> float:
         base = float(OPT_TIEMPOS.get(m, 8.0))
         por_pieza = float(OPT_POR_PIEZA.get(m, 0.45))
         t = base + por_pieza * max(0, int(n_elementos))
+        # En el navegador (Pyodide) el mismo trabajo cuesta ~2,5× más reloj:
+        # con el presupuesto del escritorio se quedaba a medias y salían
+        # colocaciones malísimas. Se compensa para que el resultado sea el
+        # MISMO (la barra de progreso muestra lo que queda).
+        if d.get("web_inline_jobs"):
+            t *= 2.5
         return max(base, min(OPT_TIEMPO_TOPE, t))
     return max(0.5, float(d.get("opt_tiempo_max_s", 8.0)))
 
@@ -115,7 +121,8 @@ DEFAULTS: dict = {
     "mini_rotacion": "libre",    # no | 90 (0/90/180/270) | libre (por defecto)
     "mini_tamanos": "iguales",   # iguales (por defecto) | grandes
     "mini_usar_lista": True,     # por defecto manda la LISTA de tamaños
-    "mini_lista_modo": "mm",     # la lista en mm (por defecto) o en %
+    "mini_lista_modo": "mm",
+    "mini_lista_medida": "menor",   # la lista en mm se mide así: menor | mayor | circulo
     # borde de los minis: igual (mismos mm que el grande, por defecto),
     # proporcional (se reduce con el mini) o sin (sin borde)
     "mini_borde_modo": "igual",
@@ -146,8 +153,9 @@ DEFAULTS: dict = {
     "mute": True,                # silenciado por defecto
     # Offset / borde de los elementos (contorno que se añade al recorte)
     "offset_activo": False,
+    "marcas_delimitar": False,   # 2 cuadrados blancos de 2 mm en las esquinas
     "offset_mm": 2.0,
-    "offset_modo": "extender",   # extender | blanco | color
+    "offset_modo": "blanco",     # blanco (por defecto) | extender | color
     "offset_color": "#ffffff",
     # Imagen
     "color_formato": "rgba",     # rgba | rgb
@@ -300,8 +308,8 @@ PRESETS_INTERESANTES: dict[str, dict] = {
 MODOS_INTERESANTES: dict[str, dict] = {
     "silueta": {
         "modo_forma": "siluetas", "rotacion": "libre",
-        "espacio_mm": 0.5, "margen_mm": 1.0, "offset_activo": True,
-        "offset_mm": 1.0, "offset_modo": "extender",
+        "espacio_mm": 0.5, "margen_mm": 1.0, "offset_activo": False,
+        "offset_mm": 1.0, "offset_modo": "blanco",
     },
     "rectangulos": {
         "modo_forma": "rectangulos", "rotacion": "90",

@@ -244,7 +244,10 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
     api.blobs(editando.id)
       .then((r) => {
         setBlobs(r.blobs);
-        setUnionMm(r.union_mm ?? 2);
+        // el control de la tarjeta (BORDE ADICIONAL) manda si está puesto;
+        // si no, el MÍNIMO exacto que une todos los trozos
+        setUnionMm(editando.offset_mm > 0 ? editando.offset_mm
+                                          : (r.union_mm ?? 2));
         setPreviewBlobs(r.preview_png);
         // por defecto se marcan para quitar los NO principales
         setSelBlobs(new Set(r.blobs.filter((b) => !b.principal).map((b) => b.id)));
@@ -736,6 +739,18 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
           </div>
           <div className="editor-pie">
             <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
+              <span className="row" style={{ gap: 6, alignItems: "center" }}>
+                <span className="hint">{t("Borde para unir")}</span>
+                <button className="quota-btn" data-testid="union-menos"
+                  onClick={() => setUnionMm((m) =>
+                    Math.max(0.5, Math.round((m - 0.5) * 2) / 2))}>−</button>
+                <span className="quota-val" data-testid="union-mm">
+                  {unionMm} mm
+                </span>
+                <button className="quota-btn" data-testid="union-mas"
+                  onClick={() => setUnionMm((m) =>
+                    Math.min(20, Math.round((m + 0.5) * 2) / 2))}>+</button>
+              </span>
               <button
                 className="primary"
                 data-testid="btn-unir-contorno"

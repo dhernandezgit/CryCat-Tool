@@ -240,14 +240,19 @@ def test_borde_independiente_de_la_escala(tmp_path, monkeypatch):
     ses.add(a)
     from crycat.imaging import trim as _trim
     base_px = _trim(img).width
+    # el tamaño ahora sale SIEMPRE del contenido no transparente
+    contenido_mm = base_px / 300.0 * 25.4
+    # el borde efectivo = global (si está activo) + el propio del elemento
+    from crycat.store import _offset_de
+    total_mm = _offset_de(a)[0]
     medidos = []
     for escala in (1.0, 2.0):
         a.scale_pct = escala * 100
         out = ses.images()["a1"]
         crecido_mm = (out.width - base_px) / 2 / 300.0 * 25.4 * escala
         medidos.append(crecido_mm)
-        assert abs(crecido_mm - 2.0) < 0.3, f"al {escala:.0%}: {crecido_mm:.2f} mm"
+        assert abs(crecido_mm - total_mm) < 0.3, f"al {escala:.0%}: {crecido_mm:.2f} mm"
         d = [x for x in ses.asset_dicts() if x["id"] == "a1"][0]
-        assert abs(d["w_mm"] - (25.4 * escala + 4.0)) < 0.2
+        assert abs(d["w_mm"] - (contenido_mm * escala + 2 * total_mm)) < 0.3
     # lo importante: el borde NO cambia al escalar el elemento
     assert abs(medidos[0] - medidos[1]) < 0.2

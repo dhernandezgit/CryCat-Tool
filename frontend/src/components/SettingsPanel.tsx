@@ -256,6 +256,19 @@ export default function SettingsPanel({ settings, saveSettings,
           ["joy", "Cricut Joy 2"],
         ])}
         </Grupo>
+        <Grupo titulo="Referencia">
+        <div className="ctl">
+          <label className="row">
+            <input type="checkbox" data-testid="set-marcas-delimitar"
+              checked={settings.marcas_delimitar === true}
+              onChange={(e) => set({ marcas_delimitar: e.target.checked })} />
+            {t("Marcas para delimitar")}
+          </label>
+          <div className="hint">
+            {t("Añade dos cuadrados blancos de 2 mm (arriba-izquierda y abajo-derecha) en los límites del área. Sirven de referencia para que la colocación quede EXACTA siempre en Cricut Design Space. No cuentan para la optimización.")}
+          </div>
+        </div>
+        </Grupo>
       </Section>
 
       {/* -------- Minis -------- */}
@@ -332,6 +345,20 @@ export default function SettingsPanel({ settings, saveSettings,
                 {t("En % del original")}
               </button>
             </div>
+            {(settings.mini_lista_modo ?? "mm") === "mm" && (
+              <div className="ctl">
+                <label>{t("Medir el tamaño por")}</label>
+                <select data-testid="mini-lista-medida"
+                        value={settings.mini_lista_medida ?? "menor"}
+                        onChange={(e) =>
+                          set({ mini_lista_medida:
+                            e.target.value as "menor" | "mayor" | "circulo" })}>
+                  <option value="menor">{t("Lado menor")}</option>
+                  <option value="mayor">{t("Lado mayor")}</option>
+                  <option value="circulo">{t("Círculo equivalente (aprox.)")}</option>
+                </select>
+              </div>
+            )}
             <div className="size-list" data-testid="mini-lista">
               {(settings.mini_tamanos_lista ?? []).map((v, i) => (
                 <FilaMini
@@ -489,8 +516,8 @@ export default function SettingsPanel({ settings, saveSettings,
         </Grupo>
       </Section>}
 
-      {/* -------- Offset / borde -------- */}
-{experto &&       <Section id="offset" title={t("Offset / borde")} open={open.offset} toggle={toggle}
+      {/* -------- Borde (se muestra también en modo básico) -------- */}
+      <Section id="offset" title={t("Borde")} open={open.offset} toggle={toggle}
                icon={<IconoBordes size={15} />}>
         <div className="ctl">
           <label className="row">
@@ -528,7 +555,7 @@ export default function SettingsPanel({ settings, saveSettings,
             </div>
           </>
         )}
-      </Section>}
+      </Section>
 
       {/* -------- Estimación de corte -------- */}
       {experto && <Section id="corte" title={t("Estimación de corte")}

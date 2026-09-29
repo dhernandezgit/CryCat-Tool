@@ -344,7 +344,7 @@ def test_blobs_y_limpiar_contorno(client):
                files={"file": ("blobs.png", buf.getvalue(), "image/png")})
     d = r.json()
     # el aviso de blobs aparece
-    assert any("trozos sueltos" in w for w in d["warnings"])
+    assert any("TROZOS SUELTOS" in w for w in d["warnings"])
     info = c.get(f"/api/assets/{d['id']}/blobs").json()
     assert len(info["blobs"]) == 2
     assert info["preview_png"].startswith("data:image/png;base64,")
@@ -352,7 +352,7 @@ def test_blobs_y_limpiar_contorno(client):
     r = c.post(f"/api/assets/{d['id']}/limpiar-contorno", json={})
     limpio = r.json()
     assert (limpio["w_px"], limpio["h_px"]) == (120, 120)
-    assert not any("trozos sueltos" in w for w in limpio["warnings"])
+    assert not any("TROZOS SUELTOS" in w for w in limpio["warnings"])
     # ya sólo queda el contorno principal (sin blobs sueltos)
     assert c.get(f"/api/assets/{d['id']}/blobs").json()["blobs"] == []
 

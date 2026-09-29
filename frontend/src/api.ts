@@ -74,6 +74,7 @@ export interface AppSettings {
   mini_tamanos: "iguales" | "grandes";
   mini_usar_lista: boolean;
   mini_lista_modo?: "mm" | "pct";
+  mini_lista_medida?: "menor" | "mayor" | "circulo";
   mini_borde_modo?: "proporcional" | "igual" | "sin";
   mini_tamanos_lista: number[];
   opt_metodo: string;
@@ -93,6 +94,7 @@ export interface AppSettings {
   volumen: number;
   mute: boolean;
   offset_activo: boolean;
+  marcas_delimitar?: boolean;   // 2 cuadrados blancos de referencia en las esquinas
   offset_mm: number;
   offset_modo: "extender" | "blanco" | "color";
   offset_color: string;

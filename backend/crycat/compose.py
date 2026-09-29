@@ -190,8 +190,33 @@ def _fit_box(img: Image.Image, tw: int, th: int) -> tuple[Image.Image, float]:
     return img.resize((nw, nh), Image.Resampling.LANCZOS), k
 
 
+def marcas_delimitar(canvas: Image.Image, area: CutArea, dpi: float,
+                     lado_mm: float = 2.0,
+                     off_x: float = 0.0, off_y: float = 0.0) -> Image.Image:
+    """Dos cuadrados BLANCOS de `lado_mm` en las esquinas del área.
+
+    Sirven de referencia para que la colocación quede EXACTA siempre en
+    Cricut Design Space (una arriba-izquierda y otra abajo-derecha, en los
+    límites reales de la máquina). No forman parte de la optimización: solo
+    se pintan al final sobre la página.
+    """
+    px = dpi / 25.4
+    bx, by, bw, bh = area.bbox
+    lado = max(1, int(round(lado_mm * px)))
+    base = canvas.convert("RGBA")
+    blanco = Image.new("RGBA", (lado, lado), (255, 255, 255, 255))
+    x1 = int(round((bx - off_x) * px))
+    y1 = int(round((by - off_y) * px))
+    x2 = int(round((bx + bw - off_x) * px)) - lado
+    y2 = int(round((by + bh - off_y) * px)) - lado
+    base.alpha_composite(blanco, (max(0, x1), max(0, y1)))
+    base.alpha_composite(blanco, (max(0, x2), max(0, y2)))
+    return base
+
+
 def render_page(area: CutArea, placements: list[Placement], images: dict[str, Image.Image],
-                dpi: float, full_page: bool = False, color: str = "rgba") -> Image.Image:
+                dpi: float, full_page: bool = False, color: str = "rgba",
+                delimitar_mm: float = 0.0) -> Image.Image:
     """Renderiza una página a PIL RGBA (fondo transparente).
 
     images: asset_id -> RGBA recortada. Con dpi igual al de origen y sin
@@ -224,6 +249,9 @@ def render_page(area: CutArea, placements: list[Placement], images: dict[str, Im
         x = round(p.x * px_per_mm - off_x * px_per_mm)
         y = round(p.y * px_per_mm - off_y * px_per_mm)
         canvas.alpha_composite(img, (max(0, x), max(0, y)))
+    if delimitar_mm > 0:
+        canvas = marcas_delimitar(canvas, area, dpi, float(delimitar_mm),
+                                  off_x, off_y)
     if color == "rgb":
         white = Image.new("RGBA", canvas.size, (255, 255, 255, 255))
         white.alpha_composite(canvas)
@@ -349,7 +377,8 @@ def safe_name(name: str) -> str:
 def export_pages(area: CutArea, placements: list[Placement],
                  images: dict[str, Image.Image], out_dir: Path, name: str,
                  dpi: float, full_page: bool = False, color: str = "rgba",
-                 perfil: str = "srgb", bleed_mm: float = 0.0) -> list[Path]:
+                 perfil: str = "srgb", bleed_mm: float = 0.0,
+                 delimitar_mm: float = 0.0) -> list[Path]:
     """Guarda las páginas en PNG máxima calidad (pHYs = dpi, sin guías).
 
     PNG es sin pérdidas: no hay cuantización ni recompresión con pérdida; se
@@ -361,7 +390,7 @@ def export_pages(area: CutArea, placements: list[Placement],
     written: list[Path] = []
     for i in pages:
         img = render_page(area, [p for p in placements if p.page == i], images,
-                          dpi, full_page, color)
+                          dpi, full_page, color, delimitar_mm)
         if bleed_mm > 0:
             img = con_bleed(img, int(round(bleed_mm / 25.4 * dpi)))
         fp = out_dir / f"pagina-{i + 1:02d}.png"
@@ -373,9 +402,11 @@ def export_pages(area: CutArea, placements: list[Placement],
 def export_single(area: CutArea, placements: list[Placement],
                   images: dict[str, Image.Image], path: Path, dpi: float,
                   full_page: bool = False, color: str = "rgba",
-                  perfil: str = "srgb", bleed_mm: float = 0.0) -> Path:
+                  perfil: str = "srgb", bleed_mm: float = 0.0,
+                  delimitar_mm: float = 0.0) -> Path:
     """Guarda UNA página directamente en un PNG concreto (sin carpeta)."""
-    img = render_page(area, placements, images, dpi, full_page, color)
+    img = render_page(area, placements, images, dpi, full_page, color,
+                      delimitar_mm)
     if bleed_mm > 0:
         img = con_bleed(img, int(round(bleed_mm / 25.4 * dpi)))
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -444,7 +475,8 @@ def con_marcas_cricut(img: Image.Image, area: CutArea,
 def export_pdf(area: CutArea, placements: list[Placement],
                images: dict[str, Image.Image], dpi: float,
                full_page: bool = False, color: str = "rgba",
-               marcas: bool = False, bleed_mm: float = 0.0) -> bytes:
+               marcas: bool = False, bleed_mm: float = 0.0,
+               delimitar_mm: float = 0.0) -> bytes:
     """PDF a tamaño real para imprimir (una página por hoja, sin márgenes).
 
     El PDF se genera con el tamaño físico exacto de la hoja (A4/A3/…) y la
@@ -455,7 +487,8 @@ def export_pdf(area: CutArea, placements: list[Placement],
     imgs = []
     for i in pages:
         img = render_page(area, [p for p in placements if p.page == i], images,
-                          dpi, True if marcas else full_page, color)
+                          dpi, True if marcas else full_page, color,
+                          delimitar_mm)
         if bleed_mm > 0:
             img = con_bleed(img, int(round(bleed_mm / 25.4 * dpi)))
         if marcas:

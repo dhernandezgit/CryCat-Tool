@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import datetime as dt
 import io
+import math
 import json
 import shutil
 import threading
@@ -87,6 +88,11 @@ def _offset_de_global() -> tuple[float, str, tuple[int, int, int]] | None:
     return _offset_actual()
 
 
+def _delimitar_mm() -> float:
+    """Tamaño (mm) de los cuadrados blancos de referencia, 0 = desactivado."""
+    return 2.0 if settings.get("marcas_delimitar") else 0.0
+
+
 def _avisar_blobs(a: Asset) -> None:
     """Avisa si hay trozos sueltos (blobs) fuera del contorno principal."""
     try:
@@ -96,7 +102,7 @@ def _avisar_blobs(a: Asset) -> None:
             a.warnings = [w for w in a.warnings if "blob" not in w.lower()
                           and "trozos sueltos" not in w.lower()]
             a.warnings.append(
-                tr("{n} trozos sueltos (blobs) — usa «limpiar contorno»",
+                tr("{n} TROZOS SUELTOS — LIMPIA EL CONTORNO",
                    n=len(sueltos)))
     except Exception:
         pass
@@ -269,7 +275,15 @@ def create_app(store: Session = session) -> FastAPI:
                     _pinta(jobs[jid].get("fase", 0.0),
                            jobs[jid].get("pages", 0))
 
-            threading.Thread(target=latido, daemon=True).start()
+            # En el navegador (Pyodide) NO se pueden crear hilos: el latido
+            # es un extra (la barra también avanza con el progreso real del
+            # optimizador), así que si falla se sigue sin él. Sin este
+            # try/except, TODA optimización de la web devolvía error 500 y el
+            # botón Optimizar no hacía nada (bug real).
+            try:
+                threading.Thread(target=latido, daemon=True).start()
+            except Exception:
+                pass
 
             # la barra arranca YA (aunque la primera fase tarde en reportar)
             _pinta(0.01, 0)
@@ -502,16 +516,14 @@ def create_app(store: Session = session) -> FastAPI:
                 a.scale_pct = 55.0           # un ejemplo bien pequeño
             _avisar_blobs(a)
             store.add(a)
-        # se deja YA optimizada (con los ajustes actuales): al abrir no se espera.
-        # En la WEB (Pyodide) el cálculo por siluetas tarda minutos y bloquea
-        # las imágenes: la muestra se empaqueta por CAJAS, que es instantáneo.
+        # se deja YA optimizada (con los ajustes actuales): al abrir no se
+        # espera. En la web el motor corre en un WORKER (sin hilos reales),
+        # así que también puede usar las siluetas reales como el escritorio.
         try:
             area = store.current_area()
             assets = store.asset_dicts()
-            web = bool(settings.get("web_inline_jobs"))
             res = optimize(assets, area, settings.as_dict(),
-                           pinned=store.pinned(),
-                           masks=None if web else store.images())
+                           pinned=store.pinned(), masks=store.images())
             store.set_result(res)
         except Exception:
             pass
@@ -542,9 +554,22 @@ def create_app(store: Session = session) -> FastAPI:
                 del a._cache_offset
         if "offset_modo" in payload:
             valor = str(payload["offset_modo"] or "")
-            a.offset_modo = valor if valor in ("extender", "blanco", "color") else ""
+            # los modos de UNIR (recto/curvo) también son válidos: antes se
+            # descartaban en silencio y «Unir todo» acababa en un borde
+            # normal gigante en vez de unir los trozos (bug real)
+            a.offset_modo = valor if valor in (
+                "extender", "blanco", "color", "unir_recto",
+                "unir_curvo") else ""
             if hasattr(a, "_cache_offset"):
                 del a._cache_offset
+            # al UNIR los trozos, el aviso de «trozos sueltos» deja de
+            # aplicar; si se cambia a otro modo, se vuelve a avisar
+            if a.offset_modo in ("unir_recto", "unir_curvo"):
+                a.warnings = [w for w in a.warnings
+                              if "blob" not in w.lower()
+                              and "trozos sueltos" not in w.lower()]
+            else:
+                _avisar_blobs(a)
         if "offset_color" in payload:
             a.offset_color = str(payload["offset_color"] or "")[:9]
             if hasattr(a, "_cache_offset"):
@@ -665,21 +690,39 @@ def create_app(store: Session = session) -> FastAPI:
         from io import BytesIO
         buf = BytesIO()
         vista.save(buf, "PNG")
-        # ancho sugerido para UNIR todo en una pieza: la mitad del hueco
-        # mayor entre el contorno principal y los trozos, con un mínimo
+        # borde MÍNIMO para unir todo en una pieza: el radio exacto que hace
+        # que todas las partes queden conectadas (búsqueda binaria sobre la
+        # dilatación). Antes era un 2 mm fijo y quedaba un borde gigante.
         union_mm = 2.0
-        principales = [b for b in lista if b["principal"]]
-        sueltos = [b for b in lista if not b["principal"]]
-        if principales and sueltos:
-            px_mm = a.dpi_origen / 25.4
-            px, py, px1, py1 = principales[0]["bbox"]
-            hueco = 0.0
-            for b in sueltos:
-                x0, y0, x1, y1 = b["bbox"]
-                dx = max(0.0, max(px - x1, x0 - px1))
-                dy = max(0.0, max(py - y1, y0 - py1))
-                hueco = max(hueco, (dx * dx + dy * dy) ** 0.5 / max(1.0, px_mm))
-            union_mm = max(1.5, min(10.0, hueco / 2.0 + 1.0))
+        try:
+            from scipy import ndimage
+            alfa = np.asarray(a.img.getchannel("A")) > 20
+            esc = min(1.0, 600.0 / max(1, max(alfa.shape)))
+            if esc < 1.0:
+                mini = Image.fromarray((alfa * 255).astype(np.uint8), "L")
+                mini = mini.resize(
+                    (max(2, int(round(alfa.shape[1] * esc))),
+                     max(2, int(round(alfa.shape[0] * esc)))),
+                    Image.Resampling.BOX)
+                m = np.asarray(mini) > 0
+            else:
+                m = alfa
+            px_mm = max(1e-6, a.dpi_origen / 25.4 * esc)
+            if ndimage.label(m)[1] > 1:
+                def conectado(r: float) -> bool:
+                    return ndimage.label(
+                        ndimage.distance_transform_edt(~m) <= r)[1] == 1
+                lo, hi = 0.0, 20.0 * px_mm
+                if conectado(hi):
+                    for _ in range(14):
+                        medio = (lo + hi) / 2.0
+                        if conectado(medio):
+                            hi = medio
+                        else:
+                            lo = medio
+                    union_mm = max(0.5, math.ceil(hi / px_mm * 10.0) / 10.0)
+        except Exception:
+            union_mm = 2.0
         return {"blobs": lista, "w": a.img.width, "h": a.img.height,
                 "union_mm": round(union_mm, 1),
                 "preview_png": "data:image/png;base64,"
@@ -1027,7 +1070,8 @@ def create_app(store: Session = session) -> FastAPI:
                                   store.images(), archivo, dpi,
                                   full_page=full, color=color,
                                   perfil=settings.get("espacio_color", "srgb"),
-                                  bleed_mm=float(settings.get("bleed_mm", 0) or 0))
+                                  bleed_mm=float(settings.get("bleed_mm", 0) or 0),
+                                  delimitar_mm=_delimitar_mm())
             settings.set({"carpeta_export": str(base)})
             return {"ok": True, "folder": str(base), "files": [str(archivo)]}
         # varias páginas: carpeta con las páginas (sin JSON)
@@ -1040,7 +1084,8 @@ def create_app(store: Session = session) -> FastAPI:
             store.area, store.last.placements, store.images(), out, name,
             dpi, full_page=full, color=color,
             perfil=settings.get("espacio_color", "srgb"),
-            bleed_mm=float(settings.get("bleed_mm", 0) or 0))
+            bleed_mm=float(settings.get("bleed_mm", 0) or 0),
+            delimitar_mm=_delimitar_mm())
         settings.set({"carpeta_export": str(base)})
         return {"ok": True, "folder": str(out),
                 "files": [str(f) for f in written]}
@@ -1060,7 +1105,7 @@ def create_app(store: Session = session) -> FastAPI:
         img = compose.render_page(
             store.area, [p for p in store.last.placements if p.page == i],
             store.images(), dpi, settings.get("lienzo") == "pagina",
-            settings.get("color_formato", "rgba"))
+            settings.get("color_formato", "rgba"), _delimitar_mm())
         if bordes:
             img = compose.contornos_bordes(
                 img, [p for p in store.last.placements if p.page == i],
@@ -1086,7 +1131,8 @@ def create_app(store: Session = session) -> FastAPI:
             float(settings.get("dpi_salida", 300)),
             full_page=settings.get("lienzo") == "pagina", marcas=True,
             bleed_mm=float(settings.get("bleed_mm", 0) or 0),
-            color=settings.get("color_formato", "rgba"))
+            color=settings.get("color_formato", "rgba"),
+            delimitar_mm=_delimitar_mm())
         return Response(data, media_type="application/pdf",
                         headers={"Content-Disposition":
                                  "inline; filename=crycat.pdf"})

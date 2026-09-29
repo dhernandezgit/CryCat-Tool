@@ -75,17 +75,40 @@ class Asset:
         self._forma_cache = (clave, forma)
         return forma
 
+    def bbox_contenido(self) -> tuple[int, int, int, int]:
+        """Caja del contenido NO TRANSPARENTE (x0, y0, x1, y1).
+
+        Los tamaños SIEMPRE salen de aquí, nunca del lienzo completo: una
+        imagen con márgenes transparentes debe medir lo que de verdad se
+        imprime/corta (y al quitar trozos sueltos el tamaño se ajusta solo).
+        """
+        clave = (id(self.img), self.img.size)
+        cache = getattr(self, "_bbox_cache", None)
+        if cache is not None and cache[0] == clave:
+            return cache[1]
+        try:
+            bbox = self.img.getchannel("A").getbbox()
+        except Exception:
+            bbox = None
+        if not bbox:
+            bbox = (0, 0, self.img.size[0], self.img.size[1])
+        self._bbox_cache = (clave, bbox)
+        return bbox
+
     @property
     def w_mm(self) -> float:
-        return px_to_mm(self.img.size[0], self.dpi_origen) * self.scale_pct / 100.0
+        x0, _, x1, _ = self.bbox_contenido()
+        return px_to_mm(max(1, x1 - x0), self.dpi_origen) * self.scale_pct / 100.0
 
     @property
     def h_mm(self) -> float:
-        return px_to_mm(self.img.size[1], self.dpi_origen) * self.scale_pct / 100.0
+        _, y0, _, y1 = self.bbox_contenido()
+        return px_to_mm(max(1, y1 - y0), self.dpi_origen) * self.scale_pct / 100.0
 
     def to_dict(self) -> dict:
-        wb = px_to_mm(self.img.size[0], self.dpi_origen)
-        hb = px_to_mm(self.img.size[1], self.dpi_origen)
+        x0, y0, x1, y1 = self.bbox_contenido()
+        wb = px_to_mm(max(1, x1 - x0), self.dpi_origen)
+        hb = px_to_mm(max(1, y1 - y0), self.dpi_origen)
         return {
             "id": self.id, "name": self.name,
             "w_px": self.img.size[0], "h_px": self.img.size[1],
@@ -174,7 +197,7 @@ class Session:
     def images_sin_borde(self) -> dict[str, Image.Image]:
         """Imágenes originales (sin borde) — para los minis con borde 'sin'
         o 'igual'."""
-        return {a.id: a.img for a in self.assets.values()}
+        return {a.id: _recortada(a.img) for a in self.assets.values()}
 
     def images(self) -> dict[str, Image.Image]:
         """Imágenes de trabajo con el borde aplicado (por elemento o global)."""
@@ -196,6 +219,7 @@ class Session:
                 radio_px = (mm / escala) / 25.4 * a.dpi_origen
                 from .imaging import aplicar_offset
                 img = aplicar_offset(a.img, radio_px, modo, color)
+                img = _recortada(img)
                 a._cache_offset = (clave, img)  # type: ignore[attr-defined]
                 cache = a._cache_offset  # type: ignore[assignment]
             out[a.id] = cache[1]
@@ -296,6 +320,20 @@ class Session:
 
 def new_id() -> str:
     return uuid.uuid4().hex[:12]
+
+
+def _recortada(img: Image.Image) -> Image.Image:
+    """Recorta al contenido no transparente.
+
+    Los tamaños SIEMPRE salen de las partes no transparentes: las imágenes de
+    trabajo se recortan igual para que el tamaño declarado y los píxeles
+    cuadren (una imagen con márgenes transparentes ya no se deforma).
+    """
+    try:
+        b = img.convert("RGBA").getchannel("A").getbbox()
+    except Exception:
+        b = None
+    return img.crop(b) if b else img
 
 
 def _offset_de(a) -> tuple[float, str, tuple[int, int, int]] | None:
