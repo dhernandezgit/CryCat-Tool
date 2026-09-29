@@ -191,49 +191,77 @@ def create_app(store: Session = session) -> FastAPI:
                     max(0, int(a.get("copies", 1)))
                     for a in store.asset_dicts())
 
-            def progress(frac: float, pages: int) -> None:
+            from .config import tiempo_optimo
+            n_pz = int(job.get("n_piezas", 0) or 0)
+            tope = max(0.5, tiempo_optimo(st, n_pz))
+            # TOTAL ESPERADO: historial real para ese nº de piezas o, si no
+            # hay, un 85% del presupuesto (los trabajos suelen acabar antes).
+            total_est = {"v": max(0.5, _esperado_para(n_pz) or tope * 0.85)}
+
+            def _pinta(fase: float, pages: int, difundir: bool = True) -> None:
+                """Actualiza progreso y ETA con una mezcla HONESTA de tiempo y
+                trabajo: la barra avanza con el reloj (nunca se queda clavada)
+                y el restante es lo que de verdad queda por hacer."""
                 with jobs_lock:
                     j = jobs[jid]
-                    frac = max(j.get("progress", 0.0), min(0.99, float(frac)))
-                    j["progress"] = frac
+                    if j.get("done"):
+                        return
+                    pf = max(float(j.get("fase", 0.0)), float(fase))
+                    j["fase"] = pf
                     j["pages"] = pages
                     elapsed = time.time() - t0
-                    # ETA con SENTIDO: la fracción de trabajo es honesta (por
-                    # fases), así que el total se deduce del ritmo observado
-                    # (elapsed/frac) y, si aún no hay ritmo, del historial. El
-                    # restante es (total - elapsed), suavizado para que no
-                    # baile, y nunca pasa del presupuesto del trabajo.
-                    from .config import tiempo_optimo
-                    n_pz = int(j.get("n_piezas", 0) or 0)
-                    tope = tiempo_optimo(st, n_pz)
-                    j["tope_s"] = round(tope, 1)
-                    if frac > 0.05:
-                        total = max(elapsed / frac, elapsed)
-                    else:
-                        total = _esperado_para(n_pz) or min(tope, 3.0)
-                    total = min(tope, max(total, elapsed))
-                    restante = max(0.0, total - elapsed)
+                    # RITMO OBSERVADO: si el trabajo va más rápido que la
+                    # estimación, el total baja (el tiempo restante se ajusta
+                    # de verdad a lo que queda por hacer)
+                    if pf > 0.05:
+                        total_est["v"] = min(total_est["v"],
+                                             max(elapsed / pf, elapsed))
+                    total = max(total_est["v"], elapsed)
+                    frac_t = min(0.95, elapsed / total) if total > 0 else 0.0
+                    # la barra sigue el reloj y el trabajo, sin quedarse
+                    # clavada en una fase: nunca va muy por delante del tiempo
+                    frac = max(frac_t, min(pf, frac_t + 0.15))
+                    # y sin saltos bruscos entre fases
+                    prev_p = j.get("progress", 0.0)
+                    j["progress"] = min(max(prev_p, frac), prev_p + 0.12)
+                    restante = min(max(0.0, total - elapsed),
+                                   max(0.0, (1.0 - pf) * total))
                     prev = j.get("eta_s")
                     if prev and prev > 0:
-                        restante = 0.55 * restante + 0.45 * prev
-                        # pasada la fase inicial, el restante solo BAJA: si
-                        # subiera, parecería que el trabajo se alarga solo
-                        if frac > 0.2:
-                            restante = min(restante, prev)
-                    j["eta_s"] = round(min(max(0.0, tope - elapsed),
-                                           max(0.0, restante)), 1)
+                        restante = 0.6 * restante + 0.4 * prev
+                    j["eta_s"] = round(max(0.0, min(tope - elapsed,
+                                                    restante)), 1)
+                    j["tope_s"] = round(tope, 1)
                     j["message"] = mensajes_funny()[
                         int(elapsed * 3) % len(mensajes_funny())]
-                    global progreso_n
-                    progreso_n += 1
-                    if progreso_hook is not None:
+                    if difundir and progreso_hook is not None:
                         try:
-                            progreso_hook(frac, pages)
+                            progreso_hook(j["progress"], pages,
+                                          j["eta_s"], j["tope_s"])
                         except Exception:
                             pass
 
+            def progress(frac: float, pages: int) -> None:
+                global progreso_n
+                progreso_n += 1
+                _pinta(frac, pages)
+
+            # LATIDO: aunque una fase tarde (semilla, minis…), la barra y el
+            # tiempo estimado se actualizan cada 0,25 s
+            parar_latido = threading.Event()
+
+            def latido() -> None:
+                while not parar_latido.wait(0.25):
+                    with jobs_lock:
+                        if jobs[jid].get("done"):
+                            return
+                    _pinta(jobs[jid].get("fase", 0.0),
+                           jobs[jid].get("pages", 0))
+
+            threading.Thread(target=latido, daemon=True).start()
+
             # la barra arranca YA (aunque la primera fase tarde en reportar)
-            progress(0.01, 0)
+            _pinta(0.01, 0)
 
             try:
                 res = optimize(assets, area, st,
@@ -268,6 +296,8 @@ def create_app(store: Session = session) -> FastAPI:
                 with jobs_lock:
                     jobs[jid].update(status="error", done=True,
                                      message=tr("error: {e}", e=e))
+            finally:
+                parar_latido.set()
 
         if settings.get("web_inline_jobs"):
             # En el navegador (Pyodide) no hay hilos reales: se ejecuta aquí
@@ -462,12 +492,16 @@ def create_app(store: Session = session) -> FastAPI:
                 a.scale_pct = 55.0           # un ejemplo bien pequeño
             _avisar_blobs(a)
             store.add(a)
-        # se deja YA optimizada (con los ajustes actuales): al abrir no se espera
+        # se deja YA optimizada (con los ajustes actuales): al abrir no se espera.
+        # En la WEB (Pyodide) el cálculo por siluetas tarda minutos y bloquea
+        # las imágenes: la muestra se empaqueta por CAJAS, que es instantáneo.
         try:
             area = store.current_area()
             assets = store.asset_dicts()
+            web = bool(settings.get("web_inline_jobs"))
             res = optimize(assets, area, settings.as_dict(),
-                           pinned=store.pinned(), masks=store.images())
+                           pinned=store.pinned(),
+                           masks=None if web else store.images())
             store.set_result(res)
         except Exception:
             pass
@@ -534,6 +568,9 @@ def create_app(store: Session = session) -> FastAPI:
             raise HTTPException(404, tr("asset no encontrado"))
         tol = float((payload or {}).get("tolerance", 26.0))
         a.img = imaging.remove_background(a.img, tolerance=tol)
+        a._thumb_bytes = None
+        a.rev += 1
+        a._prev_cache = None
         a.bg_removed = True
         _persist_asset(a)
         store.save()
@@ -550,6 +587,9 @@ def create_app(store: Session = session) -> FastAPI:
         except Exception:
             raise HTTPException(400, tr("original no disponible"))
         a.img = imaging.trim(img.convert("RGBA"))
+        a._thumb_bytes = None
+        a.rev += 1
+        a._prev_cache = None
         a.bg_removed = False
         a.warnings = [w for w in a.warnings if "anómala" not in w]
         if settings.get("chequear_lineas"):
@@ -577,6 +617,9 @@ def create_app(store: Session = session) -> FastAPI:
         a.original = raw
         a.dpi_origen = info.dpi_src if 10 < info.dpi_src <= 2400 else dpi
         a.img = imaging.trim(img)
+        a._thumb_bytes = None
+        a.rev += 1
+        a._prev_cache = None
         a.bg_removed = False
         a.warnings = list(info.warnings)
         if settings.get("chequear_lineas"):
@@ -646,6 +689,9 @@ def create_app(store: Session = session) -> FastAPI:
             quitar = [b["id"] for b in imaging.detectar_blobs(a.img)
                       if not b["principal"]]
         a.img = imaging.quitar_blobs(a.img, quitar)
+        a._thumb_bytes = None
+        a.rev += 1
+        a._prev_cache = None
         a.warnings = [w for w in a.warnings if "blob" not in w.lower()
                       and "trozos sueltos" not in w.lower()]
         _persist_asset(a)
@@ -658,6 +704,21 @@ def create_app(store: Session = session) -> FastAPI:
         a = store.get(aid)
         if not a:
             raise HTTPException(404, tr("asset no encontrado"))
+        if not bordes:
+            # miniatura CACHEADA: en la web recalcularla en cada carga era
+            # lentísimo (Pillow en Pyodide) y las imágenes parecían no cargar
+            if getattr(a, "_thumb_bytes", None) is None:
+                a._thumb_bytes = imaging.png_bytes(imaging.thumbnail(a.img))
+            return Response(a._thumb_bytes, media_type="image/png")
+        # la vista con CONTORNOS también se cachea (el editor de blobs la
+        # pide al abrir y en Pyodide tardaba muchísimo)
+        clave_prev = (int(fase) % 12, str(cont))
+        cache_prev = getattr(a, "_prev_cache", None)
+        if cache_prev is None:
+            cache_prev = {}
+            a._prev_cache = cache_prev
+        if clave_prev in cache_prev:
+            return Response(cache_prev[clave_prev], media_type="image/png")
         img = imaging.thumbnail(a.img)
         if bordes:
             # Contornos punteados de la carta, alineados a lo bruto:
@@ -693,7 +754,9 @@ def create_app(store: Session = session) -> FastAPI:
                 cont = cont & ((desfase < 8) if es_final else (desfase >= 8))
                 arr[cont] = (color[0], color[1], color[2], 255)
             img = Image.fromarray(arr, "RGBA")
-        return _png_response(img)
+        datos = imaging.png_bytes(img)
+        cache_prev[clave_prev] = datos
+        return Response(datos, media_type="image/png")
 
     # ----------------------------------------------------------- optimizar --
     @app.post("/api/optimize")
@@ -979,6 +1042,11 @@ def create_app(store: Session = session) -> FastAPI:
         if not store.last or not store.area:
             raise HTTPException(404, tr("sin optimización previa"))
         dpi = float(settings.get("dpi_salida", 300))
+        if settings.get("web_inline_jobs"):
+            # en la web (Pyodide) renderizar a 300 ppp tarda muchísimo y
+            # bloqueaba todo: la VISTA PREVIA se hace más ligera (el PDF y
+            # los PNG exportados mantienen los 300 ppp de verdad)
+            dpi = min(dpi, 120.0)
         img = compose.render_page(
             store.area, [p for p in store.last.placements if p.page == i],
             store.images(), dpi, settings.get("lienzo") == "pagina",

@@ -180,7 +180,9 @@ def trim(img: Image.Image) -> Image.Image:
 
 def thumbnail(img: Image.Image, max_side: int = 320) -> Image.Image:
     rgba = img.convert("RGBA")
-    rgba.thumbnail((max_side, max_side), Image.Resampling.LANCZOS)
+    # BILINEAR: mucho más rápido que LANCZOS y de sobra para una miniatura
+    # (en la web con Pyodide la diferencia es de segundos por imagen)
+    rgba.thumbnail((max_side, max_side), Image.Resampling.BILINEAR)
     return rgba
 
 

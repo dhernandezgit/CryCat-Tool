@@ -42,6 +42,10 @@ class Asset:
         # simplificación de la silueta para el empaquetado (por elemento)
         self.simplificar = True
         self._forma_cache: tuple | None = None
+        # miniatura PNG cacheada (la web tarda mucho en recalcularla)
+        self._thumb_bytes: bytes | None = None
+        # revisión de la imagen: cambia al editarla (cache-busting estable)
+        self.rev = 0
 
     def forma_simplificada(self) -> str | None:
         """Forma simple detectada (circulo/rectangulo/triangulo/poligono).
@@ -96,6 +100,7 @@ class Asset:
             "offset_color": self.offset_color,
             "bg_removed": self.bg_removed,
             "demo": self.demo,
+            "rev": self.rev,
             "simplificar": self.simplificar,
             "forma": self.forma_simplificada(),
             "warnings": self.warnings,

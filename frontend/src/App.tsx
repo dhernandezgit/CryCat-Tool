@@ -185,12 +185,16 @@ export default function App() {
   useEffect(() => {
     const alProgreso = (e: Event) => {
       const d = (e as CustomEvent).detail as { progress: number;
-                                               pages: number };
+                                               pages: number;
+                                               eta_s?: number;
+                                               tope_s?: number };
       setJob((j) => ({
         ...(j ?? { id: "web", status: "running" as const, done: false,
                    message: "", progress: 0, pages: 0 }),
         progress: d.progress,
         pages: d.pages,
+        eta_s: d.eta_s,
+        tope_s: d.tope_s,
       }));
     };
     window.addEventListener("crycat:progreso", alProgreso);

@@ -314,7 +314,8 @@ async function main() {
       } else if (d.tipo === "progreso") {
         // avance REAL del cálculo -> la barra inferior se mueve
         window.dispatchEvent(new CustomEvent("crycat:progreso",
-          { detail: { progress: d.frac, pages: d.pages } }));
+          { detail: { progress: d.frac, pages: d.pages,
+                      eta_s: d.eta, tope_s: d.tope } }));
       } else if (d.tipo === "api") {
         const r = pendientes.get(d.id);
         pendientes.delete(d.id);

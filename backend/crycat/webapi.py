@@ -215,9 +215,10 @@ async def iniciar() -> str:
         import js  # type: ignore
         from . import server as _srv
 
-        def _aviso(frac, pages):
+        def _aviso(frac, pages, eta=None, tope=None):
             try:
-                js.crycatProgreso(float(frac), int(pages))
+                js.crycatProgreso(float(frac), int(pages),
+                                  float(eta or 0), float(tope or 0))
             except Exception as e:
                 try:
                     js.crycatError(str(e))

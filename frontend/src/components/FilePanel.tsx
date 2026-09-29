@@ -96,7 +96,11 @@ function AssetCard({ a, result, onChange, onEditarContorno,
          className={`asset-card${destacado ? " destacada" : ""}`}
          data-testid="asset-card">
       <div className="preview">
-        <img src={api.previewUrl(a.id, verBordes, faseBordes, contornoModo)}
+        {/* la miniatura de la tarjeta va SIN contornos (rápida); los
+            contornos se ven en la hoja. Antes, con los contornos activados,
+            cada tarjeta pedía la vista con contornos y en la web tardaba
+            muchísimo en cargar */}
+        <img src={api.previewUrlSinBordes(a.id, a.rev ?? 0)}
              alt={a.name} loading="lazy" />
       </div>
       <div className="info">

@@ -1,6 +1,7 @@
 /** Cliente de la API de CryCat. */
 
 export interface Asset {
+  rev?: number;
   id: string;
   name: string;
   w_px: number;
@@ -319,7 +320,8 @@ export const api = {
   previewUrl: (id: string, bordes = true, fase = 0, cont = "final") =>
     `${apiBase()}/api/assets/${id}/preview.png?bordes=${bordes ? 1 : 0}` +
     `&fase=${fase}&cont=${cont}`,
-  previewUrlSinBordes: (id: string) => `/api/assets/${id}/preview.png`,
+  previewUrlSinBordes: (id: string, rev: number | string = 0) =>
+    `/api/assets/${id}/preview.png?r=${rev}`,
   optimize: (modo?: "rapido" | "optimo", force = false) =>
     req<Job>("/api/optimize", {
       method: "POST",

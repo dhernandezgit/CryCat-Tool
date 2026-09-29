@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { assetUrl } from "../recursos";
 import { api, NAME_SUGGESTIONS, NAME_SUGGESTIONS_EN, type AppSettings, type Asset, type Job, type Placement, type Result, type UiState } from "../api";
 import FolderPicker from "./FolderPicker";
@@ -44,7 +44,9 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [largePage, setLargePage] = useState<number | null>(null);
-  const [version, setVersion] = useState(() => Date.now());
+  // estable durante la sesión (para que la caché del service worker
+  // funcione en la web); se refresca al editar o recalcular
+  const [version, setVersion] = useState(1);
   const [drag, setDrag] = useState<DragState | null>(null);
   const [ghost, setGhost] = useState<{ uid: string; x: number; y: number } | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -132,7 +134,7 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
       if ((e.target as HTMLElement).tagName === "INPUT") return;
       if (e.key === "+" || e.key === "=") setZoom((z) => Math.min(12, z * 1.08));
       else if (e.key === "-" || e.key === "_") setZoom((z) => Math.max(0.05, z / 1.08));
-      else if (e.key === "0") { setZoom(1); setPan({ x: 0, y: 0 }); }
+      else if (e.key === "0") { ajustar(); }
       else if (e.key === "Escape") setLargePage(null);
       else if (e.key === "g") setUi((u) => ({ ...u, guidesVisible: !u.guidesVisible }));
       else if (e.key === "t")
@@ -353,6 +355,31 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
   const sheetW = settings.lienzo === "pagina" ? result?.page_mm[0] ?? 0 : bw;
   const sheetH = settings.lienzo === "pagina" ? result?.page_mm[1] ?? 0 : bh;
 
+  /** Ajusta la vista para que la HOJA ENTERA se vea, centrada y sin recortes. */
+  const ajustar = useCallback(() => {
+    const el = canvasRef.current;
+    if (!el) return;
+    const caja = el.querySelector(".page-box") as HTMLElement | null;
+    if (!caja) return;
+    const cw = el.clientWidth, ch = el.clientHeight;
+    const w = caja.offsetWidth || 1, h = caja.offsetHeight || 1;
+    // margen del canvas-inner (18 px por lado) + un pelín de aire
+    const disponibleW = Math.max(40, cw - 40);
+    const disponibleH = Math.max(40, ch - 40);
+    const z = Math.min(1, disponibleW / w, disponibleH / h);
+    setZoom(z);
+    setPan({ x: (cw - w * z) / 2 - 18, y: (ch - h * z) / 2 - 18 });
+  }, []);
+
+  // al abrir/cambiar de página, modo de vista u orientación: ajustar solo
+  useEffect(() => {
+    if (pages <= 0) return;
+    const t = window.setTimeout(ajustar, 60);
+    return () => window.clearTimeout(t);
+  }, [pages, sheetW, sheetH, ui.viewMode, ui.hojaGirada, largePage,
+      settings.lienzo, settings.pagina_w, settings.pagina_h, ajustar]);
+
+
   // En modo "página" las coordenadas son absolutas de la página; en modo
   // "recortable" el lienzo es el área útil, así que se resta su origen.
   const offX = settings.lienzo === "pagina" ? 0 : bx;
@@ -391,8 +418,15 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
   const verCont = ui.verBordes && modoCont !== "ninguno";
 
   // solo visual: en el modo horizontal la hoja se enseña girada 90º para
-  // aprovechar el ancho (no se recalcula absolutamente nada)
+  // aprovechar el ancho (no se recalcula absolutamente nada). La hoja, las
+  // guías y las zonas de las piezas giran JUNTAS (mismo tamaño y transform).
   const girada = ui.hojaGirada === true;
+  const estiloGirada: React.CSSProperties | undefined = girada ? {
+    position: "absolute", left: "50%", top: "50%",
+    width: `${(sheetW / (sheetH || 1)) * 100}%`,
+    height: `${(sheetH / (sheetW || 1)) * 100}%`,
+    transform: "translate(-50%, -50%) rotate(90deg)",
+  } : undefined;
 
   const pageEl = (i: number) => {
     const pls = result?.placements.filter((p) => p.page === i) ?? [];
@@ -410,9 +444,13 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
         }}
         data-testid={`page-${i}`}
       >
-        <img className={`sheet${girada ? " girada" : ""}`} src={api.pageUrl(i, version, settings.simular_impresion === true, verCont, faseBordes, modoCont)} alt={t("Página {i}", { i: i + 1 })} draggable={false} />
+        <img className={`sheet${girada ? " girada" : ""}`}
+             style={estiloGirada}
+             src={api.pageUrl(i, version, settings.simular_impresion === true, verCont, faseBordes, modoCont)} alt={t("Página {i}", { i: i + 1 })} draggable={false} />
         {ui.guidesVisible && guidePath && (
-          <svg className="overlay-svg" viewBox={`0 0 ${sheetW} ${sheetH}`} preserveAspectRatio="none">
+          <svg className={`overlay-svg${girada ? " girada" : ""}`}
+               style={estiloGirada}
+               viewBox={`0 0 ${sheetW} ${sheetH}`} preserveAspectRatio="none">
             {/* rejilla de centímetros (para medir de un vistazo) */}
             <g stroke="var(--guide)" strokeWidth={Math.max(0.15, sheetW / 1400)}
                opacity={0.28}>
@@ -482,6 +520,8 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
               ))}
           </svg>
         )}
+        <div className={`capa-piezas${girada ? " girada" : ""}`}
+             style={estiloGirada}>
         {pls.map((p) => {
           const asset = assets.find((a) => a.id === p.asset_id);
           const g = ghost?.uid === p.uid ? ghost : null;
@@ -517,6 +557,7 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
             </div>
           );
         })}
+        </div>
       </div>
     );
   };
@@ -531,8 +572,7 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
         </div>
       )}
       <div className="viewer-top">
-        <div className="group">
-          <button
+        <button
             data-testid="btn-bordes"
             className={`btn-contorno ${CONTS[modoCont].clase}`}
             data-tip={t("Contorno: {modo} (pulsa para cambiar)", {
@@ -549,30 +589,16 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
             }}
           >
             <IconoBordes size={16} /> {t(CONTS[modoCont].corto)}
-          </button>
-        </div>
-        <div className="group">
-          <button
+        </button>
+        <button
             data-testid="btn-guias"
             className={ui.guidesVisible ? "primary" : ""}
             data-tip={t("Marcas de registro y guías del área recortable (tecla G): solo en la vista previa")}
             onClick={() => setUi((u) => ({ ...u, guidesVisible: !u.guidesVisible }))}
           >
             <IconoGuias size={16} /> {t("Marcas")}
-          </button>
-        </div>
-        <div className="group">
-          {pages > 1 && largePage === null && (
-            <>
-              <button data-testid="view-1" className={ui.viewMode === 1 ? "primary" : ""} onClick={() => setUi((u) => ({ ...u, viewMode: 1 }))}>1</button>
-              <button data-testid="view-2" className={ui.viewMode === 2 ? "primary" : ""} onClick={() => setUi((u) => ({ ...u, viewMode: 2 }))}>2</button>
-              <button data-testid="view-4" className={ui.viewMode === 4 ? "primary" : ""} onClick={() => setUi((u) => ({ ...u, viewMode: 4 }))}>4</button>
-            </>
-          )}
-          {largePage !== null && (
-            <button onClick={() => setLargePage(null)} title={t("Volver a la cuadrícula (Esc)")}>{t(" Ver todo")}</button>
-          )}
-          <button
+        </button>
+        <button
             data-testid="btn-ojo"
             data-tip={t("Qué se ve detrás: blanco, transparente o verde fosforito (tecla T)")}
             onClick={() =>
@@ -589,9 +615,24 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
               : <IconoOjo size={16} />}
             {ui.eyeFosforito ? t("Fosforito")
               : ui.eyeTransparent ? t("Transparente") : t("Blanco")}
-          </button>
-          <button
+        </button>
+        {((pages > 1 && largePage === null) || largePage !== null) && (
+          <div className="group">
+            {pages > 1 && largePage === null && (
+              <>
+                <button data-testid="view-1" className={ui.viewMode === 1 ? "primary" : ""} onClick={() => setUi((u) => ({ ...u, viewMode: 1 }))}>1</button>
+                <button data-testid="view-2" className={ui.viewMode === 2 ? "primary" : ""} onClick={() => setUi((u) => ({ ...u, viewMode: 2 }))}>2</button>
+                <button data-testid="view-4" className={ui.viewMode === 4 ? "primary" : ""} onClick={() => setUi((u) => ({ ...u, viewMode: 4 }))}>4</button>
+              </>
+            )}
+            {largePage !== null && (
+              <button onClick={() => setLargePage(null)} title={t("Volver a la cuadrícula (Esc)")}>{t(" Ver todo")}</button>
+            )}
+          </div>
+        )}
+        <button
             data-testid="btn-disposicion"
+            className={girada ? "primary" : ""}
             data-tip={t("Cambiar la disposición: menús anchos o hoja más grande")}
             onClick={() => {
               const horizontal = !(window as { __crycatAncho?: boolean })
@@ -602,8 +643,8 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
             }}
           >
             <IconoDisposicion size={16} />
-          </button>
-        </div>
+            {t(girada ? "Vertical" : "Horizontal")}
+        </button>
       </div>
 
       {/* flotantes: deshacer/rehacer abajo-izquierda; zoom en columna abajo-derecha */}
@@ -634,7 +675,7 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
             onClick={() => onRecalc(sobraEspacio ? "rapido" : "optimo")}
           >
             <span className="estrella">✦</span>
-            <IconoRecalcular size={18} /> {t("Optimizar")}
+            {t("Optimizar")}
             <span className="estrella">✦</span>
           </button>
         </div>
@@ -645,8 +686,8 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
           </button>
           <button
             data-testid="zoom-reset"
-            data-tip={t("Centrar la hoja y volver al tamaño original (tecla 0)")}
-            onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }}
+            data-tip={t("Ajustar la hoja entera a la ventana (tecla 0)")}
+            onClick={ajustar}
           >
             <IconoCentrar size={15} />
           </button>

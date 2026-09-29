@@ -9,8 +9,10 @@ import { cargarCryCat } from "./pyodide-crycat.js";
 let py = null;
 
 // el backend llama a esta función en cada avance del cálculo
-self.crycatProgreso = (frac, pages) => {
-  self.postMessage({ tipo: "progreso", frac: Number(frac), pages: Number(pages) });
+self.crycatProgreso = (frac, pages, eta, tope) => {
+  self.postMessage({ tipo: "progreso", frac: Number(frac),
+                     pages: Number(pages), eta: Number(eta || 0),
+                     tope: Number(tope || 0) });
 };
 // si el puente falla, se informa (para poder diagnosticar)
 self.crycatError = (msg) => {

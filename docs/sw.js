@@ -23,7 +23,13 @@ self.addEventListener("fetch", (event) => {
   const ruta = url.pathname;
 
   if (ruta.includes("/api/")) {
-    event.respondWith(atenderApi(event.request, url));
+    // las IMÁGENES (miniaturas, páginas, icono) se cachean: así se ven al
+    // instante aunque el motor esté ocupado optimizando (si no, todas las
+    // peticiones hacen cola detrás del cálculo y parecen "no cargar")
+    const esImagen = event.request.method === "GET" &&
+      /\/api\/(assets\/[^/]+\/preview\.png|pages\/[^/]+\.png|icon\.png)/.test(ruta);
+    event.respondWith(esImagen ? conCacheImagen(event.request)
+                               : atenderApi(event.request, url));
     return;
   }
   if (ruta === "/api/icon.png" || ruta.endsWith("/api/icon.png")) {
@@ -40,6 +46,20 @@ self.addEventListener("fetch", (event) => {
       () => fetch(event.request)));
   }
 });
+
+const CACHE_IMG = "crycat-img-v1";
+
+async function conCacheImagen(request) {
+  const cache = await caches.open(CACHE_IMG);
+  const hit = await cache.match(request);
+  if (hit) return hit;
+  const url = new URL(request.url);
+  const res = await atenderApi(request, url);
+  if (res.ok) {
+    try { cache.put(request, res.clone()); } catch { /* sin espacio */ }
+  }
+  return res;
+}
 
 async function atenderApi(request, url) {
   const clientes = await self.clients.matchAll({

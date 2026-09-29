@@ -163,11 +163,13 @@ input::placeholder { color: #cbbfc8; opacity: 1; font-style: italic; }
 }
 @keyframes hormigas { to { stroke-dashoffset: -18; } }
 .page-box.girada { position: relative; }
-.sheet.girada {
-  position: absolute; left: 50%; top: 50%;
-  height: 100%; width: auto; max-width: none;
-  transform: translate(-50%, -50%) rotate(90deg);
+/* en horizontal, la hoja, las guías y las zonas de las piezas giran JUNTAS
+   (el tamaño y el transform los pone el visor según la proporción de la hoja) */
+.sheet.girada, .overlay-svg.girada, .capa-piezas.girada {
+  position: absolute; inset: auto; left: 50%; top: 50%; max-width: none;
 }
+.capa-piezas { position: absolute; inset: 0; pointer-events: none; }
+.capa-piezas .item-box { pointer-events: auto; }
 .asset-card.destacada {
   border-color: var(--accent2);
   box-shadow: 0 0 0 3px var(--accent2), 0 6px 20px rgba(140, 40, 80, .22);
@@ -189,7 +191,7 @@ input::placeholder { color: #cbbfc8; opacity: 1; font-style: italic; }
 }
 .viewer { position: relative; }
 .viewer-flotantes {
-  position: absolute; inset: auto 10px 88px 10px; display: flex;
+  position: absolute; inset: auto 10px 95px 10px; display: flex;
   justify-content: space-between; align-items: flex-end;
   pointer-events: none; z-index: 5;
 }
@@ -211,8 +213,13 @@ input::placeholder { color: #cbbfc8; opacity: 1; font-style: italic; }
   background: var(--panel); border: 2px solid var(--border);
   border-radius: 8px; padding: 2px 6px;
 }
-.viewer-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex: none; padding: 0 2px 8px; }
-.viewer-top .group { display: flex; gap: 6px; align-items: center; }
+/* barra superior: TODOS los botones iguales, a todo el ancho y con texto */
+.viewer-top { display: flex; align-items: stretch; gap: 6px; flex: none; padding: 0 2px 8px; }
+.viewer-top > button, .viewer-top > .group { flex: 1 1 0; min-width: 0; }
+.viewer-top .group { display: flex; gap: 6px; align-items: stretch; }
+.viewer-top .group button { flex: 1 1 0; min-width: 0; }
+.viewer-top button { justify-content: center; white-space: nowrap;
+                     overflow: hidden; text-overflow: ellipsis; font-size: 13px; }
 .recalc-btn { flex: 1; padding: 7px 10px; }
 .canvas {
   flex: 1; overflow: auto; position: relative; border-radius: var(--radius);
@@ -1124,12 +1131,12 @@ button.primary {
 /* -------- botón Optimizar flotante (centro, con estrellitas) -------- */
 .viewer-flotantes .vf-centro { display: flex; pointer-events: auto; }
 .btn-optimizar-flotante {
-  font: inherit; font-size: 15px; font-weight: 900; cursor: pointer;
-  padding: 10px 20px; border-radius: 999px; letter-spacing: .3px;
+  font: inherit; font-size: 18px; font-weight: 900; cursor: pointer;
+  padding: 12px 34px; border-radius: 999px; letter-spacing: .4px;
   border: 2.5px solid var(--accent2);
-  color: #fff; background: linear-gradient(135deg, var(--accent2), var(--accent));
-  box-shadow: 0 6px 18px rgba(120, 30, 70, .35);
-  display: inline-flex; align-items: center; gap: 10px;
+  color: #fff; background: var(--accent);
+  box-shadow: 0 7px 20px rgba(120, 30, 70, .40);
+  display: inline-flex; align-items: center; gap: 12px;
 }
 .btn-optimizar-flotante:hover { filter: brightness(1.07); transform: translateY(-1px); }
 .btn-optimizar-flotante .estrella { font-size: 13px; opacity: .95; }

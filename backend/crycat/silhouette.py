@@ -968,6 +968,9 @@ def _one_pass(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
     n_total = sum(int(a.get("copies", 1)) for a in assets) + len(pinned or [])
     cell = _celda_ajustada(
         _cell_para(n_total, str(settings.get("opt_calidad", "normal"))), area)
+    if settings.get("web_inline_jobs"):
+        # en el navegador (Pyodide) cada FFT cuesta ~20x más: rejilla gruesa
+        cell = max(cell, 1.0)
     ctx = _Ctx(area, settings, cell=cell)
     # cachés compartidas: las máscaras y correlaciones se calculan UNA vez
     if cache is not None:
