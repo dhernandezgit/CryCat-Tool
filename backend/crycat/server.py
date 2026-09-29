@@ -141,15 +141,34 @@ def create_app(store: Session = session) -> FastAPI:
         pass
     jobs: dict[str, dict] = {}
     jobs_lock = threading.Lock()
+    # SOLO UN CÁLCULO A LA VEZ: varios clics seguidos lanzaban optimizaciones
+    # en paralelo (varios hilos cada una) y saturaban la CPU; ahora el más
+    # nuevo manda y los antiguos que aún no han empezado se descartan.
+    opt_lock = threading.Lock()
+    job_seq = {"n": 0}
 
     def start_job(force: bool = False, modo: str | None = None) -> dict:
         jid = uuid.uuid4().hex[:10]
         job = {"id": jid, "status": "running", "progress": 0.0, "pages": 0,
                "done": False, "message": mensajes_funny()[0], "result": None}
         with jobs_lock:
+            job_seq["n"] += 1
+            job["seq"] = job_seq["n"]
             jobs[jid] = job
 
         def run() -> None:
+            # espera a que termine el cálculo anterior (uno a la vez)
+            with opt_lock:
+                with jobs_lock:
+                    if job.get("seq") != job_seq["n"]:
+                        # ya hay uno MÁS NUEVO: este se descarta sin calcular
+                        job.update(status="done", done=True, progress=1.0,
+                                   message=tr("sustituido por un cálculo más "
+                                              "reciente"))
+                        return
+                _run_job()
+
+        def _run_job() -> None:
             area = store.current_area()
             assets = store.asset_dicts()
             st = settings.as_dict()
@@ -207,6 +226,13 @@ def create_app(store: Session = session) -> FastAPI:
                 res = optimize(assets, area, st,
                                pinned=pinned, progress=progress,
                                masks=store.images())
+                with jobs_lock:
+                    # si mientras calculábamos se pidió otro, este se descarta
+                    if job.get("seq") != job_seq["n"]:
+                        job.update(status="done", done=True, progress=1.0,
+                                   message=tr("sustituido por un cálculo más "
+                                              "reciente"))
+                        return
                 store.set_result(res)
                 # guardar la duración real para estimar mejor la próxima vez
                 with jobs_lock:

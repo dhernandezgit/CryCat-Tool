@@ -793,7 +793,10 @@ def _cell_para(n_total: int, calidad: str) -> float:
     if calidad == "exacta":
         return 0.15 if n_total <= 40 else (0.25 if n_total <= 120 else 0.35)
     if calidad == "rapida":
-        return 0.5 if n_total <= 120 else (0.75 if n_total <= 300 else 1.0)
+        # la semilla solo tiene que COLOCAR TODO rápido: en trabajos grandes
+        # una rejilla gruesa es mucho más rápida (la completitud se recupera
+        # con una semilla fina extra si hiciera falta)
+        return 0.5 if n_total <= 60 else (0.75 if n_total <= 120 else 1.0)
     return 0.25 if n_total <= 90 else (0.35 if n_total <= 250 else 0.5)
 
 
@@ -814,6 +817,133 @@ def _celda_ajustada(cell: float, area: CutArea) -> float:
     if n > MAX_CELDAS:
         return math.sqrt(bw * bh / MAX_CELDAS)
     return cell
+
+
+def _rellenar_minis(ctx: _Ctx, assets: list[dict], masks: dict,
+                    settings: dict, deadline: float | None = None,
+                    progress=None) -> int:
+    """Rellena los HUECOS de una colocación ya hecha con minis.
+
+    Se ejecuta UNA vez, sobre el resultado final de las copias: así activar
+    los minis no cambia NADA de la colocación normal (mismas hojas, mismas
+    posiciones) — los minis solo AÑADEN piezas en lo que sobra. Devuelve
+    cuántos minis se colocaron.
+    """
+    min_mm = float(settings.get("mini_min_mm", 5.0))
+    max_res = min(0.99, max(0.01, float(
+        settings.get("mini_max_rescale", 100.0))) / 100.0)
+    policy = settings.get("mini_tamanos", "grandes")
+    usar_lista = bool(settings.get("mini_usar_lista"))
+    lista_modo = str(settings.get("mini_lista_modo", "mm"))
+    lista_mm = [max(0.5, float(v)) for v in
+                (settings.get("mini_tamanos_lista") or [])]
+    borde_mini = str(settings.get("mini_borde_modo", "proporcional"))
+    sin_borde = settings.get("_sin_borde") or {}
+    off_glob = settings.get("_offset_global")
+    rot_mini = settings.get("mini_rotacion", "90")
+    angles_m = _angles_mini(rot_mini)
+
+    cache_mini: dict = {}
+
+    def imagen_mini(a, s_escala):
+        """Imagen del mini según el modo de borde elegido (cacheada)."""
+        clave_m = (a["id"], round(s_escala, 3), borde_mini)
+        if clave_m in cache_mini:
+            return cache_mini[clave_m]
+        base = sin_borde.get(a["id"])
+        propio = float(a.get("offset_mm", 0) or 0)
+        mm = propio if propio > 0 else (off_glob[0] if off_glob else 0.0)
+        modo_b = (a.get("offset_modo") or (off_glob[1] if off_glob
+                  else "extender"))
+        color_b = off_glob[2] if off_glob else (255, 255, 255)
+        if base is None or mm <= 0 or borde_mini == "proporcional":
+            out = (masks[a["id"]], a["w_mm"] * s_escala,
+                   a["h_mm"] * s_escala)
+            cache_mini[clave_m] = out
+            return out
+        if borde_mini == "sin":
+            out = (base, (a["w_mm"] - 2 * mm) * s_escala,
+                   (a["h_mm"] - 2 * mm) * s_escala)
+            cache_mini[clave_m] = out
+            return out
+        # "igual": mismo borde en mm que el original, aunque el mini sea más
+        # pequeño: se aplica con radio mm/(escala del mini)
+        escala_total = max(0.01, s_escala * (a.get("scale_pct", 100) / 100.0))
+        dpi = float(a.get("dpi_origen", 300.0) or 300.0)
+        radio = (mm / escala_total) / 25.4 * dpi
+        tope = 0.45 * min(base.width, base.height)
+        if not (radio > 0) or radio > tope:
+            out = (masks[a["id"]], a["w_mm"] * s_escala,
+                   a["h_mm"] * s_escala)
+            cache_mini[clave_m] = out
+            return out
+        from .imaging import aplicar_offset
+        img = aplicar_offset(base, radio, modo_b, color_b)
+        out = (img, img.width / dpi * 25.4 * escala_total,
+               img.height / dpi * 25.4 * escala_total)
+        cache_mini[clave_m] = out
+        return out
+
+    cand = [a for a in assets if a.get("mini_enabled") and a["id"] in masks]
+    if not cand:
+        return 0
+    # los minis son RELLENO: nunca pueden eternizar el trabajo
+    fin_minis = time.time() + 2.5
+    if deadline is not None:
+        fin_minis = min(fin_minis, deadline)
+    pesos = {a["id"]: min(100.0, max(1.0, float(a.get("mini_quota", 1.0))))
+             for a in cand}
+    peso_total = sum(pesos.values())
+    counts = {a["id"]: 0 for a in cand}
+    comunes: dict[str, float] = {}
+    total = 0
+    while total < 800:
+        if time.time() > fin_minis:
+            break
+        # primero el elemento más subrepresentado según su cuota
+        cand.sort(key=lambda a: pesos[a["id"]] / peso_total
+                  - counts[a["id"]] / (total + 1.0), reverse=True)
+        hecho = False
+        for a in cand:
+            if time.time() > fin_minis:
+                break
+            img = masks[a["id"]]
+            base = max(min(a["w_mm"], a["h_mm"]), 1e-6)
+            # con lista activa el mínimo se IGNORA: manda la lista
+            s_floor = (1e-6 if usar_lista else min_mm / base)
+            if s_floor > max_res:
+                continue
+            colocado = False
+            if policy == "iguales" and a["id"] in comunes:
+                s = comunes[a["id"]]
+                img_m, w_m, h_m = imagen_mini(a, s)
+                colocado = _try_place(ctx, a["id"], a.get("name", ""), w_m,
+                                      h_m, s, True, img_m, angles_m,
+                                      new_page_ok=False, first_fit=True)
+            else:
+                escala_lista = _escalas_lista(lista_mm, lista_modo,
+                                              a["w_mm"], a["h_mm"])
+                for s in _escalas_candidatas(s_floor, max_res, usar_lista,
+                                             escala_lista):
+                    if time.time() > fin_minis:
+                        break
+                    img_m, w_m, h_m = imagen_mini(a, s)
+                    if _try_place(ctx, a["id"], a.get("name", ""), w_m, h_m,
+                                  s, True, img_m, angles_m,
+                                  new_page_ok=False, first_fit=True):
+                        colocado = True
+                        comunes.setdefault(a["id"], s)
+                        break
+            if colocado:
+                counts[a["id"]] += 1
+                total += 1
+                hecho = True
+                if progress and total % 3 == 0:
+                    progress(0.80, len(ctx.pages))
+                break
+        if not hecho:
+            break
+    return total
 
 
 def _one_pass(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
@@ -854,9 +984,6 @@ def _one_pass(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
     by_id = {a["id"]: a for a in assets}
     # Si solo hay minis (elementos con 0 copias normales), hay que abrir ya la
     # primera hoja: sin ella los minis no tendrían dónde colocarse (bug real)
-    if (settings.get("usar_minis")
-            and any(a.get("mini_enabled") for a in assets) and not ctx.pages):
-        ctx.new_page()
     rot_norm = settings.get("rotacion", "90")
     rot_mini = settings.get("mini_rotacion", "90")
 
@@ -949,148 +1076,6 @@ def _one_pass(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
     #    pegatinas extra). La cuota de cada elemento decide CUÁNTOS minis
     #    recibe respecto a los demás (1 = equitativo; 3 = el triple) y el
     #    TAMAÑO lo elige el optimizador (siempre menor que el original).
-    #    REGLA DE ORO: si alguna copia normal no ha cabido, NO se colocan
-    #    minis: ese espacio es para las copias (los minis solo rellenan lo
-    #    que sobra de verdad, nunca quitan sitio ni tiempo a lo que debe caber).
-    if settings.get("usar_minis") and not unplaced:
-        # los minis son RELLENO: nunca pueden eternizar el trabajo. Aunque la
-        # pasada no tenga límite (la semilla), la fase de minis sí lo tiene.
-        fin_minis = time.time() + 2.0
-        if deadline is not None:
-            fin_minis = min(fin_minis, deadline)
-        min_mm = float(settings.get("mini_min_mm", 5.0))
-        max_res = min(0.99, max(0.01, float(
-            settings.get("mini_max_rescale", 100.0))) / 100.0)
-        policy = settings.get("mini_tamanos", "grandes")
-        usar_lista = bool(settings.get("mini_usar_lista"))
-        lista_modo = str(settings.get("mini_lista_modo", "mm"))
-        lista_mm = [max(0.5, float(v)) for v in
-                    (settings.get("mini_tamanos_lista") or [])]
-        borde_mini = str(settings.get("mini_borde_modo", "proporcional"))
-        sin_borde = settings.get("_sin_borde") or {}
-        off_glob = settings.get("_offset_global")
-
-        # OJO: los minis se colocan en la MISMA rejilla que las copias. En una
-        # rejilla más gruesa iban más rápidos, pero la aproximación de las
-        # copias (redondeo de hasta media celda) dejaba solapes REALES que la
-        # red de seguridad tenía que deshacer (52 recolocaciones y segundos de
-        # más). Con la misma rejilla no hay redondeo y el resultado es exacto;
-        # para que siga siendo rápido se usa FIRST-FIT (el primer hueco vale).
-        cache_mini: dict = {}
-
-        def imagen_mini(a, s_escala):
-            """Imagen del mini según el modo de borde elegido.
-
-            Cacheada por (elemento, escala redondeada): antes se recalculaba
-            en CADA intento y con cambios de borde repetidos la optimización
-            se quedaba minutos (o se moría).
-            """
-            clave_m = (a["id"], round(s_escala, 3), borde_mini)
-            if clave_m in cache_mini:
-                return cache_mini[clave_m]
-            base = sin_borde.get(a["id"])
-            propio = float(a.get("offset_mm", 0) or 0)
-            mm = propio if propio > 0 else (off_glob[0] if off_glob else 0.0)
-            modo_b = (a.get("offset_modo") or (off_glob[1] if off_glob
-                      else "extender"))
-            color_b = off_glob[2] if off_glob else (255, 255, 255)
-            if base is None or mm <= 0 or borde_mini == "proporcional":
-                out = (masks[a["id"]], a["w_mm"] * s_escala,
-                       a["h_mm"] * s_escala)
-                cache_mini[clave_m] = out
-                return out
-            if borde_mini == "sin":
-                out = (base, (a["w_mm"] - 2 * mm) * s_escala,
-                       (a["h_mm"] - 2 * mm) * s_escala)
-                cache_mini[clave_m] = out
-                return out
-            # "igual": mismo borde en mm que el original, aunque el mini sea
-            # más pequeño: se aplica con radio mm/(escala del mini)
-            escala_total = max(0.01, s_escala * (a.get("scale_pct", 100) / 100.0))
-            dpi = float(a.get("dpi_origen", 300.0) or 300.0)
-            radio = (mm / escala_total) / 25.4 * dpi
-            # TOPE DE SEGURIDAD: el borde "mantener" no puede crecer más que
-            # la propia pieza (con minis diminutos el radio se disparaba y
-            # podía reventar la optimización). Si se pasa, se usa proporcional
-            tope = 0.45 * min(base.width, base.height)
-            if not (radio > 0) or radio > tope:
-                out = (masks[a["id"]], a["w_mm"] * s_escala,
-                       a["h_mm"] * s_escala)
-                cache_mini[clave_m] = out
-                return out
-            from .imaging import aplicar_offset
-            img = aplicar_offset(base, radio, modo_b, color_b)
-            out = (img, img.width / dpi * 25.4 * escala_total,
-                   img.height / dpi * 25.4 * escala_total)
-            cache_mini[clave_m] = out
-            return out
-
-        angles_m = _angles_mini(rot_mini)
-        cand = [a for a in assets if a.get("mini_enabled") and a["id"] in masks]
-        if cand:
-            pesos = {a["id"]: min(100.0, max(1.0, float(a.get("mini_quota", 1.0))))
-                     for a in cand}
-            peso_total = sum(pesos.values())
-            counts = {a["id"]: 0 for a in cand}
-            comunes: dict[str, float] = {}
-            total = 0
-            while total < 800:
-                if time.time() > fin_minis:
-                    break
-                # primero el elemento más subrepresentado según su cuota
-                cand.sort(key=lambda a: pesos[a["id"]] / peso_total
-                          - counts[a["id"]] / (total + 1.0), reverse=True)
-                hecho = False
-                for a in cand:
-                    if time.time() > fin_minis:
-                        break
-                    img = masks[a["id"]]
-                    base = max(min(a["w_mm"], a["h_mm"]), 1e-6)
-                    # Con lista activa, el mínimo se IGNORA: manda la lista.
-                    s_floor = (1e-6 if usar_lista else min_mm / base)
-                    if s_floor > max_res:
-                        continue
-                    colocado = False
-                    if policy == "iguales" and a["id"] in comunes:
-                        s = comunes[a["id"]]
-                        img_m, w_m, h_m = imagen_mini(a, s)
-                        colocado = _try_place(
-                            ctx, a["id"], a.get("name", ""), w_m, h_m, s,
-                            True, img_m, angles_m, new_page_ok=False,
-                            first_fit=True)
-                    else:
-                        # lista de tamaños deseada o mayor que quepa (desc.)
-                        escala_lista = _escalas_lista(lista_mm, lista_modo,
-                                                       a["w_mm"], a["h_mm"])
-                        for s in _escalas_candidatas(s_floor, max_res, usar_lista,
-                                                     escala_lista):
-                            if time.time() > fin_minis:
-                                break
-                            img_m, w_m, h_m = imagen_mini(a, s)
-                            if _try_place(ctx, a["id"], a.get("name", ""),
-                                          w_m, h_m, s, True,
-                                          img_m, angles_m,
-                                          new_page_ok=False,
-                                          first_fit=True):
-                                colocado = True
-                                comunes.setdefault(a["id"], s)
-                                break
-                    if colocado:
-                        counts[a["id"]] += 1
-                        total += 1
-                        hecho = True
-                        # rampa suave hacia el final de la pasada: los minis
-                        # van llenando huecos cada vez más pequeños
-                        if progress and total % 3 == 0:
-                            progress(p_med + (p_hi - p_med) *
-                                     (1.0 - 1.0 / (1.0 + total / 15.0)),
-                                     len(ctx.pages))
-                        break
-                if not hecho:
-                    break
-        if progress:
-            progress(p_hi, len(ctx.pages))
-
     # compacidad: área del bbox ocupado en cada página (desempate de calidad)
     comp = 0.0
     for occ in ctx.pages:
@@ -1400,6 +1385,32 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
         settings = dict(settings, _angulos_por_asset=angulos_por_asset)
     settings = dict(settings, _masks_reales=masks_reales)
 
+    def _rellenar_si_toca(res: PackResult) -> PackResult:
+        """Rellena huecos con minis DESPUÉS de cerrar la colocación normal.
+
+        Así activar los minis no cambia NADA de las copias (mismas hojas y
+        posiciones): los minis solo AÑADEN piezas en lo que sobra.
+        """
+        if not settings.get("usar_minis") or res.unplaced or not res.placements:
+            return res
+        try:
+            celda_mini = res.cell or _celda_ajustada(
+                _cell_para(n_total, "rapida"), area)
+            ctx_mini = _reconstruir(assets, masks, area, settings,
+                                    res.placements, celda_mini)
+            n0 = len(ctx_mini.placements)
+            if progress:
+                progress(0.86, res.pages)
+            _rellenar_minis(ctx_mini, assets, masks, settings,
+                            deadline=time.time() + 2.5, progress=progress)
+            nuevos = ctx_mini.placements[n0:]
+            if nuevos:
+                res.placements.extend(nuevos)
+                _recalcular_eficiencia(res, masks_reales, area, assets)
+        except Exception:
+            pass
+        return res
+
     t0 = time.time()
     n_prev = sum(max(0, int(a.get("copies", 1))) for a in assets) + \
         len(pinned or [])
@@ -1471,6 +1482,16 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
         _recalcular_eficiencia(alt, masks_reales, area, assets)
         if _clave(alt) < _clave(best):
             best = alt
+    if best.unplaced:
+        # COMPLETITUD: si con la rejilla gruesa no cabe todo (casos muy
+        # apretados), una pasada fina SIN límite lo intenta de verdad
+        fino = dict(settings, opt_calidad="normal")
+        alt3 = _one_pass(assets, masks, area, fino, pinned, "area", rnd,
+                         progress, (0.02, 0.30), deadline=None, contacto=False,
+                         **extra)
+        _recalcular_eficiencia(alt3, masks_reales, area, assets)
+        if _clave(alt3) < _clave(best):
+            best = alt3
     if best.pages > 1 and str(settings.get("rotacion", "90")) == "libre":
         # los giros RECTOS suelen necesitar menos hojas que los libres: una
         # segunda semilla con 0/90/180/270 evita perder una página por probar
@@ -1499,8 +1520,7 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
         # una variante con los giros rectos, que suele quedar más recogida.
         # Con minis NO se hacen (cada pasada ya es cara) y con semillas lentas
         # tampoco: en esos casos manda la rapidez (el presupuesto es corto).
-        if (not settings.get("usar_minis") and t_seed < 0.9
-                and time.time() < deadline - 0.5):
+        if t_seed < 0.9 and time.time() < deadline - 0.5:
             if progress:
                 progress(0.33, best.pages)
             try:
@@ -1565,6 +1585,7 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
                     _recalcular_eficiencia(best, masks_reales, area, assets)
             except Exception:
                 pass
+        best = _rellenar_si_toca(best)
         try:
             if progress:
                 progress(0.94, best.pages)
@@ -1683,6 +1704,7 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
                     _recalcular_eficiencia(best, masks_reales, area, assets)
             except Exception:
                 pass
+    best = _rellenar_si_toca(best)
     # RED DE SEGURIDAD final: nada solapado, pase lo que pase
     if progress:
         progress(0.93, best.pages)

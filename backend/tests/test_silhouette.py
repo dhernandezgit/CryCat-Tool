@@ -370,3 +370,67 @@ def test_minis_no_se_colocan_si_alguna_copia_no_cabe():
     assert res.unplaced, "la copia grande no cabe: debe quedar sin colocar"
     assert not any(p.mini for p in res.placements), \
         "con una copia sin colocar no se permiten minis"
+
+
+def test_minis_con_hoja_llena_no_quitan_copias():
+    """HOJA LLENA: encender minis NUNCA quita copias ni añade páginas.
+
+    Se llena la hoja (40 círculos, una página completa) y se comparan los
+    resultados con minis apagados y encendidos, en 90º y en cualquier ángulo.
+    Los minis son relleno: solo pueden AÑADIR piezas.
+    """
+    circle = _circle(40)
+    assets = [{"id": "c", "name": "c", "w_mm": 40, "h_mm": 40, "copies": 40,
+               "mini_enabled": True, "mini_quota": 2.0}]
+    base = dict(SET, opt_tiempo_auto=False, opt_tiempo_max_s=4.0,
+                opt_calidad="normal")
+    for rot in ("90", "libre"):
+        res_off = sil_pack(assets, {"c": circle}, area_a4(),
+                           dict(base, usar_minis=False, rotacion=rot))
+        res_on = sil_pack(assets, {"c": circle}, area_a4(),
+                          dict(base, usar_minis=True, rotacion=rot,
+                               mini_rotacion=rot, mini_min_mm=20.0,
+                               mini_max_rescale=70.0,
+                               mini_tamanos="iguales", mini_borde_modo="igual",
+                               mini_usar_lista=True, mini_lista_modo="mm",
+                               mini_tamanos_lista=[20.0]))
+        n_off = sum(1 for p in res_off.placements if not p.mini)
+        n_on = sum(1 for p in res_on.placements if not p.mini)
+        assert n_off == 40 and not res_off.unplaced
+        assert not res_on.unplaced, f"rot={rot}: {res_on.unplaced}"
+        assert n_on >= n_off, (
+            f"rot={rot}: con minis se colocaron MENOS copias ({n_on} < {n_off})")
+        # GARANTÍA FUERTE: las copias quedan EXACTAMENTE igual (posición,
+        # ángulo y hoja); los minis solo AÑADEN piezas en lo que sobra
+        def firma(res):
+            return sorted((round(p.x, 3), round(p.y, 3), round(p.angle, 3),
+                           p.page, p.asset_id)
+                          for p in res.placements if not p.mini)
+        assert firma(res_on) == firma(res_off), (
+            f"rot={rot}: activar minis cambió la colocación de las copias")
+        assert res_on.pages <= res_off.pages, (
+            f"rot={rot}: los minis añadieron páginas "
+            f"({res_on.pages} > {res_off.pages})")
+        assert any(p.mini for p in res_on.placements), \
+            f"rot={rot}: debería haber minis de relleno"
+
+
+def test_minis_multipagina_no_quitan_copias():
+    """60 copias (2 hojas): los minis tampoco reducen copias ni páginas."""
+    circle = _circle(40)
+    assets = [{"id": "c", "name": "c", "w_mm": 40, "h_mm": 40, "copies": 60,
+               "mini_enabled": True, "mini_quota": 1.0}]
+    base = dict(SET, opt_tiempo_auto=False, opt_tiempo_max_s=4.0,
+                opt_calidad="normal")
+    res_off = sil_pack(assets, {"c": circle}, area_a4(),
+                       dict(base, usar_minis=False))
+    res_on = sil_pack(assets, {"c": circle}, area_a4(),
+                      dict(base, usar_minis=True, mini_min_mm=20.0,
+                           mini_max_rescale=70.0, mini_tamanos="iguales",
+                           mini_borde_modo="igual", mini_rotacion="libre"))
+    n_off = sum(1 for p in res_off.placements if not p.mini)
+    n_on = sum(1 for p in res_on.placements if not p.mini)
+    assert n_off == 60 and not res_off.unplaced
+    assert not res_on.unplaced
+    assert n_on >= n_off, f"con minis menos copias: {n_on} < {n_off}"
+    assert res_on.pages <= res_off.pages
