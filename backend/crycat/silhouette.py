@@ -503,6 +503,10 @@ class _Ctx:
         key = (dm.shape, self.allowed.shape, hash(dm.tobytes()))
         c = self.out_cache.get(key)
         if c is None:
+            # tope de memoria: cada correlación ocupa ~1 MB y con muchos
+            # tamaños/ángulos (minis) la caché crecía sin freno
+            if len(self.out_cache) > 400:
+                self.out_cache.clear()
             c = _correlate((~self.allowed).astype(np.float32), dm)
             self.out_cache[key] = c
         return c
@@ -558,6 +562,8 @@ class _Ctx:
         c = self.rot_cache.get(clave)
         if c is not None:
             return c
+        if len(self.rot_cache) > 400:
+            self.rot_cache.clear()
         base = self.base_mask(aid, w_mm, h_mm, img)
         rm = _rotate_mask(base, angle)
         dm = _dilate(rm, self.r)
