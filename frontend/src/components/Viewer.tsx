@@ -69,6 +69,10 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
     { id: number; area_px: number; bbox: number[]; principal: boolean }[]
   >([]);
   const [previewBlobs, setPreviewBlobs] = useState("");
+  // vista previa de cómo quedará al quitar/unir (solo revisar, no aplica)
+  const [vistaContorno, setVistaContorno] =
+    useState<"normal" | "quitar" | "unir">("normal");
+  const [imgContorno, setImgContorno] = useState("");
   const [selBlobs, setSelBlobs] = useState<Set<number>>(new Set());
   const canvasRef = useRef<HTMLDivElement>(null);
   const panRef = useRef<{ x: number; y: number } | null>(null);
@@ -235,6 +239,8 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
 
   // --- editor de contorno (blobs) ---------------------------------
   useEffect(() => {
+    setVistaContorno("normal");
+    setImgContorno("");
     if (!editando) {
       setBlobs([]);
       setPreviewBlobs("");
@@ -421,6 +427,29 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
   const modoCont = ui.contornoModo ?? "final";
   const verCont = ui.verBordes && modoCont !== "ninguno";
 
+  // con los contornos activados se prefetchán los fotogramas del parpadeo:
+  // ver contornos es SOLO visual y debe cambiar al instante (antes cada
+  // fotograma re-renderizaba la página a 300 ppp y el parpadeo se atascaba)
+  useEffect(() => {
+    if (!verCont || !result) return;
+    const urls: string[] = [];
+    const nPag = Math.max(1, result.pages);
+    for (let i = 0; i < nPag; i++) {
+      for (const f of [0, 3, 6, 9]) {
+        urls.push(api.pageUrl(i, version,
+                              settings.simular_impresion === true, true, f,
+                              modoCont));
+      }
+    }
+    const imgs = urls.map((u) => {
+      const im = new Image();
+      im.src = u;
+      return im;
+    });
+    return () => imgs.forEach((im) => { im.src = ""; });
+  }, [verCont, version, result, modoCont, settings.simular_impresion]);
+
+
   // solo visual: en el modo horizontal la hoja se enseña girada 90º para
   // aprovechar el ancho (no se recalcula absolutamente nada). La hoja, las
   // guías y las zonas de las piezas giran JUNTAS (mismo tamaño y transform).
@@ -429,7 +458,7 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
     position: "absolute", left: "50%", top: "50%",
     width: `${(sheetW / (sheetH || 1)) * 100}%`,
     height: `${(sheetH / (sheetW || 1)) * 100}%`,
-    transform: "translate(-50%, -50%) rotate(90deg)",
+    transform: "translate(-50%, -50%) rotate(270deg)",
   } : undefined;
 
   const pageEl = (i: number) => {
@@ -709,7 +738,8 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
       {editando ? (
         <div className="editor-blobs" data-testid="editor-blobs">
           <div className="editor-lienzo">
-            <img src={api.previewUrl(editando.id) + `?t=${version}`}
+            <img src={imgContorno || previewBlobs || api.previewUrlSinBordes(
+                   editando.id, editando.rev ?? 0)}
                  alt={editando.name} draggable={false} />
             <div className="editor-overlay">
               {editando && blobs.filter((b) => !b.principal).map((b, i) => {
@@ -751,6 +781,48 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
                   onClick={() => setUnionMm((m) =>
                     Math.min(20, Math.round((m + 0.5) * 2) / 2))}>+</button>
               </span>
+              <button
+                data-testid="btn-ver-quitados"
+                title={t("Ver cómo queda SIN los trozos marcados (solo vista previa)")}
+                className={vistaContorno === "quitar" ? "primary" : ""}
+                onClick={async () => {
+                  if (!editando) return;
+                  if (vistaContorno === "quitar") {
+                    setVistaContorno("normal");
+                    setImgContorno("");
+                    return;
+                  }
+                  try {
+                    const r = await api.contornoPreview(editando.id,
+                      { quitar: Array.from(selBlobs) });
+                    setImgContorno(r.png);
+                    setVistaContorno("quitar");
+                  } catch { /* sin vista previa */ }
+                }}
+              >
+                {t("Ver sin marcados")}
+              </button>
+              <button
+                data-testid="btn-ver-unido"
+                title={t("Ver cómo queda al UNIR todo con el borde actual (solo vista previa)")}
+                className={vistaContorno === "unir" ? "primary" : ""}
+                onClick={async () => {
+                  if (!editando) return;
+                  if (vistaContorno === "unir") {
+                    setVistaContorno("normal");
+                    setImgContorno("");
+                    return;
+                  }
+                  try {
+                    const r = await api.contornoPreview(editando.id,
+                      { unir: unionMm });
+                    setImgContorno(r.png);
+                    setVistaContorno("unir");
+                  } catch { /* sin vista previa */ }
+                }}
+              >
+                {t("Ver unido")}
+              </button>
               <button
                 className="primary"
                 data-testid="btn-unir-contorno"

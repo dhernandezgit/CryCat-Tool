@@ -113,12 +113,13 @@ describe("Panel de archivos", () => {
     const u = userEvent.setup();
     render(<FilePanel assets={[asset()]} result={result} settings={settings} onChange={onChange} saveSettings={saveSettings} />);
     // el dato se ve plegado; para el control hay que abrir «Tamaño»
-    expect(screen.getByTestId("tamano-a1")).toHaveTextContent("8.5×6.8");
+    // el tamaño mostrado es el REAL: contenido + borde global (2 mm × 2)
+    expect(screen.getByTestId("tamano-a1")).toHaveTextContent("12.5×10.8");
     await u.click(screen.getByTestId("fold-tamano-a1"));
     const slider = screen.getByTestId("escala-a1") as HTMLInputElement;
     fireEvent.change(slider, { target: { value: "200" } });
-    // el tamaño se recalcula en vivo (200%)
-    expect(screen.getByTestId("tamano-a1")).toHaveTextContent("16.9×13.5");
+    // el tamaño se recalcula en vivo (200% + borde)
+    expect(screen.getByTestId("tamano-a1")).toHaveTextContent("20.9×17.5");
     await waitFor(() =>
       expect(global.fetch).toHaveBeenCalledWith(
         "/api/assets/a1",
@@ -133,19 +134,19 @@ describe("Panel de archivos", () => {
     await userEvent.setup().click(screen.getByTestId("fold-tamano-a1"));
     const ancho = screen.getByTestId("ancho-mm-a1") as HTMLInputElement;
     const alto = screen.getByTestId("alto-mm-a1") as HTMLInputElement;
-    expect(ancho.value).toBe("8.5");
-    expect(alto.value).toBe("6.8");
-    // fijando el ancho, el alto se ajusta solo (proporción)
+    expect(ancho.value).toBe("12.5");
+    expect(alto.value).toBe("10.8");
+    // fijando el ancho (tamaño FINAL, con borde), el alto se ajusta solo
     fireEvent.focus(ancho);
-    fireEvent.change(ancho, { target: { value: "16.94" } });
-    expect(screen.getByTestId("tamano-a1")).toHaveTextContent("16.9×13.5");
-    expect(alto.value).toBe("13.5");
+    fireEvent.change(ancho, { target: { value: "20.94" } });
+    expect(screen.getByTestId("tamano-a1")).toHaveTextContent("20.9×17.5");
+    expect(alto.value).toBe("17.5");
     expect(screen.getByText("200%")).toBeInTheDocument();
     // y fijando el alto, el ancho se ajusta solo
     fireEvent.focus(alto);
-    fireEvent.change(alto, { target: { value: "20.31" } });
-    expect(screen.getByTestId("tamano-a1")).toHaveTextContent("25.4×20.3");
-    expect(ancho.value).toBe("25.4");
+    fireEvent.change(alto, { target: { value: "24.31" } });
+    expect(screen.getByTestId("tamano-a1")).toHaveTextContent("29.4×24.3");
+    expect(ancho.value).toBe("29.4");
     expect(screen.getByText("300%")).toBeInTheDocument();
     await waitFor(() =>
       expect(global.fetch).toHaveBeenCalledWith(
@@ -162,7 +163,7 @@ describe("Panel de archivos", () => {
       bg_removed: false,
     } as unknown as Asset;   // sin scale_pct ni w_mm_base
     render(<FilePanel assets={[viejo]} result={null} settings={settings} onChange={onChange} saveSettings={saveSettings} />);
-    expect(screen.getByTestId("tamano-v1")).toHaveTextContent("5.0×3.3");
+    expect(screen.getByTestId("tamano-v1")).toHaveTextContent("9.0×7.3");
     await userEvent.setup().click(screen.getByTestId("fold-tamano-v1"));
     expect(screen.getByText("100%")).toBeInTheDocument();
     expect(screen.queryByText(/NaN/)).toBeNull();

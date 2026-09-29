@@ -218,13 +218,14 @@ export function normalizeAsset(a: Asset): Asset {
   };
 }
 
-/** Tamaño efectivo en mm de un asset (base * escala), sin NaN. */
-export function assetSizeMm(a: Asset): { w: number; h: number } {
+/** Tamaño efectivo en mm de un asset: contenido * escala + borde (real). */
+export function assetSizeMm(a: Asset, bordeMm = 0): { w: number; h: number } {
   const s = (Number.isFinite(a.scale_pct) ? a.scale_pct : 100) / 100;
   const wb = Number.isFinite(a.w_mm_base) ? a.w_mm_base : a.w_mm;
   const hb = Number.isFinite(a.h_mm_base) ? a.h_mm_base : a.h_mm;
-  const w = (Number.isFinite(wb) ? wb : 0) * s;
-  const h = (Number.isFinite(hb) ? hb : 0) * s;
+  const b = 2 * (Number.isFinite(bordeMm) ? bordeMm : 0);
+  const w = (Number.isFinite(wb) ? wb : 0) * s + b;
+  const h = (Number.isFinite(hb) ? hb : 0) * s + b;
   return { w: Number.isFinite(w) ? w : 0, h: Number.isFinite(h) ? h : 0 };
 }
 
@@ -308,6 +309,13 @@ export const api = {
     req<{ piezas: { uid: string; page: number;
                     final: number[][][]; original: number[][][] }[] }>(
       "/api/contornos"),
+  contornoPreview: (id: string,
+                    opciones: { quitar?: number[]; unir?: number }) =>
+    req<{ png: string }>(`/api/assets/${id}/contorno-preview`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(opciones),
+    }),
   blobs: (id: string) =>
     req<{ blobs: { id: number; area_px: number; bbox: number[]; principal: boolean }[];
           w: number; h: number; union_mm: number;

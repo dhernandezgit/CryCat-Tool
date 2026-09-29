@@ -192,16 +192,24 @@ def _fit_box(img: Image.Image, tw: int, th: int) -> tuple[Image.Image, float]:
 
 def marcas_delimitar(canvas: Image.Image, area: CutArea, dpi: float,
                      lado_mm: float = 2.0,
-                     off_x: float = 0.0, off_y: float = 0.0) -> Image.Image:
-    """Dos cuadrados BLANCOS de `lado_mm` en las esquinas del área.
+                     off_x: float = 0.0, off_y: float = 0.0,
+                     margen_mm: float = 0.0) -> Image.Image:
+    """Dos cuadrados BLANCOS de `lado_mm` en las esquinas de los LÍMITES.
 
     Sirven de referencia para que la colocación quede EXACTA siempre en
-    Cricut Design Space (una arriba-izquierda y otra abajo-derecha, en los
-    límites reales de la máquina). No forman parte de la optimización: solo
-    se pintan al final sobre la página.
+    Cricut Design Space (una arriba-izquierda y otra abajo-derecha). Van en
+    los extremos del área YA RECORTADA por el margen (los límites marcados
+    para las piezas), no en las marcas negras de la máquina. No forman parte
+    de la optimización: solo se pintan al final sobre la página.
     """
     px = dpi / 25.4
     bx, by, bw, bh = area.bbox
+    m = max(0.0, float(margen_mm or 0.0))
+    if m > 0:
+        bx += m
+        by += m
+        bw = max(1e-6, bw - 2 * m)
+        bh = max(1e-6, bh - 2 * m)
     lado = max(1, int(round(lado_mm * px)))
     base = canvas.convert("RGBA")
     blanco = Image.new("RGBA", (lado, lado), (255, 255, 255, 255))
@@ -216,7 +224,8 @@ def marcas_delimitar(canvas: Image.Image, area: CutArea, dpi: float,
 
 def render_page(area: CutArea, placements: list[Placement], images: dict[str, Image.Image],
                 dpi: float, full_page: bool = False, color: str = "rgba",
-                delimitar_mm: float = 0.0) -> Image.Image:
+                delimitar_mm: float = 0.0,
+                delimitar_margen_mm: float = 0.0) -> Image.Image:
     """Renderiza una página a PIL RGBA (fondo transparente).
 
     images: asset_id -> RGBA recortada. Con dpi igual al de origen y sin
@@ -251,7 +260,7 @@ def render_page(area: CutArea, placements: list[Placement], images: dict[str, Im
         canvas.alpha_composite(img, (max(0, x), max(0, y)))
     if delimitar_mm > 0:
         canvas = marcas_delimitar(canvas, area, dpi, float(delimitar_mm),
-                                  off_x, off_y)
+                                  off_x, off_y, float(delimitar_margen_mm))
     if color == "rgb":
         white = Image.new("RGBA", canvas.size, (255, 255, 255, 255))
         white.alpha_composite(canvas)
@@ -378,7 +387,8 @@ def export_pages(area: CutArea, placements: list[Placement],
                  images: dict[str, Image.Image], out_dir: Path, name: str,
                  dpi: float, full_page: bool = False, color: str = "rgba",
                  perfil: str = "srgb", bleed_mm: float = 0.0,
-                 delimitar_mm: float = 0.0) -> list[Path]:
+                 delimitar_mm: float = 0.0,
+                 delimitar_margen_mm: float = 0.0) -> list[Path]:
     """Guarda las páginas en PNG máxima calidad (pHYs = dpi, sin guías).
 
     PNG es sin pérdidas: no hay cuantización ni recompresión con pérdida; se
@@ -390,7 +400,8 @@ def export_pages(area: CutArea, placements: list[Placement],
     written: list[Path] = []
     for i in pages:
         img = render_page(area, [p for p in placements if p.page == i], images,
-                          dpi, full_page, color, delimitar_mm)
+                          dpi, full_page, color, delimitar_mm,
+                          delimitar_margen_mm)
         if bleed_mm > 0:
             img = con_bleed(img, int(round(bleed_mm / 25.4 * dpi)))
         fp = out_dir / f"pagina-{i + 1:02d}.png"
@@ -403,10 +414,11 @@ def export_single(area: CutArea, placements: list[Placement],
                   images: dict[str, Image.Image], path: Path, dpi: float,
                   full_page: bool = False, color: str = "rgba",
                   perfil: str = "srgb", bleed_mm: float = 0.0,
-                  delimitar_mm: float = 0.0) -> Path:
+                  delimitar_mm: float = 0.0,
+                  delimitar_margen_mm: float = 0.0) -> Path:
     """Guarda UNA página directamente en un PNG concreto (sin carpeta)."""
     img = render_page(area, placements, images, dpi, full_page, color,
-                      delimitar_mm)
+                      delimitar_mm, delimitar_margen_mm)
     if bleed_mm > 0:
         img = con_bleed(img, int(round(bleed_mm / 25.4 * dpi)))
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -476,7 +488,8 @@ def export_pdf(area: CutArea, placements: list[Placement],
                images: dict[str, Image.Image], dpi: float,
                full_page: bool = False, color: str = "rgba",
                marcas: bool = False, bleed_mm: float = 0.0,
-               delimitar_mm: float = 0.0) -> bytes:
+               delimitar_mm: float = 0.0,
+               delimitar_margen_mm: float = 0.0) -> bytes:
     """PDF a tamaño real para imprimir (una página por hoja, sin márgenes).
 
     El PDF se genera con el tamaño físico exacto de la hoja (A4/A3/…) y la
@@ -488,7 +501,7 @@ def export_pdf(area: CutArea, placements: list[Placement],
     for i in pages:
         img = render_page(area, [p for p in placements if p.page == i], images,
                           dpi, True if marcas else full_page, color,
-                          delimitar_mm)
+                          delimitar_mm, delimitar_margen_mm)
         if bleed_mm > 0:
             img = con_bleed(img, int(round(bleed_mm / 25.4 * dpi)))
         if marcas:

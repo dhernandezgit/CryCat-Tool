@@ -22,6 +22,7 @@ interface Props {
 
 function AssetCard({ a, result, onChange, onEditarContorno,
                      onAntesDeCambiar, bordeGlobal = false,
+                     bordeGlobalMm = 0,
                      faseBordes = 0, verBordes = true,
                      contornoModo = "final",
                      destacado = false }: {
@@ -29,6 +30,7 @@ function AssetCard({ a, result, onChange, onEditarContorno,
   onEditarContorno?: (a: Asset) => void;
   onAntesDeCambiar?: () => void;
   bordeGlobal?: boolean;
+  bordeGlobalMm?: number;
   faseBordes?: number;
   verBordes?: boolean;
   contornoModo?: "final" | "orig" | "ambos" | "ninguno";
@@ -38,7 +40,12 @@ function AssetCard({ a, result, onChange, onEditarContorno,
   const [local, setLocal] = useState<Asset>(() => normalizeAsset(a));
   useEffect(() => setLocal(normalizeAsset(a)), [a]);
   const reemplazarRef = useRef<HTMLInputElement>(null);
-  const size = assetSizeMm(local);
+  // borde efectivo (el propio o el global): el tamaño que se muestra es el
+  // REAL (contenido + borde), así ajustar el borde actualiza la medida
+  const bordeEf = local.offset_mm > 0
+    ? local.offset_mm
+    : (bordeGlobal ? Number(bordeGlobalMm) || 0 : 0);
+  const size = assetSizeMm(local, bordeEf);
 
   // tamaño exacto en mm (se guarda como escala para mantener una sola fuente)
   const [mmTexto, setMmTexto] = useState("");
@@ -67,13 +74,14 @@ function AssetCard({ a, result, onChange, onEditarContorno,
     setMmTexto(texto);
     const v = Number(texto.replace(",", "."));
     if (!Number.isFinite(v) || v <= 0 || anchoBase <= 0) return;
-    patch({ scale_pct: (v / anchoBase) * 100 });
+    // el valor pedido es el tamaño FINAL: se descuenta el borde
+    patch({ scale_pct: Math.max(5, ((v - 2 * bordeEf) / anchoBase) * 100) });
   };
   const altoExacto = (texto: string) => {
     setAltoTexto(texto);
     const v = Number(texto.replace(",", "."));
     if (!Number.isFinite(v) || v <= 0 || altoBase <= 0) return;
-    patch({ scale_pct: (v / altoBase) * 100 });
+    patch({ scale_pct: Math.max(5, ((v - 2 * bordeEf) / altoBase) * 100) });
   };
   const minisColocados =
     result?.placements.filter((p) => p.asset_id === a.id && p.mini).length ?? 0;
@@ -414,7 +422,8 @@ export default function FilePanel({ assets, result, settings, onChange,
                      verBordes={verBordes}
                      contornoModo={contornoModo}
                      destacado={destacado === a.id}
-                     bordeGlobal={settings.offset_activo === true} />
+                     bordeGlobal={settings.offset_activo === true}
+                     bordeGlobalMm={Number(settings.offset_mm) || 0} />
         ))}
       </div>
 

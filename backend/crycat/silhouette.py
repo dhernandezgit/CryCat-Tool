@@ -724,7 +724,10 @@ def _escalas_candidatas(s_floor: float, max_res: float, usar_lista: bool,
     silencio y un mini de 20 mm en un elemento reducido salía a 15 mm.
     """
     if usar_lista and lista:
-        max_res = 0.99
+        # la lista MANDA: ni el tope de reescalado ni el 99% del original.
+        # Un mini de 20 mm en un elemento de 14 mm debe medir 20 mm (antes
+        # se quedaba en 13,9 y parecía que la lista no se aplicaba).
+        max_res = 10.0
         out = sorted({min(max_res, max(s_floor, s)) for s in lista},
                      reverse=True)
         return [s for s in out if s >= s_floor - 1e-9]

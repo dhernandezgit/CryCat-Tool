@@ -609,6 +609,16 @@ export const EN: Record<string, string> = {
   "Lado mayor": "Longest side",
   "Lado menor": "Shortest side",
   "Círculo equivalente (aprox.)": "Equivalent circle (approx.)",
+  "Marcas para delimitar": "Alignment marks",
+  "Añade dos cuadrados blancos de 2 mm (arriba-izquierda y abajo-derecha) en los límites del área. Sirven de referencia para que la colocación quede EXACTA siempre en Cricut Design Space. No cuentan para la optimización.":
+    "Adds two 2 mm white squares (top-left and bottom-right) at the area limits. They are a reference so the layout is ALWAYS exact in Cricut Design Space. They don't count for the optimization.",
+  "Borde para unir": "Join border",
+  "Ver sin marcados": "Preview without marked",
+  "Ver unido": "Preview joined",
+  "Ver cómo queda SIN los trozos marcados (solo vista previa)":
+    "See how it looks WITHOUT the marked pieces (preview only)",
+  "Ver cómo queda al UNIR todo con el borde actual (solo vista previa)":
+    "See how it looks when joining everything with the current border (preview only)",
   "Aplicar a los seleccionados": "Apply to selected",
   "Conservar cambios": "Keep changes",
   "Importar con tamaño original": "Import at original size",

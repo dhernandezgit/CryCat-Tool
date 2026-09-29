@@ -88,9 +88,21 @@ def _offset_de_global() -> tuple[float, str, tuple[int, int, int]] | None:
     return _offset_actual()
 
 
+def _png_bytes(img: Image.Image) -> bytes:
+    """PNG en memoria (misma ruta que _png_response, para poder cachear)."""
+    buf = io.BytesIO()
+    img.save(buf, format="PNG", optimize=False)
+    return buf.getvalue()
+
+
 def _delimitar_mm() -> float:
     """Tamaño (mm) de los cuadrados blancos de referencia, 0 = desactivado."""
     return 2.0 if settings.get("marcas_delimitar") else 0.0
+
+
+def _delimitar_margen() -> float:
+    """Margen (mm) al que se pegan los cuadrados de referencia."""
+    return max(0.0, float(settings.get("margen_mm", 1.0) or 0.0))
 
 
 def _avisar_blobs(a: Asset) -> None:
@@ -124,9 +136,7 @@ def _persist_asset(a: Asset) -> None:
 
 
 def _png_response(img: Image.Image) -> Response:
-    buf = io.BytesIO()
-    img.save(buf, format="PNG")
-    return Response(buf.getvalue(), media_type="image/png")
+    return Response(_png_bytes(img), media_type="image/png")
 
 
 def _pl_dict(p: Placement) -> dict:
@@ -728,6 +738,30 @@ def create_app(store: Session = session) -> FastAPI:
                 "preview_png": "data:image/png;base64,"
                 + __import__("base64").b64encode(buf.getvalue()).decode("ascii")}
 
+    @app.post("/api/assets/{aid}/contorno-preview")
+    def contorno_preview(aid: str, payload: dict | None = None):
+        """Vista previa de cómo quedará al QUITAR trozos y/o UNIR todo.
+
+        Devuelve una imagen para revisar antes de aplicar (no toca el asset).
+        """
+        a = store.get(aid)
+        if not a:
+            raise HTTPException(404, tr("asset no encontrado"))
+        payload = payload or {}
+        quitar = [int(x) for x in (payload.get("quitar") or [])]
+        unir = max(0.0, float(payload.get("unir", 0) or 0))
+        img = a.img
+        if quitar:
+            img = imaging.quitar_blobs(img, quitar)
+        if unir > 0:
+            escala = max(0.05, a.scale_pct / 100.0)
+            radio = (unir / escala) / 25.4 * a.dpi_origen
+            img = imaging.aplicar_offset(img, radio, "unir_curvo",
+                                         (255, 255, 255))
+        datos = _png_bytes(imaging.thumbnail(img, 900))
+        return {"png": "data:image/png;base64,"
+                + __import__("base64").b64encode(datos).decode("ascii")}
+
     @app.post("/api/assets/{aid}/limpiar-contorno")
     def limpiar_contorno(aid: str, payload: dict | None = None):
         """Elimina de la copia de trabajo los blobs indicados (nunca el
@@ -1071,7 +1105,8 @@ def create_app(store: Session = session) -> FastAPI:
                                   full_page=full, color=color,
                                   perfil=settings.get("espacio_color", "srgb"),
                                   bleed_mm=float(settings.get("bleed_mm", 0) or 0),
-                                  delimitar_mm=_delimitar_mm())
+                                  delimitar_mm=_delimitar_mm(),
+            delimitar_margen_mm=_delimitar_margen())
             settings.set({"carpeta_export": str(base)})
             return {"ok": True, "folder": str(base), "files": [str(archivo)]}
         # varias páginas: carpeta con las páginas (sin JSON)
@@ -1085,10 +1120,13 @@ def create_app(store: Session = session) -> FastAPI:
             dpi, full_page=full, color=color,
             perfil=settings.get("espacio_color", "srgb"),
             bleed_mm=float(settings.get("bleed_mm", 0) or 0),
-            delimitar_mm=_delimitar_mm())
+            delimitar_mm=_delimitar_mm(),
+            delimitar_margen_mm=_delimitar_margen())
         settings.set({"carpeta_export": str(base)})
         return {"ok": True, "folder": str(out),
                 "files": [str(f) for f in written]}
+
+    _paginas_cache: dict = {}
 
     @app.get("/api/pages/{i}.png")
     def page_png(i: int, v: str = "", sim: int = 0, bordes: int = 0,
@@ -1102,10 +1140,29 @@ def create_app(store: Session = session) -> FastAPI:
             # bloqueaba todo: la VISTA PREVIA se hace más ligera (el PDF y
             # los PNG exportados mantienen los 300 ppp de verdad)
             dpi = min(dpi, 120.0)
+        elif bordes:
+            # ver contornos es SOLO visual: la vista con contornos se renderiza
+            # más ligera para que el parpadeo sea fluido (el export/print sigue
+            # a 300 ppp de verdad)
+            dpi = min(dpi, 150.0)
+        # caché de páginas: alternar contorno/fases era lento porque cada
+        # cambio re-renderizaba a 300 ppp (1,3 s). Con la caché, tras el
+        # primer render cada vista es instantánea.
+        clave_pag = (id(store.last),
+                     sum(int(getattr(a, "rev", 0)) for a in store.assets.values()),
+                     int(i), round(dpi, 1),
+                     bool(settings.get("lienzo") == "pagina"),
+                     str(settings.get("color_formato", "rgba")),
+                     int(bordes), int(fase) % 12, str(cont), int(sim),
+                     _delimitar_mm())
+        cache = _paginas_cache.get(clave_pag)
+        if cache is not None:
+            return Response(cache, media_type="image/png")
         img = compose.render_page(
             store.area, [p for p in store.last.placements if p.page == i],
             store.images(), dpi, settings.get("lienzo") == "pagina",
-            settings.get("color_formato", "rgba"), _delimitar_mm())
+            settings.get("color_formato", "rgba"), _delimitar_mm(),
+            _delimitar_margen())
         if bordes:
             img = compose.contornos_bordes(
                 img, [p for p in store.last.placements if p.page == i],
@@ -1120,7 +1177,12 @@ def create_app(store: Session = session) -> FastAPI:
                 float(settings.get("sim_saturacion", 1.0)),
                 float(settings.get("sim_contraste", 1.0)),
                 float(settings.get("sim_brillo", 1.0)))
-        return _png_response(img.convert("RGBA"))
+        img = img.convert("RGBA")
+        datos = _png_bytes(img)
+        if len(_paginas_cache) > 40:
+            _paginas_cache.clear()
+        _paginas_cache[clave_pag] = datos
+        return Response(datos, media_type="image/png")
 
     @app.get("/api/print.pdf")
     def print_pdf():
@@ -1132,7 +1194,8 @@ def create_app(store: Session = session) -> FastAPI:
             full_page=settings.get("lienzo") == "pagina", marcas=True,
             bleed_mm=float(settings.get("bleed_mm", 0) or 0),
             color=settings.get("color_formato", "rgba"),
-            delimitar_mm=_delimitar_mm())
+            delimitar_mm=_delimitar_mm(),
+            delimitar_margen_mm=_delimitar_margen())
         return Response(data, media_type="application/pdf",
                         headers={"Content-Disposition":
                                  "inline; filename=crycat.pdf"})
