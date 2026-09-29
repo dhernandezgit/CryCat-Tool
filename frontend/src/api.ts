@@ -22,6 +22,7 @@ export interface Asset {
   bg_removed: boolean;
   demo?: boolean;          // figura de la muestra inicial
   warnings: string[];
+  simplificar?: boolean;   // simplificación de silueta por elemento
 }
 
 export interface Placement {
@@ -95,6 +96,7 @@ export interface AppSettings {
   mute: boolean;
   offset_activo: boolean;
   marcas_delimitar?: boolean;   // 2 cuadrados blancos de referencia en las esquinas
+  separacion_px?: number;       // separación artificial entre piezas (px del resultado)
   offset_mm: number;
   offset_modo: "extender" | "blanco" | "color";
   offset_color: string;
@@ -233,6 +235,7 @@ export function assetSizeMm(a: Asset, bordeMm = 0): { w: number; h: number } {
 export interface UiState {
   eyeTransparent: boolean;
   eyeFosforito: boolean;      // tercer modo: fondo verde fosforito
+  fondo?: "blanco" | "transparente" | "fosforito" | "rosa" | "negro";
   guidesVisible: boolean;
   verBordes: boolean;         // contornos activados
   contornoModo?: "final" | "orig" | "ambos" | "ninguno";

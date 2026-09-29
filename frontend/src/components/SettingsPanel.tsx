@@ -202,8 +202,8 @@ export default function SettingsPanel({ settings, saveSettings,
         <Grupo titulo="Colocación">
         {/* los dos valores básicos, en la MISMA fila */}
         <div className="ctl-fila">
-        {num("Espacio entre elementos", "espacio_mm", 0, 20, 0.5, "mm", undefined,
-             "Separación mínima entre piezas al colocarlas. Para chapa, 0,5; para pegatinas que se recortan una a una, 2 mm.")}
+        {num("Espacio entre elementos", "espacio_mm", -10, 20, 0.5, "mm", undefined,
+             "Separación entre piezas. Puede ser NEGATIVA (se solapan un poco): útil para apretar al máximo. Una línea artificial las separa igualmente al cortar.")}
         {num("Margen a los límites", "margen_mm", 0, 20, 0.5, "mm", undefined,
              "Cuánto se separan las piezas del borde del área recortable. Súbelo si tu Cricut corta justo al límite.")}
         </div>

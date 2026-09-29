@@ -423,7 +423,8 @@ def _run_pack(assets: list[dict], area: CutArea, settings: dict,
               heuristic: str, method_label: str,
               deadline: float | None = None,
               fracs: dict[str, float] | None = None) -> PackResult:
-    spacing = max(0.0, float(settings.get("espacio_mm", 2.0)))
+    # el espacio puede ser NEGATIVO: solapamiento controlado entre piezas
+    spacing = float(settings.get("espacio_mm", 2.0))
     rot_mode = settings.get("rotacion", "no")
     _, mini_requests = _expand_items(assets, settings)
 

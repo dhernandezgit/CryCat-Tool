@@ -101,6 +101,7 @@ export default function App() {
     return () => clearInterval(t);
   }, []);
 
+  const cargaInicial = useRef(true);
   const refresh = useCallback(async () => {
     try {
       setAssets((await api.listAssets()).map(normalizeAsset));
@@ -112,6 +113,8 @@ export default function App() {
       }
     } catch {
       setBackendOk(false);
+    } finally {
+      cargaInicial.current = false;
     }
   }, []);
 
@@ -244,14 +247,39 @@ export default function App() {
   );
 
   // ---- historial local (deshacer/rehacer) ----
-  // cada foto guarda los ELEMENTOS y también el RESULTADO de la optimización:
-  // deshacer/rehacer devuelve las piezas a donde estaban (no reoptimiza)
-  type Foto = { assets: Asset[]; result: Result | null };
+  // cada foto guarda los ELEMENTOS, el RESULTADO y los AJUSTES: deshacer
+  // devuelve TODO tal y como estaba (parámetros + colocación + vista)
+  type Foto = { assets: Asset[]; result: Result | null;
+                settings: AppSettings | null };
   const undoRef = useRef<Foto[]>([]);
   const redoRef = useRef<Foto[]>([]);
   const [hist, setHist] = useState({ puedeDeshacer: false, puedeRehacer: false });
   const historialOn = settings?.historial !== false;
   const histMax = settings?.historial_max ?? 40;
+  const restaurando = useRef(false);
+  const ultimaClave = useRef("");
+  const fotoAnterior = useRef<Foto>({ assets: [], result: null, settings: null });
+
+  /** Clave estable de lo que importa para el historial. */
+  const claveFoto = useCallback((a: Asset[], r: Result | null,
+                                 st: AppSettings | null) => {
+    return JSON.stringify({
+      a: a.map((x) => [x.id, x.scale_pct, x.copies, x.mini_enabled,
+                       x.mini_quota, x.offset_mm, x.offset_modo,
+                       x.offset_color, x.simplificar]),
+      r: r ? [r.pages, r.placements.map((p) => [p.uid, p.page,
+                                                Math.round(p.x * 100),
+                                                Math.round(p.y * 100),
+                                                p.angle, p.pinned])] : null,
+      s: st ? [st.espacio_mm, st.margen_mm, st.rotacion, st.usar_minis,
+               st.mini_min_mm, st.mini_tamanos, st.mini_usar_lista,
+               st.mini_lista_modo, st.mini_lista_medida, st.mini_tamanos_lista,
+               st.offset_activo, st.offset_mm, st.offset_modo,
+               st.offset_color, st.modo_forma, st.separacion_px,
+               st.marcas_delimitar, st.pagina, st.pagina_w, st.pagina_h,
+               st.maquina, st.lienzo, st.color_formato] : null,
+    });
+  }, []);
 
   const sincHist = () => setHist({
     puedeDeshacer: undoRef.current.length > 0,
@@ -279,21 +307,62 @@ export default function App() {
     return patch;
   }, [camposHist]);
 
-  /** Guarda el estado actual (elementos + resultado) para poder deshacer. */
+  /** Guarda el estado actual (elementos + resultado + ajustes). */
   const recordar = useCallback(() => {
     if (!historialOn) return;
-    undoRef.current = [...undoRef.current, { assets, result }].slice(-histMax);
+    undoRef.current = [...undoRef.current,
+                       { assets, result, settings }].slice(-histMax);
     redoRef.current = [];
+    ultimaClave.current = claveFoto(assets, result, settings);
     sincHist();
-  }, [assets, result, historialOn, histMax]);
+  }, [assets, result, settings, historialOn, histMax, claveFoto]);
 
-  /** Aplica una foto: elementos (parámetros) y la colocación de entonces. */
-  const aplicarFoto = useCallback(async (foto: Foto) => {
-    setAssets(foto.assets);
+  // FOTO AUTOMÁTICA: en cuanto cambian elementos, resultado o ajustes se
+  // guarda el estado anterior. Así deshacer funciona SIEMPRE, sin depender
+  // de que cada acción avise.
+  useEffect(() => {
+    if (!historialOn || cargaInicial.current) return;
+    const clave = claveFoto(assets, result, settings);
+    if (restaurando.current) {
+      ultimaClave.current = clave;
+      restaurando.current = false;
+      return;
+    }
+    if (!ultimaClave.current) {
+      // mientras carga (sin elementos ni resultado) no hay nada que deshacer
+      if (assets.length === 0 && !result) return;
+      ultimaClave.current = clave;
+      return;
+    }
+    if (clave === ultimaClave.current) return;
+    // hay cambio: se guarda el estado ANTERIOR (el de la última clave)
+    undoRef.current = [...undoRef.current, fotoAnterior.current].slice(-histMax);
+    redoRef.current = [];
+    ultimaClave.current = clave;
     sincHist();
-    // se aplica en el servidor solo lo que el historial tenga activado
+  }, [assets, result, settings, historialOn, histMax, claveFoto]);
+
+  // el estado actual pasa a ser el "anterior" para el próximo cambio
+  useEffect(() => {
+    fotoAnterior.current = { assets, result, settings };
+  }, [assets, result, settings]);
+
+  /** Aplica una foto: elementos (parámetros), ajustes y colocación. */
+  const aplicarFoto = useCallback(async (foto: Foto) => {
+    restaurando.current = true;
+    setAssets(foto.assets);
+    if (foto.settings) {
+      setSettings(foto.settings);
+      await api.putSettings(foto.settings as never).catch(() => undefined);
+    }
+    // se aplican TODOS los campos del elemento (parámetros de verdad)
     for (const a of foto.assets) {
-      await api.patchAsset(a.id, parcheHist(a) as never).catch(() => undefined);
+      await api.patchAsset(a.id, {
+        scale_pct: a.scale_pct, copies: a.copies,
+        mini_enabled: a.mini_enabled, mini_quota: a.mini_quota,
+        offset_mm: a.offset_mm, offset_modo: a.offset_modo,
+        offset_color: a.offset_color,
+      } as never).catch(() => undefined);
     }
     if (foto.result) {
       // devuelve el RESULTADO anterior tal cual (sin reoptimizar)
@@ -307,19 +376,20 @@ export default function App() {
     } else {
       await refresh();
     }
-  }, [parcheHist, refresh]);
+    sincHist();
+  }, [refresh]);
 
   const deshacer = useCallback(async () => {
     const prev = undoRef.current.pop();
     if (!prev) return;
-    redoRef.current = [...redoRef.current, { assets, result }];
+    redoRef.current = [...redoRef.current, { assets, result, settings }];
     await aplicarFoto(prev);
   }, [assets, result, aplicarFoto]);
 
   const rehacer = useCallback(async () => {
     const sig = redoRef.current.pop();
     if (!sig) return;
-    undoRef.current = [...undoRef.current, { assets, result }];
+    undoRef.current = [...undoRef.current, { assets, result, settings }];
     await aplicarFoto(sig);
   }, [assets, result, aplicarFoto]);
 
@@ -433,6 +503,7 @@ export default function App() {
                  onMute={(m) => saveSettings({ mute: m })}
                  onIdioma={(i) => saveSettings({ idioma: i })}
                  onEasterEgg={() => saveSettings({
+                   pikmin_activo: true,
                    pikmin_fiesta: !settings.pikmin_fiesta })}
                  onAyuda={ayuda.abrir}
                  onReportar={() => setReportar(true)} />

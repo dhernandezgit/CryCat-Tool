@@ -190,8 +190,23 @@ def _fit_box(img: Image.Image, tw: int, th: int) -> tuple[Image.Image, float]:
     return img.resize((nw, nh), Image.Resampling.LANCZOS), k
 
 
+def cajas_delimitar(area: CutArea, lado_mm: float = 1.0
+                    ) -> list[tuple[float, float]]:
+    """Posiciones de los dos cuadrados de referencia (esquina sup. izq. y der.).
+
+    Uno SIEMPRE pegado al límite más izquierdo y otro al más derecho, en la
+    parte de arriba, independientemente de márgenes y configuración.
+    """
+    bx, by, bw, bh = area.bbox
+    # a la altura del centro (donde el área SÍ llega a los extremos: las
+    # esquinas del polígono están escalonadas) y pegados a los límites
+    # (0,1 mm hacia dentro para que el redondeo a píxeles no se salga)
+    cy = by + bh / 2.0 - lado_mm / 2.0
+    return [(bx + 0.1, cy), (bx + bw - lado_mm - 0.1, cy)]
+
+
 def marcas_delimitar(canvas: Image.Image, area: CutArea, dpi: float,
-                     lado_mm: float = 2.0,
+                     lado_mm: float = 1.0,
                      off_x: float = 0.0, off_y: float = 0.0,
                      margen_mm: float = 0.0) -> Image.Image:
     """Dos cuadrados BLANCOS de `lado_mm` en las esquinas de los LÍMITES.
@@ -203,44 +218,36 @@ def marcas_delimitar(canvas: Image.Image, area: CutArea, dpi: float,
     de la optimización: solo se pintan al final sobre la página.
     """
     px = dpi / 25.4
-    # Los cuadrados deben quedar DENTRO del polígono recortable de la Cricut
-    # (el área tiene escalones en las esquinas): se usan las esquinas de la
-    # banda central (el mayor rectángulo inscrito), no las del bbox.
-    pts = list(getattr(area, "poly", None) or [])
-    if pts:
-        ys = [p[1] for p in pts]
-        ymin, ymax = min(ys), max(ys)
-        margen_b = max(0.5, (ymax - ymin) * 0.02)
-        xs_top = [p[0] for p in pts if p[1] <= ymin + margen_b]
-        xs_bot = [p[0] for p in pts if p[1] >= ymax - margen_b]
-        x_ini = max(min(xs_top), min(xs_bot) if xs_bot else -1e9)
-        x_fin = min(max(xs_top), max(xs_bot) if xs_bot else 1e9)
-        bx, by = x_ini, ymin
-        bw, bh = max(1e-6, x_fin - x_ini), max(1e-6, ymax - ymin)
-    else:
-        bx, by, bw, bh = area.bbox
-    m = max(0.0, float(margen_mm or 0.0))
-    if m > 0:
-        bx += m
-        by += m
-        bw = max(1e-6, bw - 2 * m)
-        bh = max(1e-6, bh - 2 * m)
+    # posiciones fijas: pegados a los límites izquierdo y derecho (los mismos
+    # que reserva el optimizador como elementos)
+    posiciones = cajas_delimitar(area, lado_mm)
     lado = max(1, int(round(lado_mm * px)))
     base = canvas.convert("RGBA")
     blanco = Image.new("RGBA", (lado, lado), (255, 255, 255, 255))
-    x1 = int(round((bx - off_x) * px))
-    y1 = int(round((by - off_y) * px))
-    x2 = int(round((bx + bw - off_x) * px)) - lado
-    y2 = int(round((by + bh - off_y) * px)) - lado
-    base.alpha_composite(blanco, (max(0, x1), max(0, y1)))
-    base.alpha_composite(blanco, (max(0, x2), max(0, y2)))
+    for (bx, by) in posiciones:
+        x = int(round((bx - off_x) * px))
+        y = int(round((by - off_y) * px))
+        base.alpha_composite(blanco, (max(0, x), max(0, y)))
     return base
+
+
+def _erosionar_alfa(img: Image.Image, n: int) -> Image.Image:
+    """Encoge el alfa `n` píxeles (separación artificial entre piezas)."""
+    if n <= 0:
+        return img
+    import numpy as np
+    from scipy import ndimage
+    arr = np.asarray(img.convert("RGBA")).copy()
+    alfa = arr[..., 3]
+    arr[..., 3] = ndimage.grey_erosion(alfa, size=(2 * n + 1, 2 * n + 1))
+    return Image.fromarray(arr, "RGBA")
 
 
 def render_page(area: CutArea, placements: list[Placement], images: dict[str, Image.Image],
                 dpi: float, full_page: bool = False, color: str = "rgba",
                 delimitar_mm: float = 0.0,
-                delimitar_margen_mm: float = 0.0) -> Image.Image:
+                delimitar_margen_mm: float = 0.0,
+                separacion_px: int = 0) -> Image.Image:
     """Renderiza una página a PIL RGBA (fondo transparente).
 
     images: asset_id -> RGBA recortada. Con dpi igual al de origen y sin
@@ -270,6 +277,10 @@ def render_page(area: CutArea, placements: list[Placement], images: dict[str, Im
         # imagen (la proporción del original se conserva). El contenido se
         # ancla a la esquina de su caja (igual que los contornos).
         img, _ = _fit_box(img, tw, th)
+        # separación artificial: aunque las piezas se solapen un poco, siempre
+        # queda una línea entre ellas para que la Cricut las corte separadas
+        if separacion_px > 0:
+            img = _erosionar_alfa(img, int(separacion_px))
         x = round(p.x * px_per_mm - off_x * px_per_mm)
         y = round(p.y * px_per_mm - off_y * px_per_mm)
         canvas.alpha_composite(img, (max(0, x), max(0, y)))
@@ -401,12 +412,44 @@ def safe_name(name: str) -> str:
     return name.strip("_")[:60]
 
 
+def _recorte_contenido(img: Image.Image, area: CutArea, placements: list,
+                       dpi: float, full_page: bool,
+                       pad_mm: float = 0.5) -> Image.Image:
+    """Recorta la página a la zona que OCUPA EL CONTENIDO (+ un pelín).
+
+    Al guardar ya no se exporta la hoja entera: solo lo que tiene elementos.
+    La impresión (PDF) sigue sacando la página completa.
+    """
+    if not placements:
+        return img
+    px = dpi / 25.4
+    x0 = min(p.x for p in placements)
+    y0 = min(p.y for p in placements)
+    x1 = max(p.x + p.w for p in placements)
+    y1 = max(p.y + p.h for p in placements)
+    if not full_page:
+        bx, by = area.bbox[0], area.bbox[1]
+        x0 -= bx
+        x1 -= bx
+        y0 -= by
+        y1 -= by
+    x0 = max(0.0, x0 - pad_mm)
+    y0 = max(0.0, y0 - pad_mm)
+    x1 = min(img.width / px, x1 + pad_mm)
+    y1 = min(img.height / px, y1 + pad_mm)
+    caja = (int(x0 * px), int(y0 * px),
+            max(int(x0 * px) + 1, int(x1 * px)),
+            max(int(y0 * px) + 1, int(y1 * px)))
+    return img.crop(caja)
+
+
 def export_pages(area: CutArea, placements: list[Placement],
                  images: dict[str, Image.Image], out_dir: Path, name: str,
                  dpi: float, full_page: bool = False, color: str = "rgba",
                  perfil: str = "srgb", bleed_mm: float = 0.0,
                  delimitar_mm: float = 0.0,
-                 delimitar_margen_mm: float = 0.0) -> list[Path]:
+                 delimitar_margen_mm: float = 0.0,
+                 separacion_px: int = 0) -> list[Path]:
     """Guarda las páginas en PNG máxima calidad (pHYs = dpi, sin guías).
 
     PNG es sin pérdidas: no hay cuantización ni recompresión con pérdida; se
@@ -417,9 +460,12 @@ def export_pages(area: CutArea, placements: list[Placement],
     pages = sorted({p.page for p in placements})
     written: list[Path] = []
     for i in pages:
-        img = render_page(area, [p for p in placements if p.page == i], images,
+        pls_pag = [p for p in placements if p.page == i]
+        img = render_page(area, pls_pag, images,
                           dpi, full_page, color, delimitar_mm,
-                          delimitar_margen_mm)
+                          delimitar_margen_mm, separacion_px)
+        # al guardar se recorta a la zona con elementos (la impresión no)
+        img = _recorte_contenido(img, area, pls_pag, dpi, full_page)
         if bleed_mm > 0:
             img = con_bleed(img, int(round(bleed_mm / 25.4 * dpi)))
         fp = out_dir / f"pagina-{i + 1:02d}.png"
@@ -433,10 +479,13 @@ def export_single(area: CutArea, placements: list[Placement],
                   full_page: bool = False, color: str = "rgba",
                   perfil: str = "srgb", bleed_mm: float = 0.0,
                   delimitar_mm: float = 0.0,
-                  delimitar_margen_mm: float = 0.0) -> Path:
+                  delimitar_margen_mm: float = 0.0,
+                  separacion_px: int = 0) -> Path:
     """Guarda UNA página directamente en un PNG concreto (sin carpeta)."""
     img = render_page(area, placements, images, dpi, full_page, color,
-                      delimitar_mm, delimitar_margen_mm)
+                      delimitar_mm, delimitar_margen_mm, separacion_px)
+    # al guardar se recorta a la zona con elementos (la impresión no)
+    img = _recorte_contenido(img, area, placements, dpi, full_page)
     if bleed_mm > 0:
         img = con_bleed(img, int(round(bleed_mm / 25.4 * dpi)))
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -471,14 +520,21 @@ def export_layout(area: CutArea, placements: list[Placement], out_dir: Path,
 
 
 def con_marcas_cricut(img: Image.Image, area: CutArea,
-                      dpi: float) -> Image.Image:
+                      dpi: float, caja: tuple | None = None) -> Image.Image:
     """Superpone SOLO las marcas negras de Cricut (4 esquinas + flecha).
 
-    Las marcas salen de la hoja oficial (recortadas en negro puro, con alfa) y
-    se anclan a las esquinas del área recortable al tamaño real en mm.
+    Las marcas salen de la hoja oficial (recortadas en negro puro, con alfa).
+    `caja` (x0, y0, x1, y1 en mm) es el CONTENIDO de la hoja: las marcas se
+    colocan en función de lo que hay (el borde superior de las marcas de
+    arriba coincide con el píxel más alto y los bordes izquierdos con el más
+    izquierdo). Sin `caja` se anclan al área recortable.
     """
     px = dpi / 25.4
-    bx, by, bw, bh = area.bbox
+    if caja is not None:
+        bx, by, bx1, by1 = caja
+        bw, bh = max(0.0, bx1 - bx), max(0.0, by1 - by)
+    else:
+        bx, by, bw, bh = area.bbox
     esc = px / MARCAS_PPP
     # cada soporte se ancla a su esquina del área recortable
     esquinas = [
@@ -507,7 +563,9 @@ def export_pdf(area: CutArea, placements: list[Placement],
                full_page: bool = False, color: str = "rgba",
                marcas: bool = False, bleed_mm: float = 0.0,
                delimitar_mm: float = 0.0,
-               delimitar_margen_mm: float = 0.0) -> bytes:
+               delimitar_margen_mm: float = 0.0,
+               caja_marcas: tuple | None = None,
+               separacion_px: int = 0) -> bytes:
     """PDF a tamaño real para imprimir (una página por hoja, sin márgenes).
 
     El PDF se genera con el tamaño físico exacto de la hoja (A4/A3/…) y la
@@ -519,11 +577,11 @@ def export_pdf(area: CutArea, placements: list[Placement],
     for i in pages:
         img = render_page(area, [p for p in placements if p.page == i], images,
                           dpi, True if marcas else full_page, color,
-                          delimitar_mm, delimitar_margen_mm)
+                          delimitar_mm, delimitar_margen_mm, separacion_px)
         if bleed_mm > 0:
             img = con_bleed(img, int(round(bleed_mm / 25.4 * dpi)))
         if marcas:
-            img = con_marcas_cricut(img, area, dpi)
+            img = con_marcas_cricut(img, area, dpi, caja_marcas)
         if img.mode == "RGBA":
             bg = Image.new("RGBA", img.size, (255, 255, 255, 255))
             bg.alpha_composite(img)

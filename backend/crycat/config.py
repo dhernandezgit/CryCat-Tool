@@ -98,8 +98,8 @@ PRESETS_FILE = DATA_DIR / "presets.json"
 DEFAULTS: dict = {
     "_v": CONFIG_VERSION,
     # General
-    "espacio_mm": 0.5,
-    "margen_mm": 1.0,            # margen de seguridad a los límites (mm)
+    "espacio_mm": 0.0,
+    "margen_mm": 0.0,            # margen de seguridad a los límites (mm)
     "rotacion": "libre",         # no | 90 (0/90/180/270) | libre (por defecto)
     "dpi_salida": 300,
     "pagina": "A4",
@@ -153,7 +153,8 @@ DEFAULTS: dict = {
     "mute": True,                # silenciado por defecto
     # Offset / borde de los elementos (contorno que se añade al recorte)
     "offset_activo": False,
-    "marcas_delimitar": False,   # 2 cuadrados blancos de 2 mm en las esquinas
+    "marcas_delimitar": True,    # 2 cuadrados blancos de 1 mm pegados a los límites
+    "separacion_px": 1,          # separación artificial entre piezas al renderizar (px del resultado)
     "offset_mm": 2.0,
     "offset_modo": "blanco",     # blanco (por defecto) | extender | color
     "offset_color": "#ffffff",
@@ -306,15 +307,11 @@ PRESETS_INTERESANTES: dict[str, dict] = {
 #                   rápido en tiempo (mismos resultados o mejores)
 # (el modo de círculos se quitó: no mejoraba al de siluetas)
 MODOS_INTERESANTES: dict[str, dict] = {
-    "silueta": {
-        "modo_forma": "siluetas", "rotacion": "libre",
-        "espacio_mm": 0.5, "margen_mm": 1.0, "offset_activo": False,
-        "offset_mm": 1.0, "offset_modo": "blanco",
-    },
-    "rectangulos": {
-        "modo_forma": "rectangulos", "rotacion": "90",
-        "espacio_mm": 2.0, "margen_mm": 1.0, "offset_activo": False,
-    },
+    # Los modos SOLO cambian la forma de empaquetar: el resto de parámetros
+    # (espacio, margen, rotación, borde…) se mantienen tal y como los tenga
+    # el usuario. Antes el de rectángulos pisaba todo y molestaba.
+    "silueta": {"modo_forma": "siluetas"},
+    "rectangulos": {"modo_forma": "rectangulos"},
 }
 
 # Modos personalizados: 3 huecos con nombre editable que guardan los ajustes

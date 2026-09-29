@@ -129,7 +129,7 @@ export default function PikminPet({
   };
 
   const soltar = () => {
-    const muere = sonidoMorir && Math.random() < 0.25;
+    const muere = sonidoMorir && Math.random() < 0.1;   // ~1 de cada 10
     const src = muere
       ? assetUrl(ALMA)
       : catalogo[Math.floor(Math.random() * catalogo.length)] ?? assetUrl(ALMA);
@@ -149,6 +149,12 @@ export default function PikminPet({
     const delay = min + Math.random() * Math.max(1, max - min);
     timer.current = window.setTimeout(soltar, delay);
   };
+
+  // la FIESTA (easter egg de los 5 clics) saca un Pikmin al momento
+  useEffect(() => {
+    if (activo && fiesta) soltar();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fiesta]);
 
   useEffect(() => {
     if (!activo) {

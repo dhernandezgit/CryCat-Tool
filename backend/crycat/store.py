@@ -348,7 +348,9 @@ def _offset_de(a) -> tuple[float, str, tuple[int, int, int]] | None:
     """
     base = _offset_actual()
     propio = float(getattr(a, "offset_mm", 0.0) or 0.0)
-    if propio > 0 and base is not None:
+    if propio != 0 and base is not None:
+        # el propio puede ser NEGATIVO: resta al global (para tener MENOS
+        # borde en un elemento concreto). El total nunca baja de 0.
         modo = (getattr(a, "offset_modo", "")
                 or base[1] or "extender")
         hexcol = (getattr(a, "offset_color", "") or "").lstrip("#")
@@ -360,8 +362,8 @@ def _offset_de(a) -> tuple[float, str, tuple[int, int, int]] | None:
                 color = base[2]
         else:
             color = base[2]
-        return (base[0] + propio, modo, color)
-    if propio > 0:
+        return (max(0.0, base[0] + propio), modo, color)
+    if propio != 0:
         base = _offset_actual()
         modo = (getattr(a, "offset_modo", "") or
                 (base[1] if base else str(settings.get("offset_modo", "extender"))))
@@ -375,7 +377,7 @@ def _offset_de(a) -> tuple[float, str, tuple[int, int, int]] | None:
                 color = (255, 255, 255)
         else:
             color = base[2] if base else (255, 255, 255)
-        return propio, modo, color
+        return max(0.0, propio), modo, color
     return _offset_actual()
 
 

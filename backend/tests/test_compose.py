@@ -199,20 +199,24 @@ def test_marca_superior_izquierda_triangulo_arriba_sin_tocar_barras():
     ARRIBA, separado de las barras (con hueco) y del mismo grosor que las
     otras esquinas (3 mm)."""
     a = _marca_alpha("esquina_flecha")
+    T = 20   # grosor de las barras (1,7 mm a 300 ppp, como la imagen oficial)
     # el triángulo apunta hacia arriba: se ensancha al bajar
-    anchos = [int(a[y, :40].sum()) for y in range(0, 36)]
+    anchos = [int(a[y, :T + 2].sum()) for y in range(0, T)]
     assert anchos[0] < anchos[-1], "el triángulo debe apuntar hacia ARRIBA"
     # nada toca las barras: hueco entre el triángulo y las dos barras
-    assert not a[40:70, :36].any(), "el triángulo no debe tocar la barra vertical"
-    assert not a[:36, 40:70].any(), "el triángulo no debe tocar la barra horizontal"
-    # barras del mismo grosor que las otras marcas (3 mm = 36 px a 300 ppp)
-    assert int(a[:, 150].sum()) == 36, "barra horizontal fina"
-    assert int(a[150, :].sum()) == 36, "barra vertical fina"
-    # y las otras esquinas siguen siendo L cerradas del mismo grosor
+    assert not a[T + 2:40, :T].any(), "el triángulo no debe tocar la barra vertical"
+    assert not a[:T, T + 2:40].any(), "el triángulo no debe tocar la barra horizontal"
+    # barras finas (1,7 mm) e iguales en las 4 esquinas
+    assert int(a[:, 150].sum()) == T, "barra horizontal fina"
+    assert int(a[150, :].sum()) == T, "barra vertical fina"
     for nombre in ("esquina", "esquina_sd", "esquina_ii", "esquina_id"):
         b = _marca_alpha(nombre)
-        assert int(b[:, 150].sum()) == 36
-        assert int(b[150, :].sum()) == 36
+        assert int(b[:, 150].sum()) == T
+        assert int(b[150, :].sum()) == T
+    # la inferior izquierda NO está girada: la barra horizontal va ABAJO
+    ii = _marca_alpha("esquina_ii")
+    assert ii[280, 100], "falta la barra horizontal inferior"
+    assert not ii[10, 100], "la barra de abajo no puede estar arriba"
 
 
 def _dentro_poly(x: float, y: float, poly: list) -> bool:
@@ -229,14 +233,13 @@ def _dentro_poly(x: float, y: float, poly: list) -> bool:
     return dentro
 
 
-def test_marcas_delimitar_dentro_de_los_limites():
-    """Los cuadrados de referencia delimitan DENTRO del polígono recortable
-    (con margen), no fuera de los límites de corte de la Cricut."""
+def test_marcas_delimitar_en_los_limites_y_dentro():
+    """Dos cuadrados de 1 mm pegados a los límites izq/der y DENTRO del
+    polígono recortable (a la altura del centro, donde el área llega)."""
     import numpy as np
     area = cut_area(210.0, 297.0, "maker3")
-    margen = 1.0
     img = compose.render_page(area, [], {}, 100.0, True, "rgba",
-                              delimitar_mm=2.0, delimitar_margen_mm=margen)
+                              delimitar_mm=1.0)
     a = np.asarray(img.convert("RGBA"))
     blanco = (a[:, :, 0] > 250) & (a[:, :, 1] > 250) & (a[:, :, 2] > 250)
     ys, xs = np.nonzero(blanco)
@@ -245,10 +248,20 @@ def test_marcas_delimitar_dentro_de_los_limites():
     fuera = [(x / px, y / px) for x, y in zip(xs, ys)
              if not _dentro_poly(x / px, y / px, area.poly)]
     assert not fuera, f"{len(fuera)} píxeles fuera del área de corte"
-    # los cuadrados están arriba-izquierda y abajo-derecha, pegados al margen
-    bx, by, _, _ = area.bbox
-    y0 = min(ys) / px
-    assert abs(y0 - (by + margen)) < 0.4, y0
+    # pegados a los límites izquierdo y derecho
+    bx, by, bw, bh = area.bbox
+    x0 = min(xs) / px
+    x1 = max(xs) / px
+    assert abs(x0 - bx) < 0.6, x0
+    assert abs(x1 - (bx + bw)) < 0.6, x1
+    # y a la altura del centro
+    yc = (min(ys) + max(ys)) / 2 / px
+    assert abs(yc - (by + bh / 2)) < 0.5, yc
+    # posiciones deterministas del helper
+    cajas = compose.cajas_delimitar(area, 1.0)
+    assert len(cajas) == 2
+    assert abs(cajas[0][0] - bx) < 0.2
+    assert abs(cajas[1][0] - (bx + bw - 1.0)) < 0.2
     # sin delimitar no hay nada
     img2 = compose.render_page(area, [], {}, 100.0, True, "rgba")
     a2 = np.asarray(img2.convert("RGBA"))

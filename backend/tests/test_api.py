@@ -121,7 +121,9 @@ def test_scale_pct_cambia_tamano(client):
         if c.get("/api/result").json()["pages"]:
             break
         time.sleep(0.05)
-    p = c.get("/api/result").json()["placements"][0]
+    pls = [q for q in c.get("/api/result").json()["placements"]
+           if not q["asset_id"].startswith("__delim")]
+    p = pls[0]
     # `w0` es el tamaño PEDIDO sin girar: con cualquier ángulo la caja (w)
     # puede cambiar, pero la pieza mide exactamente lo que se pidió
     assert abs(p["w0"] - round(base_w * 2, 2)) < 0.2
@@ -183,10 +185,12 @@ def test_modos_fabrica_y_huecos(client):
     c, st, _ = client
     d = c.get("/api/modos").json()
     assert set(d["modos"]) == {"silueta", "rectangulos"}
+    # los modos SOLO cambian la forma de empaquetar: el resto de parámetros
+    # se mantienen tal y como los tenga el usuario
     assert d["modos"]["silueta"]["modo_forma"] == "siluetas"
-    assert d["modos"]["silueta"]["rotacion"] == "libre"
     assert d["modos"]["rectangulos"]["modo_forma"] == "rectangulos"
-    assert d["modos"]["rectangulos"]["rotacion"] == "90"
+    assert set(d["modos"]["silueta"]) == {"modo_forma"}
+    assert set(d["modos"]["rectangulos"]) == {"modo_forma"}
     assert len(d["slots"]) == 3
     assert all(s["ajustes"] is None for s in d["slots"])
     # guardar los ajustes actuales en el hueco 1 con un nombre
@@ -271,8 +275,11 @@ def test_move_fija_y_reoptimiza_el_resto(client):
     fijo = next(q for q in res2["placements"] if q["uid"] == p["uid"])
     assert fijo["pinned"] is True
     assert abs(fijo["x"] - p["x"]) < 0.05 and abs(fijo["y"] - p["y"]) < 0.05
-    # el número de copias no aumenta por fijar
-    assert len(res2["placements"]) == 4
+    # el número de copias no aumenta por fijar (sin contar las marcas para
+    # delimitar, que participan como elementos fijados)
+    reales = [q for q in res2["placements"]
+              if not q["asset_id"].startswith("__delim")]
+    assert len(reales) == 4
 
 
 def test_reemplazar_imagen_conserva_ajustes(client):
@@ -547,9 +554,12 @@ def test_optimize_job_y_result(client):
     assert j["status"] == "done"
     res = c.get("/api/result").json()
     assert res["pages"] >= 1
-    assert len(res["placements"]) == 3
+    reales = [q for q in res["placements"]
+              if not q["asset_id"].startswith("__delim")]
+    assert len(reales) == 3
     assert 0 < res["efficiency"] <= 1.0
-    assert res["placed"] == 3
+    # `placed` incluye las marcas para delimitar (participan en el reparto)
+    assert res["placed"] == len(res["placements"])
 
 
 def test_paginas_png(client):

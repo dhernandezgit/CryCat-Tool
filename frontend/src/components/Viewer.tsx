@@ -143,9 +143,14 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
       else if (e.key === "g") setUi((u) => ({ ...u, guidesVisible: !u.guidesVisible }));
       else if (e.key === "t")
         setUi((u) => {
-          if (u.eyeFosforito) return { ...u, eyeFosforito: false, eyeTransparent: false };
-          if (u.eyeTransparent) return { ...u, eyeTransparent: false, eyeFosforito: true };
-          return { ...u, eyeTransparent: true, eyeFosforito: false };
+          const orden = ["blanco", "transparente", "fosforito",
+                         "rosa", "negro"] as const;
+          const actual = u.fondo ?? (u.eyeFosforito ? "fosforito"
+            : u.eyeTransparent ? "transparente" : "blanco");
+          const sig = orden[(orden.indexOf(actual) + 1) % orden.length];
+          return { ...u, fondo: sig,
+                   eyeTransparent: sig === "transparente",
+                   eyeFosforito: sig === "fosforito" };
         });
     };
     window.addEventListener("keydown", onKey);
@@ -471,8 +476,9 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
     return (
       <div
         key={i}
-        className={`page-box ${ui.eyeFosforito ? "fondo-fosforito"
-          : ui.eyeTransparent ? "alpha-bg" : "white-bg"}${girada ? " girada" : ""}`}
+        className={`page-box fondo-${ui.fondo ?? (ui.eyeFosforito
+          ? "fosforito" : ui.eyeTransparent ? "transparente"
+          : "blanco")}${girada ? " girada" : ""}`}
         style={girada ? { width: "100%",
                           aspectRatio: `${sheetH} / ${sheetW}` }
                       : { width: "100%" }}
@@ -643,9 +649,14 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
             onClick={() =>
               setUi((u) => {
                 // ciclo de 3 estados: blanco -> transparencia -> fosforito
-                if (u.eyeFosforito) return { ...u, eyeFosforito: false, eyeTransparent: false };
-                if (u.eyeTransparent) return { ...u, eyeTransparent: false, eyeFosforito: true };
-                return { ...u, eyeTransparent: true, eyeFosforito: false };
+                const orden = ["blanco", "transparente", "fosforito",
+                               "rosa", "negro"] as const;
+                const actual = u.fondo ?? (u.eyeFosforito ? "fosforito"
+                  : u.eyeTransparent ? "transparente" : "blanco");
+                const sig = orden[(orden.indexOf(actual) + 1) % orden.length];
+                return { ...u, fondo: sig,
+                         eyeTransparent: sig === "transparente",
+                         eyeFosforito: sig === "fosforito" };
               })
             }
           >

@@ -424,8 +424,11 @@ def try_move_sil(placements: list[Placement], uid: str, x: float, y: float,
     if a is None or img is None:
         return None
     cell = CELL
-    # holgura: se exige no solapar con el contenido (sin el margen completo)
-    r = max(0, int(round((spacing * 0.5) / cell))) if spacing > 0 else 0
+    # Al mover A MANO se valida SOLO la silueta real (sin dilatar por el
+    # espacio de separación): así se puede apretar más que el hueco
+    # automático, que es justo lo que busca el que coloca a mano. Antes se
+    # dilataban los vecinos y NINGÚN movimiento era válido en una hoja llena.
+    r = 0
     allowed, W, H = _grid(area, cell)
     x0, y0 = area.bbox[0], area.bbox[1]
 
@@ -451,12 +454,9 @@ def try_move_sil(placements: list[Placement], uid: str, x: float, y: float,
     h, w = dm.shape
     if not (0 <= ty and 0 <= tx and ty + h <= H and tx + w <= W):
         return None
-    # 1) solape con otras siluetas: se rechaza sólo si es apreciable (>margen)
-    sub_occ = occ[ty:ty + h, tx:tx + w]
-    solape = int(np.count_nonzero((sub_occ > 0) & dm))
-    # sin solape real: solo se tolera una celda de rasterización
-    if solape > 1:
-        return None
+    # 1) El solape SE PERMITE al mover a mano: si pisa otra pieza, el usuario
+    #    la moverá después. Antes se rechazaba y en una hoja llena NINGÚN
+    #    movimiento era válido (el arrastre parecía roto).
     # 2) el CONTENIDO (sin márgenes) debe caber dentro del área recortable
     ys, xs = np.where(dm)
     cy0, cy1 = ty + int(ys.min()), ty + int(ys.max())
@@ -475,9 +475,13 @@ def try_move_sil(placements: list[Placement], uid: str, x: float, y: float,
 class _Ctx:
     def __init__(self, area: CutArea, settings: dict, cell: float = CELL):
         self.cell = cell
-        self.spacing = max(0.0, float(settings.get("espacio_mm", 2.0)))
+        self.spacing = float(settings.get("espacio_mm", 2.0))
         # ceil (no round): garantiza que el hueco nunca sea menor que `spacing`
         self.r = int(math.ceil((self.spacing / 2.0) / self.cell)) if self.spacing > 0 else 0
+        # espacio NEGATIVO: solapamiento controlado → se EROSIONAN las
+        # siluetas para permitir ese solape sin que la validación lo bloquee
+        self.erode = (int(math.ceil((-self.spacing / 2.0) / self.cell))
+                      if self.spacing < 0 else 0)
         self.allowed, self.W, self.H = _grid(area, self.cell)
         self.x0, self.y0 = area.bbox[0], area.bbox[1]
         self.limites = (area.bbox[0], area.bbox[1],
@@ -487,6 +491,7 @@ class _Ctx:
         self.placements: list[Placement] = []
         self.cache: dict = {}
         self.out_cache: dict = {}
+        self.rot_cache: dict = {}   # (aid, tamaño, ángulo) → (rm, dm) cacheado
         self.mask_cells = 0
 
     def out_corr(self, dm: np.ndarray) -> np.ndarray:
@@ -538,14 +543,26 @@ class _Ctx:
         b = self.cache.get(key)
         if b is None:
             b = _asset_mask(img, w_mm, h_mm, self.cell, pad=self.r + 2)
+            if self.erode > 0:
+                from scipy import ndimage
+                b = ndimage.binary_erosion(b, iterations=self.erode)
             self.cache[key] = b
         return b
 
     def rotated(self, aid: str, w_mm: float, h_mm: float, angle: float,
                 img: Image.Image) -> tuple[np.ndarray, np.ndarray]:
+        # caché por (elemento, tamaño, ángulo): los minis repiten MUCHÍSIMO
+        # la misma máscara (mismo tamaño y ángulos) y rotar+dilatar cada vez
+        # era el cuello de botella (por eso salían tan pocos)
+        clave = (aid, round(w_mm, 3), round(h_mm, 3), float(angle))
+        c = self.rot_cache.get(clave)
+        if c is not None:
+            return c
         base = self.base_mask(aid, w_mm, h_mm, img)
         rm = _rotate_mask(base, angle)
-        return rm, _dilate(rm, self.r)
+        dm = _dilate(rm, self.r)
+        self.rot_cache[clave] = (rm, dm)
+        return rm, dm
 
     def new_page(self) -> int:
         self.pages.append(np.zeros((self.H, self.W), dtype=np.float32))
@@ -925,8 +942,9 @@ def _rellenar_minis(ctx: _Ctx, assets: list[dict], masks: dict,
     cand = [a for a in assets if a.get("mini_enabled") and a["id"] in masks]
     if not cand:
         return 0
-    # los minis son RELLENO: nunca pueden eternizar el trabajo
-    fin_minis = time.time() + 2.5
+    # los minis son RELLENO: nunca pueden eternizar el trabajo (pero con
+    # margen para llenar de verdad: 4 s)
+    fin_minis = time.time() + 4.0
     if deadline is not None:
         fin_minis = min(fin_minis, deadline)
     pesos = {a["id"]: min(100.0, max(1.0, float(a.get("mini_quota", 1.0))))
@@ -934,6 +952,7 @@ def _rellenar_minis(ctx: _Ctx, assets: list[dict], masks: dict,
     peso_total = sum(pesos.values())
     counts = {a["id"]: 0 for a in cand}
     comunes: dict[str, float] = {}
+    viables: dict[str, list[float]] = {}   # tamaños que aún pueden caber
     total = 0
     while total < 800:
         if time.time() > fin_minis:
@@ -952,30 +971,41 @@ def _rellenar_minis(ctx: _Ctx, assets: list[dict], masks: dict,
             if s_floor > max_res:
                 continue
             colocado = False
-            if policy == "iguales" and a["id"] in comunes:
-                s = comunes[a["id"]]
-                img_m, w_m, h_m = imagen_mini(a, s)
-                colocado = _try_place(ctx, a["id"], a.get("name", ""), w_m,
-                                      h_m, s, True, img_m, angles_m,
-                                      new_page_ok=False, first_fit=True)
-            else:
+            intentos = viables.get(a["id"])
+            if intentos is None:
                 propio_a = float(a.get("offset_mm", 0) or 0)
                 mm_borde_a = (propio_a if propio_a > 0
                               else (off_glob[0] if off_glob else 0.0))
                 escala_lista = _escalas_lista(lista_mm, lista_modo,
                                               a["w_mm"], a["h_mm"], medida,
                                               mm_borde_a, borde_mini)
+                intentos = []
+                if policy == "iguales" and a["id"] in comunes:
+                    intentos.append(comunes[a["id"]])
                 for s in _escalas_candidatas(s_floor, max_res, usar_lista,
                                              escala_lista):
-                    if time.time() > fin_minis:
-                        break
-                    img_m, w_m, h_m = imagen_mini(a, s)
-                    if _try_place(ctx, a["id"], a.get("name", ""), w_m, h_m,
-                                  s, True, img_m, angles_m,
-                                  new_page_ok=False, first_fit=True):
-                        colocado = True
-                        comunes.setdefault(a["id"], s)
-                        break
+                    if s not in intentos:
+                        intentos.append(s)
+                viables[a["id"]] = intentos
+            for s in list(intentos):
+                if time.time() > fin_minis:
+                    break
+                img_m, w_m, h_m = imagen_mini(a, s)
+                # la PRIMERA posición válida (mucho más rápido: con la mejor
+                # posición se colocaban MUCHOS menos minis)
+                if _try_place(ctx, a["id"], a.get("name", ""), w_m, h_m,
+                              s, True, img_m, angles_m,
+                              new_page_ok=False, first_fit=True):
+                    colocado = True
+                    comunes.setdefault(a["id"], s)
+                    # los tamaños MAYORES ya fallaron: no se vuelven a probar
+                    viables[a["id"]] = [x for x in intentos
+                                        if x <= s + 1e-9]
+                    break
+            if not colocado and len(intentos) > 1:
+                # los tamaños grandes ya no caben (y el hueco solo encoge):
+                # a partir de aquí se prueba directamente el más pequeño
+                viables[a["id"]] = intentos[-1:]
             if colocado:
                 counts[a["id"]] += 1
                 total += 1
@@ -1439,15 +1469,17 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
         if not settings.get("usar_minis") or res.unplaced or not res.placements:
             return res
         try:
-            celda_mini = res.cell or _celda_ajustada(
-                _cell_para(n_total, "rapida"), area)
+            # celda media para los minis (0,5 mm): llenar huecos no necesita
+            # precisión de décimas y así caben más intentos por segundo (con
+            # la celda del refinado se quedaba en muy pocos minis)
+            celda_mini = max(0.5, res.cell or 0.5)
             ctx_mini = _reconstruir(assets, masks, area, settings,
                                     res.placements, celda_mini)
             n0 = len(ctx_mini.placements)
             if progress:
                 progress(0.86, res.pages)
             _rellenar_minis(ctx_mini, assets, masks, settings,
-                            deadline=time.time() + 2.5, progress=progress)
+                            deadline=time.time() + 4.0, progress=progress)
             nuevos = ctx_mini.placements[n0:]
             if nuevos:
                 res.placements.extend(nuevos)

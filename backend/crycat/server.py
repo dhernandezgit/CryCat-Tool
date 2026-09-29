@@ -97,12 +97,20 @@ def _png_bytes(img: Image.Image) -> bytes:
 
 def _delimitar_mm() -> float:
     """Tamaño (mm) de los cuadrados blancos de referencia, 0 = desactivado."""
-    return 2.0 if settings.get("marcas_delimitar") else 0.0
+    return 1.0 if settings.get("marcas_delimitar") else 0.0
 
 
 def _delimitar_margen() -> float:
     """Margen (mm) al que se pegan los cuadrados de referencia."""
     return max(0.0, float(settings.get("margen_mm", 1.0) or 0.0))
+
+
+def _separacion_px() -> int:
+    """Separación artificial (px del resultado) entre piezas al renderizar."""
+    try:
+        return max(0, min(8, int(settings.get("separacion_px", 1) or 0)))
+    except Exception:
+        return 1
 
 
 def _avisar_blobs(a: Asset) -> None:
@@ -209,6 +217,26 @@ def create_app(store: Session = session) -> FastAPI:
             # igual | sin): imágenes sin borde y offset global efectivo
             st["_sin_borde"] = store.images_sin_borde()
             st["_offset_global"] = _offset_de_global()
+            # marcas para delimitar: dos cuadrados de 1 mm que participan en
+            # la optimización, SIEMPRE pegados a los límites izq/der
+            imagenes = store.images()
+            pinned_extra: list = []
+            if settings.get("marcas_delimitar"):
+                lado = 1.0
+                plado = max(8, int(round(lado / 25.4 * 300)))
+                cuadro = Image.new("RGBA", (plado, plado), (255, 255, 255, 255))
+                for k, (dx, dy) in enumerate(compose.cajas_delimitar(
+                        store.current_area(), lado)):
+                    aid = f"__delim{k}"
+                    assets.append({"id": aid, "name": "", "w_mm": lado,
+                                   "h_mm": lado, "copies": 0,
+                                   "mini_enabled": False, "mini_quota": 1.0,
+                                   "scale_pct": 100.0, "dpi_origen": 300.0})
+                    imagenes[aid] = cuadro
+                    pinned_extra.append(Placement(
+                        uid=f"{aid}#0", asset_id=aid, page=0, x=dx, y=dy,
+                        w=lado, h=lado, angle=0.0, mini=False, scale=1.0,
+                        pinned=True, w0=lado, h0=lado))
             if modo == "rapido":
                 st["opt_metodo"] = "silueta_rapido"
                 st["opt_tiempo_max_s"] = min(2.0, float(st.get("opt_tiempo_max_s", 8)))
@@ -216,6 +244,7 @@ def create_app(store: Session = session) -> FastAPI:
                 st["opt_metodo"] = "silueta_optimo"
                 st["opt_tiempo_max_s"] = max(10.0, float(st.get("opt_tiempo_max_s", 8)))
             pinned = [] if force else store.pinned()
+            pinned = list(pinned) + pinned_extra
             t0 = time.time()
             with jobs_lock:
                 jobs[jid]["n_piezas"] = sum(
@@ -305,7 +334,7 @@ def create_app(store: Session = session) -> FastAPI:
             try:
                 res = optimize(assets, area, st,
                                pinned=pinned, progress=progress,
-                               masks=store.images())
+                               masks=imagenes)
                 with jobs_lock:
                     # si mientras calculábamos se pidió otro, este se descarta
                     if job.get("seq") != job_seq["n"]:
@@ -565,8 +594,9 @@ def create_app(store: Session = session) -> FastAPI:
             # cuota de minis: 1 = reparto equitativo; 3 = el triple (decimales ok)
             a.mini_quota = min(100.0, max(1.0, float(payload["mini_quota"])))
         if "offset_mm" in payload:
-            # borde SOLO de este elemento (0 = usar el ajuste global)
-            a.offset_mm = min(20.0, max(0.0, float(payload["offset_mm"])))
+            # borde de este elemento (0 = usar el global; NEGATIVO = restar
+            # al global para tener menos en este elemento)
+            a.offset_mm = min(20.0, max(-20.0, float(payload["offset_mm"])))
             if hasattr(a, "_cache_offset"):
                 del a._cache_offset
         if "offset_modo" in payload:
@@ -1128,7 +1158,8 @@ def create_app(store: Session = session) -> FastAPI:
             perfil=settings.get("espacio_color", "srgb"),
             bleed_mm=float(settings.get("bleed_mm", 0) or 0),
             delimitar_mm=_delimitar_mm(),
-            delimitar_margen_mm=_delimitar_margen())
+            delimitar_margen_mm=_delimitar_margen(),
+            separacion_px=_separacion_px())
         settings.set({"carpeta_export": str(base)})
         return {"ok": True, "folder": str(out),
                 "files": [str(f) for f in written]}
@@ -1179,7 +1210,7 @@ def create_app(store: Session = session) -> FastAPI:
             store.area, [p for p in store.last.placements if p.page == i],
             store.images(), dpi, settings.get("lienzo") == "pagina",
             settings.get("color_formato", "rgba"), _delimitar_mm(),
-            _delimitar_margen())
+            _delimitar_margen(), _separacion_px())
         if bordes:
             img = compose.contornos_bordes(
                 img, [p for p in store.last.placements if p.page == i],
@@ -1205,6 +1236,14 @@ def create_app(store: Session = session) -> FastAPI:
     def print_pdf():
         if not store.last or not store.area:
             raise HTTPException(400, tr("nada que imprimir"))
+        # las marcas negras se colocan en función del CONTENIDO: el borde
+        # superior coincide con el píxel más alto y el izquierdo con el más
+        # izquierdo de lo que hay en la hoja
+        pls = store.last.placements
+        caja = None
+        if pls:
+            caja = (min(p.x for p in pls), min(p.y for p in pls),
+                    max(p.x + p.w for p in pls), max(p.y + p.h for p in pls))
         data = compose.export_pdf(
             store.area, store.last.placements, store.images(),
             float(settings.get("dpi_salida", 300)),
@@ -1212,7 +1251,8 @@ def create_app(store: Session = session) -> FastAPI:
             bleed_mm=float(settings.get("bleed_mm", 0) or 0),
             color=settings.get("color_formato", "rgba"),
             delimitar_mm=_delimitar_mm(),
-            delimitar_margen_mm=_delimitar_margen())
+            delimitar_margen_mm=_delimitar_margen(),
+            caja_marcas=caja)
         return Response(data, media_type="application/pdf",
                         headers={"Content-Disposition":
                                  "inline; filename=crycat.pdf"})

@@ -236,6 +236,10 @@ input::placeholder { color: #cbbfc8; opacity: 1; font-style: italic; }
 .page-box { position: relative; box-shadow: 0 2px 14px rgba(0,0,0,0.10); border-radius: 4px; overflow: hidden; flex: none; }
 .page-box .sheet { display: block; width: 100%; height: auto; }
 .page-box.white-bg .sheet { background: #fff; }
+.page-box.fondo-blanco { background: #ffffff; }
+.page-box.fondo-transparente { background-image: linear-gradient(45deg, #e8e8e8 25%, transparent 25%), linear-gradient(-45deg, #e8e8e8 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #e8e8e8 75%), linear-gradient(-45deg, transparent 75%, #e8e8e8 75%); background-size: 18px 18px; background-position: 0 0, 0 9px, 9px -9px, -9px 0; }
+.page-box.fondo-rosa { background: #f7d9e3; }
+.page-box.fondo-negro { background: #141414; }
 .page-box.fondo-fosforito .sheet { background: #b8ff3d; }
 .page-box.alpha-bg .sheet {
   background:

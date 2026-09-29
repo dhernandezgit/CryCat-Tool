@@ -42,9 +42,15 @@ function AssetCard({ a, result, onChange, onEditarContorno,
   const reemplazarRef = useRef<HTMLInputElement>(null);
   // borde efectivo (el propio o el global): el tamaño que se muestra es el
   // REAL (contenido + borde), así ajustar el borde actualiza la medida
-  const bordeEf = local.offset_mm > 0
-    ? local.offset_mm
-    : (bordeGlobal ? Number(bordeGlobalMm) || 0 : 0);
+  const globalMm = bordeGlobal ? Number(bordeGlobalMm) || 0 : 0;
+  const bordeEf = Math.max(0, globalMm + local.offset_mm);
+  // el control de borde trabaja sobre el TOTAL (global + propio): así se
+  // puede subir, bajar o poner MENOS que el global sin volverse loco
+  const totalBorde = bordeEf;
+  const ponerTotal = (t: number) => {
+    const v = Math.max(0, Math.min(20, Math.round(t * 2) / 2));
+    patch({ offset_mm: Math.round((v - globalMm) * 2) / 2 });
+  };
   const size = assetSizeMm(local, bordeEf);
 
   // tamaño exacto en mm (se guarda como escala para mantener una sola fuente)
@@ -256,21 +262,26 @@ function AssetCard({ a, result, onChange, onEditarContorno,
             <span className={`chev ${abierto.borde ? "open" : ""}`}>›</span>
             {t("Borde adicional")}
             <span className="fold-val" data-testid={`offset-${a.id}`}>
-              {local.offset_mm.toFixed(1)} mm{local.offset_mm <= 0 ? ` · ${t("global")}` : ""}
+              {totalBorde.toFixed(1)} mm{globalMm > 0
+                ? ` · ${t("global")} ${globalMm.toFixed(1)}` : ""}
             </span>
           </button>
           {abierto.borde && (
             <div className="fold-body">
               <div className="seg-row">
                 <button className="quota-btn" data-testid={`offset-menos-${a.id}`}
-                  onClick={() => patch({ offset_mm: Math.max(0,
-                    Math.round((local.offset_mm - 0.5) * 2) / 2) })}>−</button>
+                  onClick={() => ponerTotal(totalBorde - 0.5)}>−</button>
                 <input type="range" min={0} max={10} step={0.5}
-                  data-testid={`offset-range-${a.id}`} value={local.offset_mm}
-                  onChange={(e) => patch({ offset_mm: Number(e.target.value) })} />
+                  data-testid={`offset-range-${a.id}`} value={totalBorde}
+                  onChange={(e) => ponerTotal(Number(e.target.value))} />
                 <button className="quota-btn" data-testid={`offset-mas-${a.id}`}
-                  onClick={() => patch({ offset_mm: Math.min(20,
-                    Math.round((local.offset_mm + 0.5) * 2) / 2) })}>+</button>
+                  onClick={() => ponerTotal(totalBorde + 0.5)}>+</button>
+              </div>
+              <div className="hint">
+                {globalMm > 0
+                  ? t("El borde global ({g} mm) ya está aplicado: este control ajusta el TOTAL de este elemento (puede ser menor).",
+                      { g: globalMm.toFixed(1) })
+                  : t("Borde total de este elemento.")}
               </div>
               <div className="seg-row">
                 {([["extender", t("Extender")], ["blanco", t("Blanco")],

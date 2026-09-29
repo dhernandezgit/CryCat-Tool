@@ -77,18 +77,22 @@ describe("App completa", () => {
     expect(await screen.findByAltText("gato.png")).toBeInTheDocument();
   });
 
-  it("el ojo alterna blanco → transparencia → verde fosforito", async () => {
+  it("el ojo recorre blanco → transparencia → fosforito → rosa → negro", async () => {
     render(<App />);
     await waitFor(() => expect(screen.getByTestId("viewer")).toBeInTheDocument());
     const page = await screen.findByTestId("page-0");
-    expect(page).toHaveClass("white-bg");           // por defecto blanco
+    expect(page).toHaveClass("fondo-blanco");        // por defecto blanco
     const u = userEvent.setup();
     await u.click(screen.getByTestId("btn-ojo"));
-    expect(screen.getByTestId("page-0")).toHaveClass("alpha-bg");
+    expect(screen.getByTestId("page-0")).toHaveClass("fondo-transparente");
     await u.click(screen.getByTestId("btn-ojo"));
     expect(screen.getByTestId("page-0")).toHaveClass("fondo-fosforito");
     await u.click(screen.getByTestId("btn-ojo"));
-    expect(screen.getByTestId("page-0")).toHaveClass("white-bg");
+    expect(screen.getByTestId("page-0")).toHaveClass("fondo-rosa");
+    await u.click(screen.getByTestId("btn-ojo"));
+    expect(screen.getByTestId("page-0")).toHaveClass("fondo-negro");
+    await u.click(screen.getByTestId("btn-ojo"));
+    expect(screen.getByTestId("page-0")).toHaveClass("fondo-blanco");
   });
 
   it("las guías Cricut se muestran y se ocultan para todas las páginas a la vez", async () => {
