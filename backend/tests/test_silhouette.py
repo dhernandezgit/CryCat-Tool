@@ -503,3 +503,34 @@ def test_minis_medida_mayor_y_circulo():
     m = minis[0]
     equiv = 2.0 * (m.w0 * m.h0 / 3.14159265) ** 0.5
     assert abs(equiv - 20.0) < 0.5, equiv
+
+
+def test_modo_rata_coloca_fuera_y_sin_borde():
+    """Modo rata: copias extra SOLO para imprimir, en los márgenes (fuera de
+    las piezas), con margen de separación y evitando las marcas."""
+    circle = _circle(40)
+    assets = [{"id": "c", "name": "c", "w_mm": 40, "h_mm": 40, "copies": 3,
+               "mini_enabled": False, "mini_quota": 1.0,
+               "rata_enabled": True}]
+    st = dict(SET, usar_minis=False, rata_activo=True, rata_margen_mm=5.0,
+              rata_min_mm=8.0, rotacion="90")
+    res = sil_pack(assets, {"c": circle}, area_a4(), st)
+    normales = [p for p in res.placements if not getattr(p, "rata", False)]
+    ratas = [p for p in res.placements if getattr(p, "rata", False)]
+    assert len(normales) == 3
+    assert ratas, "el modo rata debe colocar copias extra"
+    # fuera de la caja de las piezas (con margen) y dentro de la página
+    x0 = min(p.x for p in normales)
+    y0 = min(p.y for p in normales)
+    x1 = max(p.x + p.w for p in normales)
+    y1 = max(p.y + p.h for p in normales)
+    for r in ratas:
+        assert r.x + r.w <= x0 - 5.0 + 1e-6 or r.x >= x1 + 5.0 - 1e-6 \
+            or r.y + r.h <= y0 - 5.0 + 1e-6 or r.y >= y1 + 5.0 - 1e-6, \
+            "una rata se coló entre las piezas"
+        assert 0 <= r.x and r.x + r.w <= area_a4().page_w + 1e-6
+        assert 0 <= r.y and r.y + r.h <= area_a4().page_h + 1e-6
+        assert r.mini and r.rata
+    # sin modo rata no hay nada
+    res2 = sil_pack(assets, {"c": circle}, area_a4(), dict(st, rata_activo=False))
+    assert not [p for p in res2.placements if getattr(p, "rata", False)]

@@ -25,7 +25,7 @@ interface Props {
 
 function AssetCard({ a, result, onChange, onEditarContorno,
                      onAntesDeCambiar, bordeGlobal = false,
-                     bordeGlobalMm = 0,
+                     bordeGlobalMm = 0, rataActivo = false,
                      faseBordes = 0, verBordes = true,
                      contornoModo = "final",
                      destacado = false, sel = false,
@@ -35,6 +35,7 @@ function AssetCard({ a, result, onChange, onEditarContorno,
   onAntesDeCambiar?: () => void;
   bordeGlobal?: boolean;
   bordeGlobalMm?: number;
+  rataActivo?: boolean;
   sel?: boolean;
   onSel?: (id: string, multi: boolean) => void;
   faseBordes?: number;
@@ -208,6 +209,15 @@ function AssetCard({ a, result, onChange, onEditarContorno,
           >
             <IconoMini size={15} /> {t("Mini")}
           </button>
+          {rataActivo && (
+            <button
+              className={`mini-toggle rata ${local.rata_enabled ? "on" : ""}`}
+              data-testid={`rata-${a.id}`}
+              data-tip={t("Modo rata: este elemento coloca copias extra al imprimir")}
+              onClick={() => patch({ rata_enabled: !local.rata_enabled })}>
+              🐀
+            </button>
+          )}
           <button
             className={`mini-toggle ${local.offset_mm > 0 ? "on" : ""}`}
             data-testid={`borde-${a.id}`}
@@ -502,7 +512,8 @@ export default function FilePanel({ assets, result, settings, onChange,
                      contornoModo={contornoModo}
                      destacado={destacado === a.id}
                      bordeGlobal={settings.offset_activo === true}
-                     bordeGlobalMm={Number(settings.offset_mm) || 0} />
+                     bordeGlobalMm={Number(settings.offset_mm) || 0}
+                     rataActivo={settings.rata_activo === true} />
         ))}
       </div>
 

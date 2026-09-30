@@ -610,6 +610,12 @@ export const EN: Record<string, string> = {
   "Lado menor": "Shortest side",
   "Círculo equivalente (aprox.)": "Equivalent circle (approx.)",
   "Marcas para delimitar": "Alignment marks",
+  "Modo rata": "Rat mode",
+  "Coloca copias EXTRA de los elementos marcados con la rata: solo para IMPRIMIR (no se guardan en el PNG normal), sin borde, en los márgenes de la hoja, separadas de las piezas y evitando las marcas. El tamaño máximo lo pone el hueco libre.":
+    "Places EXTRA copies of the elements marked with the rat: print ONLY (not saved in the normal PNG), no border, in the sheet margins, away from the pieces and avoiding the marks. The max size is set by the free space.",
+  "Modo rata: este elemento coloca copias extra al imprimir":
+    "Rat mode: this element places extra copies when printing",
+  "Separación de las piezas": "Separation from pieces",
   "Ctrl/Shift+clic = varios": "Ctrl/Shift+click = multi",
   "Clic en una tarjeta (o en una pieza del visor) para seleccionarla; Ctrl/Cmd o Shift + clic para seleccionar VARIAS y editarlas a la vez.":
     "Click a card (or a piece in the viewer) to select it; Ctrl/Cmd or Shift + click to select SEVERAL and edit them together.",

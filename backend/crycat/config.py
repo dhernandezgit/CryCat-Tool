@@ -155,6 +155,10 @@ DEFAULTS: dict = {
     "offset_activo": False,
     "marcas_delimitar": True,    # 2 cuadrados blancos de 1 mm pegados a los límites
     "separacion_px": 3,          # separación artificial entre piezas al renderizar (px del resultado)
+    # MODO RATA: copias extra SOLO para imprimir, sin borde, en los márgenes
+    "rata_activo": False,
+    "rata_margen_mm": 5.0,       # separación mínima de las piezas
+    "rata_min_mm": 8.0,          # tamaño mínimo (el máximo lo pone el hueco)
     "offset_mm": 2.0,
     "offset_modo": "blanco",     # blanco (por defecto) | extender | color
     "offset_color": "#ffffff",

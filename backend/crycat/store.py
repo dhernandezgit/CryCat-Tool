@@ -41,6 +41,7 @@ class Asset:
         self.demo = False          # figura de la muestra inicial (no se guarda)
         # simplificación de la silueta para el empaquetado (por elemento)
         self.simplificar = True
+        self.rata_enabled = False   # modo rata: colocar copias extra al imprimir
         self._forma_cache: tuple | None = None
         # miniatura PNG cacheada (la web tarda mucho en recalcularla)
         self._thumb_bytes: bytes | None = None
@@ -125,6 +126,7 @@ class Asset:
             "demo": self.demo,
             "rev": self.rev,
             "simplificar": self.simplificar,
+            "rata_enabled": self.rata_enabled,
             "forma": self.forma_simplificada(),
             "warnings": self.warnings,
         }

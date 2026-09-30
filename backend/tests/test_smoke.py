@@ -48,7 +48,7 @@ def _optimizar(c, n=1):
 
 
 def test_humo_todo_lo_de_la_interfaz(client):
-    c, st, _ = client
+    c, st, tmp = client
 
     assert c.get("/api/health").json()["ok"] is True
     assert c.get("/api/settings").json()["settings"]["opt_metodo"] == "auto"
@@ -85,7 +85,10 @@ def test_humo_todo_lo_de_la_interfaz(client):
     assert pdf.status_code == 200 and pdf.content[:4] == b"%PDF"
 
     # guardar/exportar
-    ex = c.post("/api/export", json={"name": "humo"}).json()
+    # el export va a la carpeta de pruebas (antes caía en ~/Documents y
+    # llenaba Documentos de humo_*.png en cada ejecución)
+    ex = c.post("/api/export",
+                json={"name": "humo", "folder": str(tmp)}).json()
     assert ex.get("files")
 
     # mover al mismo sitio (no debe dar 409) y fijar

@@ -23,6 +23,7 @@ export interface Asset {
   demo?: boolean;          // figura de la muestra inicial
   warnings: string[];
   simplificar?: boolean;   // simplificación de silueta por elemento
+  rata_enabled?: boolean;  // modo rata: copias extra al imprimir
 }
 
 export interface Placement {
@@ -97,6 +98,9 @@ export interface AppSettings {
   offset_activo: boolean;
   marcas_delimitar?: boolean;   // 2 cuadrados blancos de referencia en las esquinas
   separacion_px?: number;       // separación artificial entre piezas (px del resultado)
+  rata_activo?: boolean;        // MODO RATA (copias extra solo al imprimir)
+  rata_margen_mm?: number;
+  rata_min_mm?: number;
   offset_mm: number;
   offset_modo: "extender" | "blanco" | "color";
   offset_color: string;
@@ -209,6 +213,7 @@ export function normalizeAsset(a: Asset): Asset {
     copies: Number.isFinite(a.copies) ? a.copies : 1,
     mini_quota: Number.isFinite(a.mini_quota) ? a.mini_quota : 1,
     offset_mm: Number.isFinite(a.offset_mm) ? a.offset_mm : 0,
+    rata_enabled: a.rata_enabled === true,
     offset_modo: a.offset_modo ?? "",
     offset_color: a.offset_color ?? "",
     scale_pct: Number.isFinite(a.scale_pct) ? a.scale_pct : 100,

@@ -638,6 +638,8 @@ def create_app(store: Session = session) -> FastAPI:
                 del a._cache_offset
         if "scale_pct" in payload:
             a.scale_pct = min(1000.0, max(5.0, float(payload["scale_pct"])))
+        if "rata_enabled" in payload:
+            a.rata_enabled = bool(payload["rata_enabled"])
         if "simplificar" in payload:
             # simplificación de la silueta SOLO de este elemento
             a.simplificar = bool(payload["simplificar"])
@@ -1229,7 +1231,7 @@ def create_app(store: Session = session) -> FastAPI:
             store.area, [p for p in store.last.placements if p.page == i],
             store.images(), dpi, settings.get("lienzo") == "pagina",
             settings.get("color_formato", "rgba"), _delimitar_mm(),
-            _delimitar_margen(), _separacion_px(), bool(marcas))
+            _delimitar_margen(), _separacion_px(), bool(marcas), True)
         if bordes:
             img = compose.contornos_bordes(
                 img, [p for p in store.last.placements if p.page == i],

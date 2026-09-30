@@ -279,7 +279,8 @@ def render_page(area: CutArea, placements: list[Placement], images: dict[str, Im
                 delimitar_mm: float = 0.0,
                 delimitar_margen_mm: float = 0.0,
                 separacion_px: int = 0,
-                marcas_cricut: bool = False) -> Image.Image:
+                marcas_cricut: bool = False,
+                ratas: bool = False) -> Image.Image:
     """Renderiza una página a PIL RGBA (fondo transparente).
 
     images: asset_id -> RGBA recortada. Con dpi igual al de origen y sin
@@ -299,6 +300,8 @@ def render_page(area: CutArea, placements: list[Placement], images: dict[str, Im
     canvas = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     px_per_mm = dpi / 25.4
     for p in placements:
+        if getattr(p, "rata", False) and not ratas:
+            continue     # las ratas solo salen en la vista y en la impresión
         src = images.get(p.asset_id)
         if src is None:
             continue

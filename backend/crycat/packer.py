@@ -60,6 +60,7 @@ class Placement:
     mini: bool = False
     scale: float = 1.0
     pinned: bool = False
+    rata: bool = False
     rot90: bool = False
     # tamaño PEDIDO sin girar (mm). En giros libres la caja `w`/`h` es
     # conservadora (bbox del rectángulo girado) y el render debe escalar la

@@ -1024,6 +1024,70 @@ def _rellenar_minis(ctx: _Ctx, assets: list[dict], masks: dict,
     return total
 
 
+def _rellenar_ratas(res: PackResult, assets: list[dict], masks: dict,
+                    settings: dict, area: CutArea) -> list:
+    """MODO RATA: copias extra SOLO para imprimir (sin borde) en los márgenes
+    de la página, FUERA del área de las piezas, separadas por `rata_margen_mm`
+    y evitando las marcas negras. Se devuelven como colocaciones `rata=True`.
+    """
+    if not settings.get("rata_activo"):
+        return []
+    min_mm = max(2.0, float(settings.get("rata_min_mm", 8.0)))
+    margen = max(0.0, float(settings.get("rata_margen_mm", 5.0)))
+    ratas = [a for a in assets if a.get("rata_enabled") and a["id"] in masks]
+    if not ratas or not res.placements:
+        return []
+    # caja de las piezas y de las marcas (las marcas van en la caja)
+    x0 = min(p.x for p in res.placements)
+    y0 = min(p.y for p in res.placements)
+    x1 = max(p.x + p.w for p in res.placements)
+    y1 = max(p.y + p.h for p in res.placements)
+    pw, ph = area.page_w, area.page_h
+    zonas: list[tuple[float, float, float, float]] = []
+    if y0 - margen > 2:
+        zonas.append((0.0, 0.0, pw, y0 - margen))
+    if y1 + margen < ph - 2:
+        zonas.append((0.0, y1 + margen, pw, ph - (y1 + margen)))
+    if x0 - margen > 2:
+        zonas.append((0.0, 0.0, x0 - margen, ph))
+    if x1 + margen < pw - 2:
+        zonas.append((x1 + margen, 0.0, pw - (x1 + margen), ph))
+    # exclusión alrededor de las 4 marcas (caja del contenido ± 12 mm)
+    exc = (x0 - 12.0, y0 - 12.0, x1 + 12.0, y1 + 12.0)
+    salida: list = []
+    for a in ratas:
+        img = masks[a["id"]]
+        base = max(min(a["w_mm"], a["h_mm"]), 1e-6)
+        # tamaños: del mayor al mínimo (el máximo lo delimita el hueco)
+        cands = [min_mm * 3.0, min_mm * 2.0, min_mm * 1.5, min_mm]
+        for (zx, zy, zw, zh) in zonas:
+            for lado in cands:
+                esc = lado / base
+                w_m = a["w_mm"] * esc
+                h_m = a["h_mm"] * esc
+                if w_m > zw - 0.5 or h_m > zh - 0.5:
+                    continue
+                # rejilla en la zona (filas/columnas con el hueco justo)
+                nx = max(1, int(zw // w_m))
+                ny = max(1, int(zh // h_m))
+                for iy in range(ny):
+                    for ix in range(nx):
+                        px_ = zx + ix * w_m + (zw - nx * w_m) / 2.0
+                        py_ = zy + iy * h_m + (zh - ny * h_m) / 2.0
+                        cx = px_ + w_m / 2.0
+                        cy = py_ + h_m / 2.0
+                        if (exc[0] <= cx <= exc[2]
+                                and exc[1] <= cy <= exc[3]):
+                            continue     # cerca de las marcas
+                        salida.append(Placement(
+                            uid=f"{a['id']}#rata{len(salida)}",
+                            asset_id=a["id"], page=0, x=px_, y=py_,
+                            w=w_m, h=h_m, angle=0.0, mini=True, scale=esc,
+                            rata=True, w0=w_m, h0=h_m))
+                break                # ya colocado con este tamaño en esta zona
+    return salida
+
+
 def _one_pass(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
               settings: dict, pinned: list[Placement] | None, order: str,
               rnd, progress=None, frac=(0.0, 1.0),
@@ -1492,6 +1556,13 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
             nuevos = ctx_mini.placements[n0:]
             if nuevos:
                 res.placements.extend(nuevos)
+            # MODO RATA: copias extra para la impresión en los márgenes
+            try:
+                ratas = _rellenar_ratas(res, assets, masks, settings, area)
+                if ratas:
+                    res.placements.extend(ratas)
+            except Exception:
+                pass
                 _recalcular_eficiencia(res, masks_reales, area, assets)
         except Exception:
             pass

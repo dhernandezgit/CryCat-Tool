@@ -474,6 +474,25 @@ export default function SettingsPanel({ settings, saveSettings,
               "Tope de tamaño de los minis. Siempre son algo más pequeños que el original (99 % como máximo).")
         )}
         </Grupo>
+        <Grupo titulo="Modo rata">
+        <div className="ctl">
+          <label className="row">
+            <input type="checkbox" data-testid="set-rata-activo"
+              checked={settings.rata_activo === true}
+              onChange={(e) => set({ rata_activo: e.target.checked })} />
+            {t("Modo rata")}
+          </label>
+          <div className="hint">
+            {t("Coloca copias EXTRA de los elementos marcados con la rata: solo para IMPRIMIR (no se guardan en el PNG normal), sin borde, en los márgenes de la hoja, separadas de las piezas y evitando las marcas. El tamaño máximo lo pone el hueco libre.")}
+          </div>
+        </div>
+        {settings.rata_activo && (
+          <>
+            {num("Separación de las piezas", "rata_margen_mm", 0, 30, 0.5, "mm")}
+            {num("Tamaño mínimo", "rata_min_mm", 2, 100, 0.5, "mm")}
+          </>
+        )}
+        </Grupo>
         <Grupo titulo="Comportamiento">
         <Av>{sel("Rotaciones admitidas", "mini_rotacion", [
           ["no", "No girar"],
