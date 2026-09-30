@@ -470,13 +470,16 @@ def _recorte_contenido(img: Image.Image, area: CutArea, placements: list,
     Al guardar ya no se exporta la hoja entera: solo lo que tiene elementos.
     La impresión (PDF) sigue sacando la página completa.
     """
-    if not placements:
+    # las ratas (extra de impresión, en los márgenes) no cuentan: el recorte
+    # es de las piezas de verdad
+    reales = [p for p in placements if not getattr(p, "rata", False)]
+    if not reales:
         return img
     px = dpi / 25.4
-    x0 = min(p.x for p in placements)
-    y0 = min(p.y for p in placements)
-    x1 = max(p.x + p.w for p in placements)
-    y1 = max(p.y + p.h for p in placements)
+    x0 = min(p.x for p in reales)
+    y0 = min(p.y for p in reales)
+    x1 = max(p.x + p.w for p in reales)
+    y1 = max(p.y + p.h for p in reales)
     if not full_page:
         bx, by = area.bbox[0], area.bbox[1]
         x0 -= bx
@@ -625,9 +628,12 @@ def export_pdf(area: CutArea, placements: list[Placement],
     pages = sorted({p.page for p in placements})
     imgs = []
     for i in pages:
+        # el PDF es la IMPRESIÓN: aquí las ratas SÍ salen (van en los márgenes
+        # de la página completa); en los PNG normales no
         img = render_page(area, [p for p in placements if p.page == i], images,
                           dpi, True if marcas else full_page, color,
-                          delimitar_mm, delimitar_margen_mm, separacion_px)
+                          delimitar_mm, delimitar_margen_mm, separacion_px,
+                          False, True)
         if bleed_mm > 0:
             img = con_bleed(img, int(round(bleed_mm / 25.4 * dpi)))
         if marcas:

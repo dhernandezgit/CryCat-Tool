@@ -313,13 +313,19 @@ def _correlate(occ: np.ndarray, m: np.ndarray) -> np.ndarray:
 
 def _best_offset(occ: np.ndarray, m: np.ndarray, out_corr: np.ndarray,
                  occ_contact: np.ndarray | None = None,
-                 rm: np.ndarray | None = None):
+                 rm: np.ndarray | None = None, ring: int = 2):
     """Mejor ((y, x), contacto) para colocar m sin solapar ni salir del área.
 
     `out_corr` es la correlación (cacheada) de la máscara con lo NO permitido:
     vale 0 sólo en los offsets en los que la máscara cabe dentro del área.
     El CONTACTO se mide contra las siluetas REALES (`rm`, sin dilatar): así se
     premia encajar piezas sin comerse la separación pedida.
+
+    `ring` es el radio en celdas del anillo de CONTACTO. Debe ser mayor que
+    el radio de la dilatación por espaciado (`ctx.r`): si no, la separación
+    pedida impide que las piezas se acerquen lo bastante y el contacto vale
+    SIEMPRE 0 → el optimizador degenera en Bottom-Left puro y no empareja
+    nada (era el bug del empaquetado con separación).
     """
     H, W = occ.shape
     h, w = m.shape
@@ -337,8 +343,8 @@ def _best_offset(occ: np.ndarray, m: np.ndarray, out_corr: np.ndarray,
     ys, xs = np.where(valid)
     if occ_contact is not None:
         if rm is not None and rm.shape == m.shape:
-            # anillo fino alrededor de la silueta real (proximidad, no solape)
-            anillo = _dilate(rm, 2)
+            # anillo alrededor de la silueta real (proximidad, no solape)
+            anillo = _dilate(rm, max(2, int(ring)))
             contact = _correlate(occ_contact, anillo)
         else:
             contact = _correlate(occ_contact, m)
@@ -533,11 +539,12 @@ class _Ctx:
         else:
             wr = min(self.H, h)
             wc = min(self.W, w)
+        ring = self.r + 2      # el contacto debe alcanzar tras la separación
         got = _best_offset(occ[:wr, :wc], dm, oc[:wr, :wc],
                            occ_sil[:wr, :wc] if occ_sil is not None else None,
-                           rm)
+                           rm, ring)
         if got is None:
-            got = _best_offset(occ, dm, oc, occ_sil, rm)
+            got = _best_offset(occ, dm, oc, occ_sil, rm, ring)
         return got
 
     def base_mask(self, aid: str, w_mm: float, h_mm: float,
@@ -580,6 +587,23 @@ class _Ctx:
         self.pages_sil.append(np.zeros((self.H, self.W), dtype=np.float32))
         return len(self.pages) - 1
 
+    def ensure_page(self, page: int) -> int:
+        """Abre hojas hasta `page` y devuelve la hoja REAL que se debe usar.
+
+        En «Solo 1 página» nunca se abre la 2ª: lo que apunte a otra hoja
+        cae en la 0. Así los bucles de fijados/reconstrucción no se quedan
+        atascados intentando abrir una hoja que no puede existir.
+        """
+        destino = max(0, page)
+        if getattr(self, "solo_una", False):
+            destino = 0
+        while len(self.pages) <= destino:
+            antes = len(self.pages)
+            self.new_page()
+            if len(self.pages) == antes:
+                break
+        return min(destino, max(0, len(self.pages) - 1))
+
 
 def _try_place(ctx: _Ctx, aid: str, name: str, w_mm: float, h_mm: float,
                scale: float, mini: bool, img: Image.Image,
@@ -610,6 +634,7 @@ def _try_place(ctx: _Ctx, aid: str, name: str, w_mm: float, h_mm: float,
                     return _commit_offset(ctx, aid, name, pi, ang, scale, mini,
                                           rm, dm, got[0], w_mm, h_mm)
         if new_page_ok:
+            n_pags = len(ctx.pages)
             pi = ctx.new_page()
             for ang in rot_angles:
                 rm, dm = ctx.rotated(aid, w_mm, h_mm, ang, img)
@@ -620,7 +645,11 @@ def _try_place(ctx: _Ctx, aid: str, name: str, w_mm: float, h_mm: float,
                 if got is not None:
                     return _commit_offset(ctx, aid, name, pi, ang, scale,
                                           mini, rm, dm, got[0], w_mm, h_mm)
-            ctx.pages.pop()
+            # OJO: en modo «Solo 1 página» `new_page` NO añade nada y devuelve
+            # la 0: sin esta comprobación el pop VACIABA la página ya llena
+            # (las colocaciones seguían en la lista → piezas duplicadas).
+            del ctx.pages[n_pags:]
+            del ctx.pages_sil[n_pags:]
         return False
     best = None  # (score, page, ang, off, rm, dm)
     for ang in rot_angles:
@@ -644,6 +673,7 @@ def _try_place(ctx: _Ctx, aid: str, name: str, w_mm: float, h_mm: float,
         return _commit_offset(ctx, aid, name, pi, ang, scale, mini,
                               rm, dm, off, w_mm, h_mm)
     if new_page_ok:
+        n_pags = len(ctx.pages)
         pi = ctx.new_page()
         for ang in rot_angles:
             rm, dm = ctx.rotated(aid, w_mm, h_mm, ang, img)
@@ -654,7 +684,9 @@ def _try_place(ctx: _Ctx, aid: str, name: str, w_mm: float, h_mm: float,
             if got is not None:
                 return _commit_offset(ctx, aid, name, pi, ang, scale, mini,
                                       rm, dm, got[0], w_mm, h_mm)
-        ctx.pages.pop()
+        # igual que en first_fit: solo se descarta la hoja si era NUEVA
+        del ctx.pages[n_pags:]
+        del ctx.pages_sil[n_pags:]
     return False
 
 
@@ -725,7 +757,95 @@ def _try_place_voronoi(ctx: _Ctx, aid: str, name: str, w_mm: float,
                       rot_angles, new_page_ok, contacto=True, voronoi=False)
 
 
+def _best_offset_contacto(occ: np.ndarray, m: np.ndarray,
+                          out_corr: np.ndarray, occ_contact: np.ndarray,
+                          rm: np.ndarray | None, ring: int = 2):
+    """Como `_best_offset` pero el CONTACTO manda sobre el Bottom-Left.
 
+    Para PEGAR una pieza a su pareja no sirve el Bottom-Left normal (elegiría
+    el hueco válido más bajo, aunque esté suelto en otra fila): aquí interesa
+    la posición válida con MÁS contacto (el encaje más pegado). A igualdad de
+    contacto desempata la y más baja y luego la x más a la izquierda.
+    """
+    H, W = occ.shape
+    h, w = m.shape
+    if h > H or w > W:
+        return None
+    ov = _correlate(occ, m)
+    valid = (ov <= 0.5) & (out_corr < 0.5)
+    valid[H - h + 1:, :] = False
+    valid[:, W - w + 1:] = False
+    if not valid.any():
+        return None
+    ys, xs = np.where(valid)
+    if rm is not None and rm.shape == m.shape:
+        contact = _correlate(occ_contact, _dilate(rm, max(2, int(ring))))
+    else:
+        contact = _correlate(occ_contact, m)
+    scores = contact[ys, xs]
+    if float(scores.max()) < 0.5:      # 0.5 = contacto real (no ruido de FFT)
+        return None
+    order = np.lexsort((xs, ys, -scores))
+    k = int(order[0])
+    return (int(ys[k]), int(xs[k])), int(round(float(scores[k])))
+
+
+def _try_place_pareja(ctx: _Ctx, aid: str, name: str, w_mm: float, h_mm: float,
+                      scale: float, img: Image.Image, rot_angles: list[float],
+                      anclas: list) -> bool:
+    """Coloca PEGADA a una figura IGUAL ya puesta (su pareja), si es posible.
+
+    Es la lógica «humana» de verdad: en vez de buscar en toda la página (donde
+    Bottom-Left coloca la siguiente copia en otra fila, desemparejada), se
+    busca SOLO en la ventana alrededor de la pareja y se exige contacto con
+    ella. Entre los dos ángulos complementarios (0/180) la ventana es pequeña,
+    así que además es RÁPIDO (FFT local, no de toda la hoja).
+    """
+    mejor = None  # (score, y_mm, x_mm, pi, ang, rm, dm, off)
+    for anc in anclas[-3:]:
+        pi = int(anc.page)
+        if pi >= len(ctx.pages):
+            continue
+        esc_a = float(anc.scale or 1.0)
+        a_rm, a_dm = ctx.rotated(anc.asset_id, w_mm * esc_a, h_mm * esc_a,
+                                 anc.angle, img)
+        ys_a, xs_a = np.where(a_rm)
+        if len(ys_a) == 0:
+            continue
+        ay0 = int(round((anc.y - ctx.y0) / ctx.cell)) - int(ys_a.min())
+        ax0 = int(round((anc.x - ctx.x0) / ctx.cell)) - int(xs_a.min())
+        ah, aw = a_dm.shape
+        for ang in rot_angles:
+            rm, dm = ctx.rotated(aid, w_mm, h_mm, ang, img)
+            h, w = dm.shape
+            if h > ctx.H or w > ctx.W:
+                continue
+            # ventana: la pareja + un margen del tamaño de la pieza
+            vy0 = max(0, ay0 - h)
+            vy1 = min(ctx.H, ay0 + ah + h)
+            vx0 = max(0, ax0 - w)
+            vx1 = min(ctx.W, ax0 + aw + w)
+            occ = ctx.pages[pi]
+            oc = ctx.out_corr(dm)
+            got = _best_offset_contacto(occ[vy0:vy1, vx0:vx1], dm,
+                                        oc[vy0:vy1, vx0:vx1],
+                                        ctx.pages_sil[pi][vy0:vy1, vx0:vx1],
+                                        rm, ctx.r + 2)
+            if got is None:
+                continue      # en la ventana no hay hueco PEGADO a la pareja
+            (oy, ox), score = got
+            oy += vy0
+            ox += vx0
+            y_mm = (oy + _offset_rm(rm)) * ctx.cell + ctx.y0
+            x_mm = (ox + _offset_rm(rm, True)) * ctx.cell + ctx.x0
+            clave = (score, -y_mm, -x_mm)
+            if mejor is None or clave > mejor[0]:
+                mejor = (clave, y_mm, x_mm, pi, ang, rm, dm, (oy, ox))
+    if mejor is None:
+        return False
+    _, _y_mm, _x_mm, pi, ang, rm, dm, off = mejor
+    return _commit_offset(ctx, aid, name, pi, ang, scale, False, rm, dm, off,
+                          w_mm, h_mm)
 
 def _ref_medida(w_mm: float, h_mm: float, medida: str) -> float:
     """Tamaño de referencia según cómo se mide (igual que en importación)."""
@@ -1031,12 +1151,17 @@ def _rellenar_minis(ctx: _Ctx, assets: list[dict], masks: dict,
 
 def _rellenar_ratas(res: PackResult, assets: list[dict], masks: dict,
                     settings: dict, area: CutArea) -> list:
-    """MODO RATA: copias extra SOLO para imprimir (sin borde) en los márgenes
-    de la página, FUERA del área de las piezas, separadas por `rata_margen_mm`
-    y evitando las marcas negras. Se devuelven como colocaciones `rata=True`.
+    """MODO RATA: copias extra SOLO para imprimir (sin borde) en los MÁRGENES
+    de la página, FUERA del área recortable (los límites de corte de la
+    Cricut) y separadas de las piezas por `rata_margen_mm`.
+
+    Nunca van dentro de los límites ni del contenido: solo en los márgenes de
+    la hoja (fuera del PNG normal, sí en la vista y en el PDF). Se devuelven
+    como colocaciones `rata=True`.
     """
     if not settings.get("rata_activo"):
         return []
+    from .geometry import polygon_contains
     min_mm = max(2.0, float(settings.get("rata_min_mm", 8.0)))
     margen = max(0.0, float(settings.get("rata_margen_mm", 5.0)))
     ratas = [a for a in assets if a.get("rata_enabled") and a["id"] in masks]
@@ -1051,8 +1176,8 @@ def _rellenar_ratas(res: PackResult, assets: list[dict], masks: dict,
     x1 = max(p.x + p.w for p in piezas)
     y1 = max(p.y + p.h for p in piezas)
     pw, ph = area.page_w, area.page_h
-    # ZONAS: los MÁRGENES de la página, FUERA del área recortable (los límites
-    # de corte de la Cricut): las ratas nunca van dentro de los límites
+    # ZONAS: bandas de MARGEN de la página, fuera del área recortable y SIN
+    # solaparse entre sí (las esquinas no se cuentan dos veces)
     ax, ay, aw, ah = area.bbox
     ax1, ay1 = ax + aw, ay + ah
     zonas: list[tuple[float, float, float, float]] = []
@@ -1061,42 +1186,63 @@ def _rellenar_ratas(res: PackResult, assets: list[dict], masks: dict,
     if ay1 < ph - 2:
         zonas.append((0.0, ay1, pw, ph - ay1))
     if ax > 2:
-        zonas.append((0.0, 0.0, ax, ph))
+        zonas.append((0.0, ay, ax, ah))
     if ax1 < pw - 2:
-        zonas.append((ax1, 0.0, pw - ax1, ph))
-    # exclusión alrededor de las 4 marcas (caja del contenido ± 12 mm)
-    exc = (x0 - 12.0, y0 - 12.0, x1 + 12.0, y1 + 12.0)
+        zonas.append((ax1, ay, pw - ax1, ah))
+    # separación de las piezas: la caja del contenido crece `margen`
+    exc = (x0 - margen, y0 - margen, x1 + margen, y1 + margen)
     salida: list = []
+    ocupadas: list[tuple[float, float, float, float]] = []
+
+    def libre(rx: float, ry: float, rw: float, rh: float) -> bool:
+        """¿Cabe la rata ahí? (fuera de límites, del contenido y de otras)"""
+        if rx < 0 or ry < 0 or rx + rw > pw or ry + rh > ph:
+            return False
+        # ni se acerca a las piezas (caja del contenido + margen pedido)
+        if not (rx + rw <= exc[0] or rx >= exc[2]
+                or ry + rh <= exc[1] or ry >= exc[3]):
+            return False
+        for (ox, oy, ow, oh) in ocupadas:
+            if (rx < ox + ow and rx + rw > ox
+                    and ry < oy + oh and ry + rh > oy):
+                return False
+        # FUERA del área recortable de verdad (el polígono escalonado)
+        for (cx2, cy2) in ((rx, ry), (rx + rw, ry), (rx, ry + rh),
+                           (rx + rw, ry + rh)):
+            if polygon_contains(area.poly, cx2, cy2):
+                return False
+        return True
+
     for a in ratas:
-        img = masks[a["id"]]
         base = max(min(a["w_mm"], a["h_mm"]), 1e-6)
         # tamaños: del mayor al mínimo (el máximo lo delimita el hueco)
         cands = [min_mm * 3.0, min_mm * 2.0, min_mm * 1.5, min_mm]
         for (zx, zy, zw, zh) in zonas:
+            puesto = False
             for lado in cands:
                 esc = lado / base
                 w_m = a["w_mm"] * esc
                 h_m = a["h_mm"] * esc
-                if w_m > zw - 0.5 or h_m > zh - 0.5:
+                if w_m > zw or h_m > zh:
                     continue
-                # rejilla en la zona (filas/columnas con el hueco justo)
+                # rejilla en la banda (filas/columnas con el hueco justo)
                 nx = max(1, int(zw // w_m))
                 ny = max(1, int(zh // h_m))
                 for iy in range(ny):
                     for ix in range(nx):
                         px_ = zx + ix * w_m + (zw - nx * w_m) / 2.0
                         py_ = zy + iy * h_m + (zh - ny * h_m) / 2.0
-                        cx = px_ + w_m / 2.0
-                        cy = py_ + h_m / 2.0
-                        if (exc[0] <= cx <= exc[2]
-                                and exc[1] <= cy <= exc[3]):
-                            continue     # cerca de las marcas
+                        if not libre(px_, py_, w_m, h_m):
+                            continue
+                        ocupadas.append((px_, py_, w_m, h_m))
                         salida.append(Placement(
                             uid=f"{a['id']}#rata{len(salida)}",
                             asset_id=a["id"], page=0, x=px_, y=py_,
                             w=w_m, h=h_m, angle=0.0, mini=True, scale=esc,
                             rata=True, w0=w_m, h0=h_m))
-                break                # ya colocado con este tamaño en esta zona
+                        puesto = True
+                if puesto:
+                    break
     return salida
 
 
@@ -1153,9 +1299,7 @@ def _one_pass(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
         img = masks.get(p.asset_id)
         if a is None or img is None:
             continue
-        while len(ctx.pages) <= max(0, p.page):
-            ctx.new_page()
-        pi = max(0, p.page)
+        pi = ctx.ensure_page(p.page)
         esc = float(p.scale or 1.0)
         rm, dm = ctx.rotated(p.asset_id, a["w_mm"] * esc, a["h_mm"] * esc,
                              p.angle, img)
@@ -1213,18 +1357,18 @@ def _one_pass(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
             # presupuesto agotado: el resto queda sin colocar (mejor parcial)
             unplaced += [x["id"] for _, x in inst[k:]]
             break
+        # LÓGICA HUMANA: las figuras IGUALES suelen encajar entre sí giradas
+        # 180° → se prueban primero esos ángulos y, además, se intenta
+        # colocarla PEGADA a una de sus iguales ya puestas (pareja)
+        anclas = [q for q in ctx.placements
+                  if q.asset_id == a["id"]
+                  and not getattr(q, "rata", False)]
         if a["id"] not in angulos_cache:
             angs = angulos_fijos.get(a["id"]) or angles_n
-            # LÓGICA HUMANA: las figuras IGUALES suelen encajar entre sí
-            # giradas 180° → esos ángulos (los de las iguales ya puestas y su
-            # opuesto) se prueban PRIMERO; el resto de ángulos después
-            pares = [q.angle for q in ctx.placements
-                     if q.asset_id == a["id"]
-                     and not getattr(q, "rata", False)]
-            if pares:
+            if anclas:
                 prio: list[float] = []
-                for a0 in pares[:3]:
-                    for cand in ((a0 + 180.0) % 360.0, a0 % 360.0):
+                for q in anclas[-3:]:
+                    for cand in ((q.angle + 180.0) % 360.0, q.angle % 360.0):
                         if all(abs((cand - x + 180.0) % 360.0 - 180.0) > 0.5
                                for x in prio):
                             prio.append(cand)
@@ -1233,10 +1377,19 @@ def _one_pass(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
                                       > 0.5 for q in prio)]
             angulos_cache[a["id"]] = _angulos_unicos(
                 ctx, a["id"], a["w_mm"], a["h_mm"], masks[a["id"]], angs)
-        ok = _try_place(ctx, a["id"], a.get("name", ""), a["w_mm"], a["h_mm"],
-                        1.0, False, masks[a["id"]],
-                        angulos_cache[a["id"]], new_page_ok=True,
-                        contacto=contacto, voronoi=voronoi)
+        ok = False
+        # el pegado explícito a la pareja es EXPERIMENTAL (desactivado por
+        # defecto: con el contacto corregido el empaquetado normal empareja
+        # mejor y este sesgo fragmentaba la colocación)
+        if anclas and settings.get("_pares_prioritarios", False):
+            ok = _try_place_pareja(ctx, a["id"], a.get("name", ""), a["w_mm"],
+                                   a["h_mm"], 1.0, masks[a["id"]],
+                                   angulos_cache[a["id"]], anclas)
+        if not ok:
+            ok = _try_place(ctx, a["id"], a.get("name", ""), a["w_mm"],
+                            a["h_mm"], 1.0, False, masks[a["id"]],
+                            angulos_cache[a["id"]], new_page_ok=True,
+                            contacto=contacto, voronoi=voronoi)
         if not ok:
             unplaced.append(a["id"])
         if progress and (k % 4 == 0 or k == len(inst) - 1):
@@ -1440,16 +1593,22 @@ def _sin_solapes(res: PackResult, assets: list[dict],
     movidas = 0
     descartados = 0
     conservadas: list[Placement] = []
+    perdidas: list[Placement] = []
     # primero TODAS las copias normales y luego los minis: así un mini nunca
     # puede desplazar a una copia (los minis solo rellenan lo que sobra)
     for p in sorted(res.placements,
                     key=lambda q: (bool(q.mini), q.page, q.y, q.x)):
+        if getattr(p, "rata", False):
+            # las ratas viven FUERA del área recortable por diseño: no se
+            # validan contra la rejilla ni se recolocan (si no, se movían
+            # dentro de los límites y el modo rata dejaba de existir)
+            conservadas.append(p)
+            continue
         a = por_id.get(p.asset_id)
         img = masks.get(p.asset_id)
         if a is None or img is None:
             continue
-        while len(ctx.pages) <= p.page:
-            ctx.new_page()
+        pi_uso = ctx.ensure_page(p.page)
         # ¿cabe donde está, sin tocar lo ya validado? (los minis, a escala)
         esc = float(p.scale or 1.0)
         rm, dm = ctx.rotated(p.asset_id, a["w_mm"] * esc, a["h_mm"] * esc,
@@ -1464,12 +1623,44 @@ def _sin_solapes(res: PackResult, assets: list[dict],
         oy_rm, ox_rm = int(ys_rm.min()), int(xs_rm.min())
         ty = int(round((p.y - ctx.y0) / cell)) - oy_rm
         tx = int(round((p.x - ctx.x0) / cell)) - ox_rm
-        ok = (0 <= ty and 0 <= tx and ty + h <= ctx.H and tx + w <= ctx.W)
-        if ok:
-            occ = ctx.pages[p.page]
-            oc = ctx.out_corr(dm)
-            ok = (float(oc[ty, tx]) < 0.5 and
-                  int(np.count_nonzero((occ[ty:ty + h, tx:tx + w] > 0) & dm)) == 0)
+        occ = ctx.pages[pi_uso]
+        oc = ctx.out_corr(dm)
+
+        def _solape(ty2: int, tx2: int) -> int:
+            """Celdas de solape en esa posición; -1 fuera, -2 fuera de área."""
+            if not (0 <= ty2 and 0 <= tx2
+                    and ty2 + h <= ctx.H and tx2 + w <= ctx.W):
+                return -1
+            if float(oc[ty2, tx2]) >= 0.5:
+                return -2
+            return int(np.count_nonzero(
+                (occ[ty2:ty2 + h, tx2:tx2 + w] > 0) & dm))
+
+        ok = _solape(ty, tx) == 0
+        if not ok:
+            # La posición guardada puede venir de OTRA máscara (la analítica
+            # de las formas simples frente a la real): el desplazamiento del
+            # contenido dentro del array difiere en 1-2 celdas y la pieza
+            # "parece" solapada sin estarlo. Se prueba un vecindario mínimo
+            # ANTES de recolocar (recolocar cientos de minis por esto costaba
+            # segundos enteros).
+            for dy, dx in ((-1, 0), (1, 0), (0, -1), (0, 1),
+                           (-1, -1), (-1, 1), (1, -1), (1, 1),
+                           (-2, 0), (2, 0), (0, -2), (0, 2)):
+                if _solape(ty + dy, tx + dx) == 0:
+                    ty, tx = ty + dy, tx + dx
+                    p.x = (tx + ox_rm) * cell + ctx.x0
+                    p.y = (ty + oy_rm) * cell + ctx.y0
+                    ok = True
+                    break
+        if not ok and p.mini:
+            # Los minis se colocan en una rejilla más GRUESA (0,5 mm): al
+            # revalidar más fino (0,25) puede aparecer un solape SUBCELDA
+            # (≤0,25 mm) que es ruido de rasterización, no un solape real.
+            # Se acepta tal cual; si fuese mayor, se recoloca como siempre.
+            s = _solape(ty, tx)
+            if 0 < s <= max(2, int(round(0.25 / cell))):
+                ok = True
         if not ok:
             # recolocar en el primer hueco válido de las hojas que ya hay
             colocado = False
@@ -1490,6 +1681,9 @@ def _sin_solapes(res: PackResult, assets: list[dict],
                 pi_ok = ctx.new_page()
                 got = ctx.best_for(pi_ok, dm, rm)
                 if got is None:
+                    # sin sitio ni hoja nueva (p. ej. «Solo 1 página»): queda
+                    # SIN COLOCAR, nunca en una posición que solape
+                    perdidas.append(p)
                     continue
                 off, _score = got
             ty, tx = off
@@ -1504,8 +1698,11 @@ def _sin_solapes(res: PackResult, assets: list[dict],
         occ_sil[ty:ty + h, tx:tx + w] = np.maximum(
             occ_sil[ty:ty + h, tx:tx + w], rm.astype(np.float32))
         conservadas.append(p)
-    if descartados:
+    if descartados or perdidas:
         res.placements = conservadas
+    for p in perdidas:
+        if p.asset_id not in res.unplaced:
+            res.unplaced.append(p.asset_id)
     if movidas:
         res.warnings.append(
             tr("se recolocaron {n} piezas para garantizar que no haya solapes",
@@ -1588,9 +1785,13 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
                 progress(0.86, res.pages)
             # los minis son lo ÚLTIMO: se les da margen para llenar de verdad
             # (en modo automático cada tamaño nuevo cuesta máscaras y
-            # correlaciones: con poco tiempo solo se probaban los grandes)
+            # correlaciones: con poco tiempo solo se probaban los grandes),
+            # pero ACOTADO: como mucho 5 s más que el presupuesto principal
+            # (antes 10 s fijos: un trabajo de 5 s tardaba 17 s)
             _rellenar_minis(ctx_mini, assets, masks, settings,
-                            deadline=time.time() + 10.0, progress=progress)
+                            deadline=min(time.time() + 10.0,
+                                         max(deadline, time.time()) + 5.0),
+                            progress=progress)
             nuevos = ctx_mini.placements[n0:]
             if nuevos:
                 res.placements.extend(nuevos)
@@ -1655,16 +1856,26 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
     extra = dict(cache=cache_compartida, out_cache=out_compartida,
                  grid_cache=grid_compartida)
 
-    # 0) SEMILLA rápida y COMPLETA: celda gruesa, sin contacto y ángulos
-    #    básicos. Coloca TODO en muy poco tiempo y garantiza que nunca queden
-    #    copias sin colocar; las pasadas finas de después solo pueden mejorar.
+    # 0) SEMILLA: celda gruesa, ángulos básicos y, en «Solo 1 página», CON
+    #    CONTACTO desde el principio. En varias páginas la semilla garantiza
+    #    la COMPLETITUD (sin límite de tiempo); en una sola página la
+    #    completitud no existe (lo que no cabe queda fuera por diseño), así
+    #    que se acota para dejar presupuesto a las pasadas de mejora. Además,
+    #    con el contacto corregido las piezas se AGRUPAN: las ventanas de
+    #    búsqueda no crecen y la pasada es más RÁPIDA, no solo mejor.
+    solo_una = str(settings.get("paginas_modo", "una")) == "una"
     semilla = dict(settings)
     semilla["opt_calidad"] = "rapida"
     # la semilla usa la MISMA rotación que se ha pedido (libre = todos los
     # ángulos); antes la forzaba a 90 y se perdían los giros
     t_seed = time.time()
+    # en «Solo 1 página» la semilla ES la pasada principal: se le da TODO el
+    # presupuesto (coloca lo máximo posible) y las variantes de después solo
+    # usan el tiempo que sobre
+    tope_semilla = deadline if solo_una else None
     best = _one_pass(assets, masks, area, semilla, pinned, "area", rnd,
-                     progress, (0.02, 0.30), deadline=None, contacto=False,
+                     progress, (0.02, 0.30), deadline=tope_semilla,
+                     contacto=solo_una,
                      angles_override=_angles_semilla(
                          str(settings.get("rotacion", "90"))),
                      **extra)
@@ -1672,7 +1883,7 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
     # eficiencia JUSTA (a resolución de las máscaras, no de la rejilla): así
     # se pueden comparar resultados calculados con celdas distintas
     _recalcular_eficiencia(best, masks_reales, area, assets)
-    if best.unplaced:
+    if best.unplaced and not solo_una:
         # la semilla reducida no bastó (giros finos): segunda pasada completa
         # con TODOS los ángulos permitidos (misma rejilla gruesa, rápida)
         alt = _one_pass(assets, masks, area, semilla, pinned, "area", rnd,
@@ -1681,7 +1892,7 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
         _recalcular_eficiencia(alt, masks_reales, area, assets)
         if _clave(alt) < _clave(best):
             best = alt
-    if best.unplaced:
+    if best.unplaced and not solo_una:
         # COMPLETITUD: si con la rejilla gruesa no cabe todo (casos muy
         # apretados), una pasada fina SIN límite lo intenta de verdad
         fino = dict(settings, opt_calidad="normal")
@@ -1713,7 +1924,7 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
     # el presupuesto entero: un refino ACOTADO y se devuelve. Así los trabajos
     # fáciles responden en 2-3 s (antes agotaban el tope aunque sobrara sitio).
     if (metodo in ("auto", "greedy", "largest", "voronoi")
-            and not best.unplaced and best.pages <= 1):
+            and best.placements and not best.unplaced and best.pages <= 1):
         # variantes RÁPIDAS en paralelo (misma rejilla gruesa, otras órdenes):
         # dan una base mejor sin gastar presupuesto. En modo libre se añade
         # una variante con los giros rectos, que suele quedar más recogida.
@@ -1827,16 +2038,40 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
         # semilla lenta) la rejilla fina tarda demasiado por pasada, así que
         # se hacen MUCHAS pasadas GRUESAS en paralelo (más intentos, mejor
         # resultado y menos tiempo). En trabajos pequeños se afina como siempre.
+        # OJO: estas dos variables se perdieron en un refactor y el NameError
+        # lo tragaba el `except` de abajo: el multi-arranque NUNCA corría.
+        contacto, voronoi = True, False
+        if solo_una and time.time() < deadline:
+            # «Solo 1 página»: la semilla ya usó el presupuesto llenando la
+            # hoja; si sobró tiempo (se llenó y el resto falló rápido) se
+            # prueban OTROS ÓRDENES en SECUENCIA: en paralelo competirían por
+            # la CPU y cada pasada colocaría menos piezas.
+            import random as _r
+            for i, o in enumerate(["alto", "ancho", "random1", "random2",
+                                   "random3"]):
+                if time.time() >= deadline:
+                    break
+                try:
+                    res = _one_pass(assets, masks, area, semilla, pinned, o,
+                                    _r.Random(20260925 + i), None,
+                                    (0.55, 0.80), deadline, None, True, False,
+                                    **extra)
+                except Exception:
+                    continue
+                _recalcular_eficiencia(res, masks_reales, area, assets)
+                if _clave(res) < _clave(best):
+                    best = res
         lento = n_total > 50 or t_seed > 1.0
         ajustes_pase = semilla if lento else settings
-        if not lento:
+        if not lento and not solo_una:
             res_g = _one_pass(assets, masks, area, settings, pinned, "area",
                               rnd, progress, (0.30, 0.55),
                               deadline=deadline_1, **extra)
             _recalcular_eficiencia(res_g, masks_reales, area, assets)
             if _clave(res_g) < _clave(best):
                 best = res_g
-        if (not (not best.unplaced and best.pages == 1)
+        if (not solo_una
+                and not (not best.unplaced and best.pages == 1)
                 and time.time() < deadline):
             ordenes = ["alto", "ancho"] + \
                 [f"random{i}" for i in range(1, 9)]
@@ -1934,9 +2169,7 @@ def _reconstruir(assets: list[dict], masks: dict, area: CutArea, settings: dict,
         img = masks.get(p.asset_id)
         if a is None or img is None:
             continue
-        while len(ctx.pages) <= max(0, p.page):
-            ctx.new_page()
-        pi = max(0, p.page)
+        pi = ctx.ensure_page(p.page)
         esc = float(p.scale or 1.0)
         rm, dm = ctx.rotated(p.asset_id, a["w_mm"] * esc, a["h_mm"] * esc,
                              p.angle, img)
@@ -1977,6 +2210,8 @@ def compactar(assets: list[dict], masks: dict, area: CutArea, settings: dict,
     for _ in range(rondas):
         mejoro = False
         for p in sorted(placements, key=lambda q: (-q.y, q.x)):
+            if getattr(p, "rata", False):
+                continue      # las ratas van fuera del área: no se compactan
             if deadline is not None and time.time() > deadline:
                 return hubo
             a = by_id.get(p.asset_id)
@@ -2050,6 +2285,8 @@ def _recalcular_eficiencia(result, masks: dict, area: CutArea,
     # ORIGINAL del elemento (con su escala) por la fracción de silueta.
     area_sil = 0.0
     for p in result.placements:
+        if getattr(p, "rata", False):
+            continue      # las ratas son extra de impresión, no del recorte
         a = por_id.get(p.asset_id)
         if a is not None:
             s = float(p.scale or 1.0)

@@ -39,6 +39,7 @@ export interface Placement {
   scale: number;
   pinned: boolean;
   rot90: boolean;
+  rata?: boolean;   // copia extra del modo rata (fuera de los límites)
 }
 
 export interface Result {

@@ -302,3 +302,41 @@ def test_marcas_pdf_usan_la_tinta_real():
     data = compose.export_pdf(area, [pl], {"a": img}, 100.0, full_page=False,
                               color="rgba", marcas=True, bleed_mm=0.0)
     assert data[:4] == b"%PDF"
+
+
+def test_render_ratas_solo_en_impresion():
+    """Las ratas del modo rata solo se pintan con `ratas=True` (vista y PDF);
+    en el PNG normal (sin el flag) no aparecen."""
+    area = cut_area(210.0, 297.0, "maker3")
+    img = Image.new("RGBA", (200, 200), (200, 60, 90, 255))
+    pl = Placement(uid="a#0", asset_id="a", page=0, x=80, y=120, w=20, h=20,
+                   angle=0.0, scale=1.0)
+    rata = Placement(uid="a#rata0", asset_id="a", page=0, x=3, y=3, w=10,
+                     h=10, angle=0.0, scale=0.5, mini=True, rata=True)
+    px = 100.0 / 25.4
+    p = (int(5 * px), int(5 * px))
+    sin = compose.render_page(area, [pl, rata], {"a": img}, 100.0, True,
+                              "rgba").convert("RGBA")
+    con = compose.render_page(area, [pl, rata], {"a": img}, 100.0, True,
+                              "rgba", 0.0, 0.0, 0, False, True).convert("RGBA")
+    assert sin.getpixel(p)[3] == 0, "la rata no debe salir sin el flag"
+    assert con.getpixel(p)[3] > 200, "la rata debe salir con el flag"
+
+
+def test_export_png_recorta_al_contenido_y_sin_ratas(tmp_path):
+    """El PNG exportado se recorta al CONTENIDO real: ni márgenes de la
+    página ni las ratas del modo rata lo agrandan."""
+    area = cut_area(210.0, 297.0, "maker3")
+    img = Image.new("RGBA", (200, 200), (200, 60, 90, 255))
+    pl = Placement(uid="a#0", asset_id="a", page=0, x=80, y=120, w=20, h=20,
+                   angle=0.0, scale=1.0)
+    rata = Placement(uid="a#rata0", asset_id="a", page=0, x=3, y=3, w=10,
+                     h=10, angle=0.0, scale=0.5, mini=True, rata=True)
+    fp = compose.export_single(area, [pl, rata], {"a": img},
+                               tmp_path / "x.png", 100.0, full_page=True,
+                               color="rgba")
+    out = Image.open(fp)
+    px = 100.0 / 25.4
+    # 20 mm de pieza + 0,5 mm de aire por lado (no la página de 210x297)
+    assert abs(out.width / px - 21.0) < 1.0, out.size
+    assert abs(out.height / px - 21.0) < 1.0, out.size

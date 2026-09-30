@@ -636,18 +636,92 @@ def test_export_guarda_archivos(client, tmp_path):
     assert c.get("/api/settings").json()["settings"]["carpeta_export"] == str(tmp_path)
 
 
+def _optimiza(c):
+    import time
+    c.post("/api/optimize")
+    for _ in range(300):
+        if c.get("/api/result").json()["pages"]:
+            return c.get("/api/result").json()
+        time.sleep(0.05)
+    raise AssertionError("la optimización no terminó")
+
+
+def _caja_reales(res):
+    """Caja de lo que hay (cuadrados guía incluidos, sin ratas)."""
+    reales = [p for p in res["placements"] if not p.get("rata")]
+    assert reales, "debe haber piezas reales"
+    return (min(p["x"] for p in reales), min(p["y"] for p in reales),
+            max(p["x"] + p["w"] for p in reales),
+            max(p["y"] + p["h"] for p in reales))
+
+
 def test_print_pdf(client):
     c, st, _ = client
     upload(c, "a.png")
-    c.post("/api/optimize")
-    import time
-    for _ in range(200):
-        if c.get("/api/result").json()["pages"]:
-            break
-        time.sleep(0.05)
+    _optimiza(c)
     r = c.get("/api/print.pdf")
     assert r.status_code == 200
     assert r.content[:4] == b"%PDF"
+
+
+def test_modo_rata_fuera_de_limites_y_fuera_del_png(client, tmp_path):
+    """Modo rata: las copias extra van FUERA del área recortable (en los
+    márgenes de la hoja), no agrandan el PNG exportado (que se recorta al
+    contenido) y sí van en el PDF de impresión."""
+    from crycat.geometry import polygon_contains
+    c, st, _ = client
+    d = upload(c, "a.png").json()
+    c.patch(f"/api/assets/{d['id']}",
+            json={"copies": 2, "rata_enabled": True})
+    c.put("/api/settings", json={"rata_activo": True, "rata_min_mm": 6.0,
+                                 "marcas_delimitar": False})
+    res = _optimiza(c)
+    ratas = [p for p in res["placements"] if p.get("rata")]
+    assert ratas, "el modo rata debe colocar copias extra"
+    poly = res["poly_mm"]
+    for r in ratas:
+        for (cx, cy) in ((r["x"], r["y"]), (r["x"] + r["w"], r["y"]),
+                         (r["x"], r["y"] + r["h"]),
+                         (r["x"] + r["w"], r["y"] + r["h"])):
+            assert not polygon_contains(poly, cx, cy), (cx, cy)
+    # el PNG exportado se recorta al contenido (las ratas no lo agrandan)
+    r = c.post("/api/export", json={"name": "rata", "folder": str(tmp_path)})
+    assert r.status_code == 200
+    fp = [f for f in r.json()["files"] if f.endswith(".png")][0]
+    im = Image.open(fp)
+    px = float(c.get("/api/settings").json()["settings"]["dpi_salida"]) / 25.4
+    x0, y0, x1, y1 = _caja_reales(res)
+    assert abs(im.width / px - (x1 - x0 + 1.0)) < 1.5, im.size
+    assert abs(im.height / px - (y1 - y0 + 1.0)) < 1.5, im.size
+
+
+def test_marcas_negras_delimitan_el_contenido(client):
+    """Las marcas negras de la vista se anclan a la CAJA DE LAS PIEZAS (donde
+    hay cosas), no a los límites del área recortable: los cuadrados guía y
+    las ratas no cuentan."""
+    import numpy as np
+    c, st, _ = client
+    upload(c, "a.png")
+    res = _optimiza(c)
+    caja = _caja_reales(res)
+    a = Image.open(io.BytesIO(c.get("/api/pages/0.png?marcas=0").content))
+    b = Image.open(io.BytesIO(c.get("/api/pages/0.png?marcas=1").content))
+    dif = (np.abs(np.asarray(a.convert("RGBA"), int)
+                  - np.asarray(b.convert("RGBA"), int)).sum(axis=2) > 30)
+    ys, xs = np.nonzero(dif)
+    assert len(ys), "las marcas deben pintarse al pedirlas"
+    px = 300.0 / 25.4
+    # las marcas abrazan la caja del contenido: su centro coincide con el de
+    # las piezas (los soportes de 25 mm pueden solaparse en cajas pequeñas y
+    # sobresalir unos mm; nunca ~100 mm como si se anclaran a los límites)
+    cx_m = (xs.min() + xs.max()) / 2 / px
+    cy_m = (ys.min() + ys.max()) / 2 / px
+    cx_c = (caja[0] + caja[2]) / 2
+    cy_c = (caja[1] + caja[3]) / 2
+    assert abs(cx_m - cx_c) < 3.0, (cx_m, cx_c)
+    assert abs(cy_m - cy_c) < 3.0, (cy_m, cy_c)
+    assert (xs.max() - xs.min()) / px < (caja[2] - caja[0]) + 12.0
+    assert (ys.max() - ys.min()) / px < (caja[3] - caja[1]) + 12.0
 
 
 def test_fs_list(client, tmp_path):

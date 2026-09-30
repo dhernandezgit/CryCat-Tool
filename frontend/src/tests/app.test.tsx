@@ -260,6 +260,48 @@ describe("Nuevas funciones 2.8", () => {
       expect(screen.getByTestId("sect-general")).toHaveClass("open"));
   });
 
+  it("las marcas se anclan a la caja del CONTENIDO (guías incluidas, sin ratas)", async () => {
+    // pieza en (40,50)-(70,70) + cuadrado guía en (13.6,100) y rata fuera:
+    // las marcas deben delimitar TODO lo que hay (guía incluida; rata no)
+    const resMarcas = {
+      ...result,
+      marcas: { esquina_flecha: [25, 25], esquina_sd: [25, 25],
+                esquina_ii: [25, 25], esquina_id: [25, 25] },
+      placements: [
+        { ...result.placements[0], x: 40, y: 50, w: 30, h: 20 },
+        { uid: "__delim0#0", asset_id: "__delim0", page: 0, x: 13.6,
+          y: 100, w: 1, h: 1, angle: 0, mini: false, scale: 1,
+          pinned: true, rot90: false },
+        { uid: "a1#rata0", asset_id: "a1", page: 0, x: 200, y: 5, w: 5,
+          h: 5, angle: 0, mini: true, scale: 0.5, pinned: false,
+          rot90: false, rata: true },
+      ],
+    };
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const u = String(input);
+      if (u.includes("/api/result"))
+        return { ok: true, json: async () => resMarcas };
+      return mockFetch(u);
+    }));
+    render(<App />);
+    await screen.findByTestId("page-0");
+    const imgs = Array.from(
+      screen.getByTestId("page-0").querySelectorAll("image"));
+    const porNombre = (n: string) => imgs.find((im) =>
+      (im.getAttribute("href") || "").includes(n));
+    const flecha = porNombre("esquina_flecha");
+    const sd = porNombre("esquina_sd");
+    expect(flecha).toBeTruthy();
+    expect(sd).toBeTruthy();
+    // lienzo recortable: offX/offY = bbox_offset_mm (13.6, 13.5).
+    // El cuadrado guía (x=13.6) marca el borde izquierdo de la caja.
+    expect(Number(flecha!.getAttribute("x"))).toBeCloseTo(13.6 - 13.6, 2);
+    expect(Number(flecha!.getAttribute("y"))).toBeCloseTo(50 - 13.5, 2);
+    // la esquina superior derecha se ancla al borde derecho (70) menos su ancho
+    expect(Number(sd!.getAttribute("x"))).toBeCloseTo(70 - 13.6 - 25, 2);
+    expect(Number(sd!.getAttribute("y"))).toBeCloseTo(50 - 13.5, 2);
+  });
+
   it("el popup de guardado muestra la miniatura de lo guardado", async () => {
     const u = userEvent.setup();
     render(<App />);

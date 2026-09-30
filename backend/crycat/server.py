@@ -170,7 +170,17 @@ def _pl_dict(p: Placement) -> dict:
             "h": round(p.h, 3), "angle": p.angle, "mini": p.mini,
             "scale": round(p.scale, 4), "pinned": p.pinned, "rot90": p.rot90,
             "w0": round(getattr(p, "w0", 0.0) or 0.0, 3),
-            "h0": round(getattr(p, "h0", 0.0) or 0.0, 3)}
+            "h0": round(getattr(p, "h0", 0.0) or 0.0, 3),
+            "rata": bool(getattr(p, "rata", False))}
+
+
+def _cuenta_para_marcas(p: Placement) -> bool:
+    """¿Cuenta para la CAJA de las marcas? (solo se excluyen las ratas)
+
+    Los cuadrados guía SÍ cuentan: son cosas visibles en la imagen y las
+    marcas deben delimitar TODO lo que hay.
+    """
+    return not getattr(p, "rata", False)
 
 
 # Gancho opcional de progreso: la versión web lo usa para informar a la barra
@@ -1232,15 +1242,16 @@ def create_app(store: Session = session) -> FastAPI:
         if cache is not None:
             return Response(cache, media_type="image/png")
         pls_pag = [p for p in store.last.placements if p.page == i]
+        # las marcas se dibujan UNA vez, ajustadas a la caja de lo que hay en
+        # la página (incluidos los cuadrados guía; sin las ratas, que van
+        # fuera): así delimitan el área donde hay cosas
         img = compose.render_page(
             store.area, pls_pag,
             store.images(), dpi, settings.get("lienzo") == "pagina",
             settings.get("color_formato", "rgba"), _delimitar_mm(),
-            _delimitar_margen(), _separacion_px(), bool(marcas), True)
+            _delimitar_margen(), _separacion_px(), False, True)
         if marcas:
-            # las marcas se ajustan a la caja de los elementos de la
-            # optimización final (sin las ratas del modo rata)
-            reals = [p for p in pls_pag if not getattr(p, "rata", False)]
+            reals = [p for p in pls_pag if _cuenta_para_marcas(p)]
             if reals:
                 caja = (min(p.x for p in reals), min(p.y for p in reals),
                         max(p.x + p.w for p in reals),
@@ -1273,9 +1284,9 @@ def create_app(store: Session = session) -> FastAPI:
             raise HTTPException(400, tr("nada que imprimir"))
         # las marcas negras se colocan en función del CONTENIDO: el borde
         # superior coincide con el píxel más alto y el izquierdo con el más
-        # izquierdo de lo que hay en la hoja
-        pls = [p for p in store.last.placements
-               if not getattr(p, "rata", False)]
+        # izquierdo de lo que hay en la hoja (cuadrados guía incluidos; las
+        # ratas van fuera y no cuentan)
+        pls = [p for p in store.last.placements if _cuenta_para_marcas(p)]
         caja = None
         if pls:
             caja = (min(p.x for p in pls), min(p.y for p in pls),

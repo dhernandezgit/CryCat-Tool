@@ -476,6 +476,15 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
 
   const pageEl = (i: number) => {
     const pls = result?.placements.filter((p) => p.page === i) ?? [];
+    // CAJA de las marcas: delimita el área donde hay cosas (cuadrados guía
+    // incluidos; las ratas del modo rata van fuera y no cuentan)
+    const reales = pls.filter((p) => !p.rata);
+    const cajaMarcas: [number, number, number, number] = reales.length
+      ? [Math.min(...reales.map((p) => p.x)),
+         Math.min(...reales.map((p) => p.y)),
+         Math.max(...reales.map((p) => p.x + p.w)),
+         Math.max(...reales.map((p) => p.y + p.h))]
+      : [bx, by, bx + bw, by + bh];
     return (
       <div
         key={i}
@@ -521,14 +530,15 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
             </g>
             {/* MARCAS REALES de Cricut (las mismas del PDF, tomadas de la
                 hoja oficial) con su tamaño físico real, ancladas igual que al
-                imprimir: en su esquina del área recortable */}
+                imprimir: delimitando la CAJA DEL CONTENIDO (donde hay cosas),
+                no los límites del área recortable */}
             {result?.marcas && (
               <g>
                 {[
-                  ["esquina_flecha", bx, by, false, false],
-                  ["esquina_sd", bx + bw, by, true, false],
-                  ["esquina_ii", bx, by + bh, false, true],
-                  ["esquina_id", bx + bw, by + bh, true, true],
+                  ["esquina_flecha", cajaMarcas[0], cajaMarcas[1], false, false],
+                  ["esquina_sd", cajaMarcas[2], cajaMarcas[1], true, false],
+                  ["esquina_ii", cajaMarcas[0], cajaMarcas[3], false, true],
+                  ["esquina_id", cajaMarcas[2], cajaMarcas[3], true, true],
                 ].map(([nombre, cx, cy, der, abajo]: any) => {
                   const tw = result.marcas![nombre as string];
                   if (!tw) return null;

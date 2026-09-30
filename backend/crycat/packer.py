@@ -538,8 +538,11 @@ def optimize(assets: list[dict], area: CutArea, settings: dict,
     # sin colocar o no cabe en una hoja) se recurre a las SILUETAS con el
     # presupuesto que quede.
     rectangulos = forma == "rectangulos"
-    if (not rectangulos and masks
-            and (settings.get("usar_minis") or not holgado)):
+    if (masks and (settings.get("usar_minis")
+                   or settings.get("rata_activo")
+                   or (not rectangulos and not holgado))):
+        # el MODO RATA necesita el empaquetado por silueta (coloca las copias
+        # extra en los márgenes después): con cajas nunca se colocarían
         from .silhouette import pack as sil_pack
 
         # LÍNEA BASE por CAJAS (2 variantes, rapidísimas y seguras): la
