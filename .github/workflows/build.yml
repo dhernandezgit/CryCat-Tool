@@ -22,17 +22,22 @@ jobs:
         continue-on-error: true
         run: |
           set -o pipefail
-          cd backend && python -m venv .venv && .venv/bin/pip install -q -r requirements-dev.txt
-          .venv/bin/python -m pytest tests/ -q 2>&1 | tail -40
-          cd .. && bash packaging/build_linux.sh 2>&1 | tail -80
+          {
+            cd backend && python -m venv .venv && .venv/bin/pip install -q -r requirements-dev.txt
+            .venv/bin/python -m pytest tests/ -q
+            cd .. && bash packaging/build_linux.sh
+          } > "$RUNNER_TEMP/build.log" 2>&1
       - name: Diagnóstico (publicar el error en un issue)
         if: steps.build.outcome == 'failure'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          tail -120 "$RUNNER_TEMP/build.log" > "$RUNNER_TEMP/cola.txt" || true
+          printf 'Build de Linux falló en %s\n\n```\n' "$GITHUB_REF_NAME" > "$RUNNER_TEMP/cuerpo.txt"
+          cat "$RUNNER_TEMP/cola.txt" >> "$RUNNER_TEMP/cuerpo.txt"
+          printf '\n```\n' >> "$RUNNER_TEMP/cuerpo.txt"
           gh issue create --title "CI linux falló en $GITHUB_REF_NAME" \
-            --body "El build de Linux falló. Revisa el log del run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
-            || true
+            --body-file "$RUNNER_TEMP/cuerpo.txt" || true
       - name: Fallar el job si el build falló
         if: steps.build.outcome == 'failure'
         run: exit 1
