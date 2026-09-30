@@ -77,7 +77,7 @@ describe("Panel de ajustes", () => {
   it("la sección imagen incluye la detección de líneas anómalas", async () => {
     const u = userEvent.setup();
     render(<SettingsPanel settings={settings} saveSettings={saveSettings} />);
-    await u.click(screen.getByText("Imagen"));
+    await u.click(screen.getByTestId("sect-imagen").querySelector(".sect-head")!);
     expect(screen.getByTestId("set-chequear-lineas")).toBeChecked();
   });
 
@@ -128,7 +128,7 @@ describe("Panel de ajustes", () => {
   it("el menú de Borde permite activar borde, grosor, tipo y color", async () => {
     const u = userEvent.setup();
     render(<SettingsPanel settings={settings} saveSettings={saveSettings} />);
-    await u.click(screen.getByText("Borde"));
+    await u.click(screen.getByTestId("sect-offset").querySelector(".sect-head")!);
     const activo = screen.getByTestId("set-offset-activo");
     expect(activo).not.toBeChecked();
     await u.click(activo);
@@ -138,7 +138,7 @@ describe("Panel de ajustes", () => {
   it("el menú de Extras configura el Pikmin y su sonido", async () => {
     const u = userEvent.setup();
     render(<SettingsPanel settings={settings} saveSettings={saveSettings} />);
-    await u.click(screen.getByText("Extras"));
+    await u.click(screen.getByTestId("sect-extras").querySelector(".sect-head")!);
     expect(screen.getByTestId("set-pikmin-activo")).toBeChecked();
     expect(screen.getByTestId("set-pikmin-sonido")).toBeChecked();
     expect(screen.getByTestId("set-pikmin-sonido-morir")).toBeChecked();
@@ -238,6 +238,6 @@ describe("Marcas y medidas nuevas", () => {
   it("el menú Borde sigue visible en modo básico", () => {
     render(<SettingsPanel settings={{ ...settings, modo: "rapido" }}
                            saveSettings={saveSettings} />);
-    expect(screen.getByText("Borde")).toBeInTheDocument();
+    expect(screen.getByTestId("sect-offset")).toBeInTheDocument();
   });
 });

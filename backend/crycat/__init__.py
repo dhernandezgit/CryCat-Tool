@@ -1,4 +1,4 @@
 """CryCat - colocación óptima de imágenes para Cricut."""
 
-__version__ = "2.8.1"
+__version__ = "2.8.2"
 APP_NAME = "CryCat"

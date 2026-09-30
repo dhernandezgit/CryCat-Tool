@@ -236,9 +236,25 @@ input::placeholder { color: #cbbfc8; opacity: 1; font-style: italic; }
 .page-box { position: relative; box-shadow: 0 2px 14px rgba(0,0,0,0.10); border-radius: 4px; overflow: hidden; flex: none; }
 .page-box .sheet { display: block; width: 100%; height: auto; }
 .page-box.white-bg .sheet { background: #fff; }
-.rail-ajustes { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px 6px 6px; }
-.rail-ajustes button { width: 30px; height: 28px; border-radius: 8px; border: 1.5px solid var(--border); background: var(--panel); color: var(--textSoft); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
-.rail-ajustes button.on { border-color: var(--accent); color: #fff; background: var(--accent); }
+/* PESTAÑAS de ajustes: flotan bajo los botones de modo y la búsqueda va a
+   la derecha; la pestaña abierta se ilumina y las coincidentes también */
+.tabs-ajustes { position: sticky; top: 0; z-index: 6; display: flex; gap: 6px;
+  align-items: center; padding: 6px 6px; margin: 4px 0 6px;
+  background: color-mix(in srgb, var(--panel) 92%, transparent);
+  backdrop-filter: blur(6px); border-bottom: 1.5px solid var(--border); }
+.tabs-lista { display: flex; gap: 4px; flex-wrap: wrap; flex: 1; }
+.tabs-ajustes button { display: inline-flex; align-items: center; gap: 4px;
+  padding: 4px 8px; border-radius: 999px; border: 1.5px solid var(--border);
+  background: var(--panel); color: var(--textSoft); font: inherit;
+  font-size: 11px; font-weight: 700; cursor: pointer; transition: .18s; }
+.tabs-ajustes button:hover { border-color: var(--accent); color: var(--text); }
+.tabs-ajustes button.on { border-color: var(--accent); color: #fff;
+  background: linear-gradient(135deg, var(--accent2), var(--accent));
+  box-shadow: 0 3px 10px color-mix(in srgb, var(--accent) 45%, transparent); }
+.tabs-ajustes button.coincide { border-color: var(--accent);
+  box-shadow: 0 0 0 2.5px color-mix(in srgb, var(--accent) 40%, transparent); }
+.busca-ajustes.con-texto { border-color: var(--accent);
+  box-shadow: 0 0 0 2.5px color-mix(in srgb, var(--accent) 30%, transparent); }
 .busca-ajustes { width: 92px; padding: 3px 8px; border-radius: 999px; border: 1.5px solid var(--border); background: var(--panel); font: inherit; font-size: 11.5px; }
 .busca-ajustes:focus { outline: none; border-color: var(--accent); width: 130px; }
 @keyframes resalta-ajuste { 0%,100% { box-shadow: none; } 30% { box-shadow: 0 0 0 3px var(--accent); } }
