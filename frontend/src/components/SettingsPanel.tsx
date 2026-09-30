@@ -375,7 +375,7 @@ export default function SettingsPanel({ settings, saveSettings,
           ["90", "Giros de 0º / 90º / 180º / 270º"],
           ["libre", "Cualquier ángulo"],
         ])}
-        {num("Separación entre elementos en la imagen", "separacion_px",
+        {num("Separación entre elementos para el recorte", "separacion_px",
              1, 12, 1, "px", undefined,
              "Píxeles que se separan las piezas AL RENDERIZAR (aunque se toquen o solapen): la Cricut las detecta como elementos distintos y las corta por separado. 3 px va bien a 300 ppp.")}
         </Grupo>

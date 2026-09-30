@@ -250,15 +250,27 @@ def marcas_delimitar(canvas: Image.Image, area: CutArea, dpi: float,
     return base
 
 
-def _erosionar_alfa(img: Image.Image, n: int) -> Image.Image:
-    """Encoge el alfa `n` píxeles (separación artificial entre piezas)."""
-    if n <= 0:
+def _erosionar_alfa(img: Image.Image, radio_px: float) -> Image.Image:
+    """Encoge el alfa `radio_px` píxeles (con medios píxeles).
+
+    Se usa la distancia al borde: el recorte es EQUIDISTANTE en todas las
+    direcciones (entre dos círculos iguales la separación queda una recta).
+    Cada pieza pierde la MITAD de la separación pedida, así entre dos piezas
+    queda exactamente `separacion_px` píxeles.
+    """
+    if radio_px <= 0:
         return img
     import numpy as np
     from scipy import ndimage
     arr = np.asarray(img.convert("RGBA")).copy()
-    alfa = arr[..., 3]
-    arr[..., 3] = ndimage.grey_erosion(alfa, size=(2 * n + 1, 2 * n + 1))
+    alfa = arr[..., 3].astype(np.float32) / 255.0
+    dentro = alfa > 0.35
+    if not dentro.any():
+        return img
+    dist = ndimage.distance_transform_edt(dentro)
+    nuevo = np.clip((dist - radio_px + 0.5) * 255.0, 0, 255)
+    arr[..., 3] = np.minimum(arr[..., 3].astype(np.float32),
+                             nuevo).astype(np.uint8)
     return Image.fromarray(arr, "RGBA")
 
 
@@ -300,7 +312,8 @@ def render_page(area: CutArea, placements: list[Placement], images: dict[str, Im
         # separación artificial: aunque las piezas se solapen un poco, siempre
         # queda una línea entre ellas para que la Cricut las corte separadas
         if separacion_px > 0:
-            img = _erosionar_alfa(img, int(separacion_px))
+            # cada pieza pierde la MITAD: entre dos queda la separación pedida
+            img = _erosionar_alfa(img, float(separacion_px) / 2.0)
         x = round(p.x * px_per_mm - off_x * px_per_mm)
         y = round(p.y * px_per_mm - off_y * px_per_mm)
         canvas.alpha_composite(img, (max(0, x), max(0, y)))
