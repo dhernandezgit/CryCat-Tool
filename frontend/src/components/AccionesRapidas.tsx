@@ -33,6 +33,17 @@ export default function AccionesRapidas({ settings, saveSettings }: {
           <IconoMini size={16} /> {t("Minis")}
         </button>
         <button
+          className={`chip${(settings.paginas_modo ?? "una") === "una" ? " on" : ""}`}
+          data-testid="chip-paginas"
+          data-tip={t("Solo 1 página (por defecto): nunca crea una segunda hoja; si no entra todo, avisa. Varias páginas: reparte como hasta ahora.")}
+          onClick={() => saveSettings({
+            paginas_modo: (settings.paginas_modo ?? "una") === "una"
+              ? "varias" : "una" })}
+        >
+          {(settings.paginas_modo ?? "una") === "una"
+            ? t("Solo 1 página") : t("Varias páginas")}
+        </button>
+        <button
           className={`chip${settings.auto_recalcular ? " on" : ""}`}
           data-testid="chip-auto"
           data-tip={t("Recalcular automáticamente con cada cambio")}

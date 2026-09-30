@@ -98,6 +98,7 @@ export interface AppSettings {
   offset_activo: boolean;
   marcas_delimitar?: boolean;   // 2 cuadrados blancos de referencia en las esquinas
   separacion_px?: number;       // separación artificial entre piezas (px del resultado)
+  paginas_modo?: "una" | "varias";   // solo 1 página (defecto) | varias
   rata_activo?: boolean;        // MODO RATA (copias extra solo al imprimir)
   rata_margen_mm?: number;
   rata_min_mm?: number;

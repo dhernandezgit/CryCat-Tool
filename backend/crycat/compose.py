@@ -631,20 +631,19 @@ def export_pdf(area: CutArea, placements: list[Placement],
         if bleed_mm > 0:
             img = con_bleed(img, int(round(bleed_mm / 25.4 * dpi)))
         if marcas:
-            # la caja de las marcas es el RECTÁNGULO REAL de la tinta de la
-            # imagen final (lo que de verdad ocupan los elementos), no las
-            # cajas del optimizador (en giros libres son más grandes y las
-            # marcas quedaban separadas por abajo/derecha)
-            caja_real = None
-            try:
-                bb = img.convert("RGBA").getchannel("A").getbbox()
-                if bb:
-                    px = dpi / 25.4
-                    caja_real = (bb[0] / px, bb[1] / px,
-                                 bb[2] / px, bb[3] / px)
-            except Exception:
-                caja_real = None
-            img = con_marcas_cricut(img, area, dpi, caja_real or caja_marcas)
+            # la caja de las marcas: la de los ELEMENTOS de la optimización
+            # final (sin las ratas, que van fuera); si no llega, la tinta
+            caja_real = caja_marcas
+            if caja_real is None:
+                try:
+                    bb = img.convert("RGBA").getchannel("A").getbbox()
+                    if bb:
+                        px = dpi / 25.4
+                        caja_real = (bb[0] / px, bb[1] / px,
+                                     bb[2] / px, bb[3] / px)
+                except Exception:
+                    caja_real = None
+            img = con_marcas_cricut(img, area, dpi, caja_real)
         if img.mode == "RGBA":
             bg = Image.new("RGBA", img.size, (255, 255, 255, 255))
             bg.alpha_composite(img)

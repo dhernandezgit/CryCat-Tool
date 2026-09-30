@@ -242,7 +242,9 @@ input::placeholder { color: #cbbfc8; opacity: 1; font-style: italic; }
   align-items: center; padding: 6px 6px; margin: 4px 0 6px;
   background: color-mix(in srgb, var(--panel) 92%, transparent);
   backdrop-filter: blur(6px); border-bottom: 1.5px solid var(--border); }
-.tabs-lista { display: flex; gap: 4px; flex-wrap: wrap; flex: 1; }
+/* rejilla: si no caben en una fila, quedan DOS filas ordenadas e iguales */
+.tabs-lista { display: grid; gap: 4px; flex: 1;
+  grid-template-columns: repeat(auto-fit, minmax(84px, 1fr)); }
 .tabs-ajustes button { display: inline-flex; align-items: center; gap: 4px;
   padding: 4px 8px; border-radius: 999px; border: 1.5px solid var(--border);
   background: var(--panel); color: var(--textSoft); font: inherit;

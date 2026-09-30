@@ -482,6 +482,7 @@ class _Ctx:
         # siluetas para permitir ese solape sin que la validación lo bloquee
         self.erode = (int(math.ceil((-self.spacing / 2.0) / self.cell))
                       if self.spacing < 0 else 0)
+        self.solo_una = str(settings.get("paginas_modo", "una")) == "una"
         self.allowed, self.W, self.H = _grid(area, self.cell)
         self.x0, self.y0 = area.bbox[0], area.bbox[1]
         self.limites = (area.bbox[0], area.bbox[1],
@@ -571,6 +572,10 @@ class _Ctx:
         return rm, dm
 
     def new_page(self) -> int:
+        # modo «Solo 1 página»: NUNCA se abre una segunda página (lo que no
+        # quepa se queda sin colocar y se avisa)
+        if getattr(self, "solo_una", False) and self.pages:
+            return 0
         self.pages.append(np.zeros((self.H, self.W), dtype=np.float32))
         self.pages_sil.append(np.zeros((self.H, self.W), dtype=np.float32))
         return len(self.pages) - 1
@@ -1037,8 +1042,7 @@ def _rellenar_ratas(res: PackResult, assets: list[dict], masks: dict,
     ratas = [a for a in assets if a.get("rata_enabled") and a["id"] in masks]
     if not ratas or not res.placements:
         return []
-    # caja de las PIEZAS (sin contar ratas ya puestas: el pase se llama más
-    # de una vez y la caja no debe crecer con las ratas)
+    # caja de las PIEZAS (sin contar ratas ya puestas)
     piezas = [p for p in res.placements if not getattr(p, "rata", False)]
     if not piezas:
         return []
@@ -1047,20 +1051,19 @@ def _rellenar_ratas(res: PackResult, assets: list[dict], masks: dict,
     x1 = max(p.x + p.w for p in piezas)
     y1 = max(p.y + p.h for p in piezas)
     pw, ph = area.page_w, area.page_h
+    # ZONAS: los MÁRGENES de la página, FUERA del área recortable (los límites
+    # de corte de la Cricut): las ratas nunca van dentro de los límites
+    ax, ay, aw, ah = area.bbox
+    ax1, ay1 = ax + aw, ay + ah
     zonas: list[tuple[float, float, float, float]] = []
-    if y0 - margen > 2:
-        zonas.append((0.0, 0.0, pw, y0 - margen))
-    if y1 + margen < ph - 2:
-        zonas.append((0.0, y1 + margen, pw, ph - (y1 + margen)))
-    # las bandas laterales solo cubren la ALTURA de la caja (con margen): si
-    # no, pisarían la zona de las piezas por arriba/abajo
-    if x0 - margen > 2:
-        zonas.append((0.0, max(0.0, y0 - margen), x0 - margen,
-                      min(ph, y1 + margen) - max(0.0, y0 - margen)))
-    if x1 + margen < pw - 2:
-        zonas.append((x1 + margen, max(0.0, y0 - margen),
-                      pw - (x1 + margen),
-                      min(ph, y1 + margen) - max(0.0, y0 - margen)))
+    if ay > 2:
+        zonas.append((0.0, 0.0, pw, ay))
+    if ay1 < ph - 2:
+        zonas.append((0.0, ay1, pw, ph - ay1))
+    if ax > 2:
+        zonas.append((0.0, 0.0, ax, ph))
+    if ax1 < pw - 2:
+        zonas.append((ax1, 0.0, pw - ax1, ph))
     # exclusión alrededor de las 4 marcas (caja del contenido ± 12 mm)
     exc = (x0 - 12.0, y0 - 12.0, x1 + 12.0, y1 + 12.0)
     salida: list = []
@@ -1587,6 +1590,17 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
         t_max = max(0.5, float(presupuesto_s))
     else:
         t_max = max(0.5, tiempo_optimo(settings, n_prev))
+    # MUCHOS elementos o hoja MUY llena → rejilla EXACTA: cuesta más pero
+    # exprime el hueco al máximo (el usuario quiere la mejor eficiencia)
+    try:
+        n_tot = sum(max(0, int(a.get("copies", 1))) for a in assets)
+        area_mm2 = max(1.0, float(area.area_mm2))
+        total_mm2 = sum(a["w_mm"] * a["h_mm"] * max(0, int(a.get("copies", 1)))
+                        for a in assets)
+        if n_tot >= 60 or total_mm2 / area_mm2 >= 0.75:
+            settings = dict(settings, opt_calidad="exacta")
+    except Exception:
+        pass
     metodo = str(settings.get("opt_metodo", "auto")).lower()
     # compatibilidad con los nombres antiguos
     if metodo in ("silueta_rapido", "silueta", "maxrects", "skyline"):

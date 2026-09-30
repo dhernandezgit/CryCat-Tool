@@ -19,12 +19,8 @@ CONFIG_VERSION = 26  # subir para migrar configuraciones antiguas
 # Tiempo máximo RECOMENDADO por método (segundos). El usuario puede
 # desactivar el automático y fijar su propio presupuesto.
 OPT_TIEMPOS: dict[str, float] = {
-    "auto": 8.0,         # elige solo según el espacio disponible
-    "rapido": 3.0,       # una pasada de silueta (celda gruesa)
-    "greedy": 8.0,       # silueta real: multi-arranque en paralelo
-    "largest": 3.0,      # silueta real: una sola pasada
-    "voronoi": 6.0,      # silueta real: huecos grandes
-    "genetic": 25.0,     # silueta real: máxima calidad
+    "auto": 11.0, "rapido": 4.0, "greedy": 11.0, "largest": 5.0,
+    "voronoi": 13.0, "genetic": 18.0,
 }
 
 
@@ -38,8 +34,8 @@ METODO_ALIAS: dict[str, str] = {
 # segundos EXTRA de presupuesto por cada pieza a colocar (el trabajo crece:
 # más piezas = más intentos, más combinaciones y más minis que rellenan)
 OPT_POR_PIEZA: dict[str, float] = {
-    "auto": 0.15, "rapido": 0.05, "greedy": 0.15, "largest": 0.05,
-    "voronoi": 0.20, "genetic": 0.35,
+    "auto": 0.2, "rapido": 0.08, "greedy": 0.2, "largest": 0.08,
+    "voronoi": 0.25, "genetic": 0.4,
 }
 OPT_TIEMPO_TOPE = 60.0       # techo de seguridad (nunca más de 1 minuto)
 
@@ -153,6 +149,7 @@ DEFAULTS: dict = {
     "mute": True,                # silenciado por defecto
     # Offset / borde de los elementos (contorno que se añade al recorte)
     "offset_activo": False,
+    "paginas_modo": "una",       # una (por defecto) | varias: nunca abre 2ª página en "una"
     "marcas_delimitar": True,    # 2 cuadrados blancos de 1 mm pegados a los límites
     "separacion_px": 3,          # separación artificial entre piezas al renderizar (px del resultado)
     # MODO RATA: copias extra SOLO para imprimir, sin borde, en los márgenes

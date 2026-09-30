@@ -376,7 +376,11 @@ def create_app(store: Session = session) -> FastAPI:
                         warnings=res.warnings, unplaced=len(res.unplaced),
                         message=(tr("¡Listo, ni un Diglett fuera de sitio!")
                                  if not res.unplaced else
-                                 tr("Algunas copias no caben en el área recortable")))
+                                 (tr("No entran todos los elementos en una "
+                                     "página (modo Solo 1 página)")
+                                  if str(st.get("paginas_modo", "una")) == "una"
+                                  else tr("Algunas copias no caben en el "
+                                          "área recortable"))))
             except Exception as e:  # pragma: no cover
                 with jobs_lock:
                     jobs[jid].update(status="error", done=True,
@@ -1227,11 +1231,21 @@ def create_app(store: Session = session) -> FastAPI:
         cache = _paginas_cache.get(clave_pag)
         if cache is not None:
             return Response(cache, media_type="image/png")
+        pls_pag = [p for p in store.last.placements if p.page == i]
         img = compose.render_page(
-            store.area, [p for p in store.last.placements if p.page == i],
+            store.area, pls_pag,
             store.images(), dpi, settings.get("lienzo") == "pagina",
             settings.get("color_formato", "rgba"), _delimitar_mm(),
             _delimitar_margen(), _separacion_px(), bool(marcas), True)
+        if marcas:
+            # las marcas se ajustan a la caja de los elementos de la
+            # optimización final (sin las ratas del modo rata)
+            reals = [p for p in pls_pag if not getattr(p, "rata", False)]
+            if reals:
+                caja = (min(p.x for p in reals), min(p.y for p in reals),
+                        max(p.x + p.w for p in reals),
+                        max(p.y + p.h for p in reals))
+                img = compose.con_marcas_cricut(img, store.area, dpi, caja)
         if bordes:
             img = compose.contornos_bordes(
                 img, [p for p in store.last.placements if p.page == i],
@@ -1260,7 +1274,8 @@ def create_app(store: Session = session) -> FastAPI:
         # las marcas negras se colocan en función del CONTENIDO: el borde
         # superior coincide con el píxel más alto y el izquierdo con el más
         # izquierdo de lo que hay en la hoja
-        pls = store.last.placements
+        pls = [p for p in store.last.placements
+               if not getattr(p, "rata", False)]
         caja = None
         if pls:
             caja = (min(p.x for p in pls), min(p.y for p in pls),

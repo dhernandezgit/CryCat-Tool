@@ -611,6 +611,10 @@ export const EN: Record<string, string> = {
   "Círculo equivalente (aprox.)": "Equivalent circle (approx.)",
   "Marcas para delimitar": "Alignment marks",
   "Modo rata": "Rat mode",
+  "Solo 1 página": "1 page only",
+  "Varias páginas": "Multiple pages",
+  "Solo 1 página (por defecto): nunca crea una segunda hoja; si no entra todo, avisa. Varias páginas: reparte como hasta ahora.":
+    "1 page only (default): never creates a second sheet; warns if not everything fits. Multiple pages: spreads as before.",
   "Coloca copias EXTRA de los elementos marcados con la rata: solo para IMPRIMIR (no se guardan en el PNG normal), sin borde, en los márgenes de la hoja, separadas de las piezas y evitando las marcas. El tamaño máximo lo pone el hueco libre.":
     "Places EXTRA copies of the elements marked with the rat: print ONLY (not saved in the normal PNG), no border, in the sheet margins, away from the pieces and avoiding the marks. The max size is set by the free space.",
   "Modo rata: este elemento coloca copias extra al imprimir":

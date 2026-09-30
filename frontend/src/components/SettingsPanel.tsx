@@ -197,6 +197,17 @@ export default function SettingsPanel({ settings, saveSettings,
   // BUSCADOR inteligente (erratas + sinónimos) y raíl de secciones: al pulsar
   // un icono se abre ESA sección y se cierran las demás
   const [busca, setBusca] = useState("");
+  const TABS: [keyof typeof open, JSX.Element, string, boolean][] = [
+    ["general", <IconoAjustar size={15} />, t("General"), true],
+    ["minis", <IconoMini size={15} />, t("Minis"), true],
+    ["optimizacion", <IconoRecalcular size={15} />, t("Optim."), false],
+    ["imagen", <IconoFondo size={15} />, t("Imagen"), false],
+    ["offset", <IconoBordes size={15} />, t("Borde"), true],
+    ["corte", <IconoTijeras size={15} />, t("Corte"), false],
+    ["visualizacion", <IconoGuias size={15} />, t("Vista"), true],
+    ["historial", <IconoDeshacer size={15} />, t("Historial"), false],
+    ["extras", <IconoVolumen size={15} />, t("Extras"), true],
+  ];
   const abrirSolo = (id: keyof typeof open, forzar = false,
                      traerArriba = false) => {
     setOpen((o) => {
@@ -319,22 +330,17 @@ export default function SettingsPanel({ settings, saveSettings,
 
         <span className="count-badge">{settings.tema}</span>
       </div>
+      <Modos settings={settings} saveSettings={saveSettings} />
+      <AccionesRapidas settings={settings} saveSettings={saveSettings} />
       {/* PESTAÑAS de ajustes (flotantes): icono + nombre; al pulsar una se
           abre ESA, se cierran las demás y se trae arriba con animación. La
           búsqueda va a la derecha y resalta las pestañas coincidentes
           mientras se escribe. */}
       <div className="tabs-ajustes" data-testid="rail-ajustes">
         <div className="tabs-lista">
-          {([["general", <IconoAjustar size={15} />, t("General")],
-             ["minis", <IconoMini size={15} />, t("Minis")],
-             ["optimizacion", <IconoRecalcular size={15} />, t("Optim.")],
-             ["imagen", <IconoFondo size={15} />, t("Imagen")],
-             ["offset", <IconoBordes size={15} />, t("Borde")],
-             ["corte", <IconoTijeras size={15} />, t("Corte")],
-             ["visualizacion", <IconoGuias size={15} />, t("Vista")],
-             ["historial", <IconoDeshacer size={15} />, t("Historial")],
-             ["extras", <IconoVolumen size={15} />, t("Extras")]] as
-            [keyof typeof open, JSX.Element, string][]).map(([id, ico, etiq]) => (
+          {/* en modo básico solo las pestañas de secciones que se ven */}
+          {TABS.filter(([, , , basico]) => experto || basico)
+            .map(([id, ico, etiq]) => (
             <button key={id} data-testid={`rail-${id}`} title={etiq}
                     className={`${open[id] ? "on" : ""}${coinciden.includes(id) ? " coincide" : ""}`}
                     onClick={() => abrirSolo(id, true, true)}>
@@ -350,8 +356,7 @@ export default function SettingsPanel({ settings, saveSettings,
                onKeyDown={(e) => { if (e.key === "Enter") buscar(); }} />
       </div>
       {/* los dos modos, ARRIBA del todo y bien claros: o uno u otro */}
-      <Modos settings={settings} saveSettings={saveSettings} />
-      <AccionesRapidas settings={settings} saveSettings={saveSettings} />
+
       <>
       {!experto && (
         <div className="hint" data-testid="modo-rapido-aviso">

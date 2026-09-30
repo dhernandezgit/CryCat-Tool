@@ -57,7 +57,8 @@ def _corre(assets: list[dict], masks: dict, simplificar: bool,
     st = {"espacio_mm": 2.0, "margen_mm": 1.0, "rotacion": rot,
           "opt_metodo": "greedy", "opt_calidad": "normal",
           "opt_tiempo_auto": False, "opt_tiempo_max_s": tiempo,
-          "usar_minis": False, "modo_forma": "siluetas"}
+          "usar_minis": False, "modo_forma": "siluetas",
+          "paginas_modo": "varias"}
     area = cut_area(210.0, 297.0, "maker3", "A4")
     t0 = time.time()
     res = optimize(lista, area, st, masks=dict(masks))

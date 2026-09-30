@@ -278,7 +278,12 @@ def _pack_normals(bins: list[Bin], insts: list[Instance], rot_mode: str,
     return unplaced
 
 
-def _open_bin_for(bins: list[Bin], area: CutArea, spacing: float) -> Bin:
+def _open_bin_for(bins: list[Bin], area: CutArea, spacing: float,
+                  solo_una: bool = False) -> Bin:
+    # modo «Solo 1 página»: no se abre otra página; se devuelve la primera
+    # (lo que no quepa se quedará sin colocar y se avisará)
+    if solo_una and bins:
+        return bins[0]
     b = Bin(area, spacing)
     bins.append(b)
     return b
@@ -427,6 +432,7 @@ def _run_pack(assets: list[dict], area: CutArea, settings: dict,
     # el espacio puede ser NEGATIVO: solapamiento controlado entre piezas
     spacing = float(settings.get("espacio_mm", 2.0))
     rot_mode = settings.get("rotacion", "no")
+    solo_una = str(settings.get("paginas_modo", "una")) == "una"
     _, mini_requests = _expand_items(assets, settings)
 
     bins: list[Bin] = [Bin(area, spacing)]
@@ -445,7 +451,7 @@ def _run_pack(assets: list[dict], area: CutArea, settings: dict,
     if unplaced:
         pending = [i for i in ordered if i.uid in set(unplaced)]
         while pending:
-            extra = _open_bin_for(bins, area, spacing)
+            extra = _open_bin_for(bins, area, spacing, solo_una)
             still = _pack_normals([extra], pending, rot_mode, heuristic,
                                   deadline)
             if len(still) == len(pending):

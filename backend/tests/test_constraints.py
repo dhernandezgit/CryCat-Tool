@@ -181,7 +181,8 @@ def _caso(assets, masks, settings, page=(210.0, 297.0), machine="maker3",
     return res
 
 
-BASE = {"espacio_mm": 2.0, "margen_mm": 1.0, "rotacion": "90",
+BASE = {"paginas_modo": "varias", "espacio_mm": 2.0, "margen_mm": 1.0,
+        "rotacion": "90",
         "opt_metodo": "greedy", "opt_calidad": "normal",
         "opt_tiempo_auto": False, "opt_tiempo_max_s": 4.0,
         "usar_minis": False}

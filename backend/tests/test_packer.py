@@ -7,6 +7,7 @@ from crycat.packer import Bin, Instance, Placement, optimize, try_move
 
 SETTINGS_BASE = {
     "espacio_mm": 2.0, "rotacion": "no", "usar_minis": False,
+    "paginas_modo": "varias",
     "mini_min_mm": 5.0, "mini_max_rescale": 100.0, "mini_rotacion": "no",
     "mini_tamanos": "grandes", "opt_metodo": "maxrects",
     "opt_tiempo_max_s": 2.0,
