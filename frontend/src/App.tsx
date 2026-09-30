@@ -521,6 +521,8 @@ export default function App() {
                  onVolumen={(v) => saveSettings({ volumen: v })}
                  onMute={(m) => saveSettings({ mute: m })}
                  onIdioma={(i) => saveSettings({ idioma: i })}
+                 modoRata={settings.rata_activo === true
+                   || (Number(settings.espacio_mm) || 0) < 0}
                  onEasterEgg={() => saveSettings({
                    pikmin_activo: true,
                    pikmin_fiesta: !settings.pikmin_fiesta })}

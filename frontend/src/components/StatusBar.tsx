@@ -29,7 +29,8 @@ export default function StatusBar({ job, backendOk, result, estimate,
                                     optimizando = false,
                                     volumen = 0.5, mute = false,
                                     onVolumen, onMute, onIdioma,
-                                    onEasterEgg, onAyuda, onReportar }: {
+                                    onEasterEgg, onAyuda, onReportar,
+                                    modoRata = false }: {
   job: Job | null;
   backendOk: boolean;
   result: Result | null;
@@ -40,6 +41,7 @@ export default function StatusBar({ job, backendOk, result, estimate,
   onMute?: (m: boolean) => void;
   onIdioma?: (i: "es" | "en") => void;
   onEasterEgg?: () => void;   // 5 clics seguidos en el gato
+  modoRata?: boolean;         // modo rata o separación negativa → CryRat
   onAyuda?: () => void;       // abrir la ayuda / cómo usar
   onReportar?: () => void;    // reportar un bug (issue de GitHub)
   optimizando?: boolean;      // la optimización está en marcha (web incluida)
@@ -186,10 +188,10 @@ export default function StatusBar({ job, backendOk, result, estimate,
     <div className="statusbar" data-testid="statusbar">
       <div className="brand">
         <img
-          src={api.iconUrl()}
-          alt="CryCat"
+          src={modoRata ? assetUrl("/cryrat.png") : api.iconUrl()}
+          alt={modoRata ? "CryRat" : "CryCat"}
           data-testid="brand-icon"
-          title={t("CryCat")}
+          title={modoRata ? "CryRat" : t("CryCat")}
           style={{ cursor: "pointer" }}
           onClick={() => {
             // easter egg: 5 clics seguidos en el gato
@@ -204,7 +206,7 @@ export default function StatusBar({ job, backendOk, result, estimate,
             }
           }}
         />
-        <span className="nombre">CryCat</span>
+        <span className="nombre">{modoRata ? "CryRat" : "CryCat"}</span>
       </div>
       <div className="center" data-testid="status-center">
         {result && result.pages > 0 && !running && (() => {
@@ -259,7 +261,7 @@ export default function StatusBar({ job, backendOk, result, estimate,
             <img
               className="piensa"
               data-testid="piensa"
-              src={assetUrl("/piensa.gif")}
+              src={assetUrl(modoRata ? "/cryrat.gif" : "/piensa.gif")}
               alt=""
               title={t("Pensando…")}
               onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
