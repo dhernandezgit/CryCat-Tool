@@ -17,12 +17,31 @@ from .packer import Placement
 MARCAS_DIR = Path(__file__).parent / "web" / "marcas"
 
 
+def _marcas_dir() -> Path:
+    """Carpeta de las marcas negras de Cricut.
+
+    En el ejecutable/web vienen dentro del paquete (crycat/web/marcas); al
+    correr desde el código fuente (tests, CI, modo dev) esa carpeta aún no
+    existe: se usa entonces la copia del repositorio (frontend/public/marcas).
+    """
+    candidatas = [MARCAS_DIR,
+                  Path(__file__).resolve().parents[2] / "frontend"
+                  / "public" / "marcas"]
+    for c in candidatas:
+        try:
+            if c.is_dir() and any(c.glob("*.png")):
+                return c
+        except Exception:
+            continue
+    return MARCAS_DIR
+
+
 def marcas_mm() -> dict[str, tuple[float, float]]:
     """Tamaño REAL (mm) de cada marca de Cricut, según la hoja oficial."""
     salida: dict[str, tuple[float, float]] = {}
     for nombre in ("esquina_flecha", "esquina_sd", "esquina_ii", "esquina_id"):
         try:
-            with Image.open(MARCAS_DIR / f"{nombre}.png") as im:
+            with Image.open(_marcas_dir() / f"{nombre}.png") as im:
                 salida[nombre] = (im.width / MARCAS_PPP,
                                   im.height / MARCAS_PPP)
         except Exception:
@@ -546,7 +565,7 @@ def con_marcas_cricut(img: Image.Image, area: CutArea,
     base = img.convert("RGBA")
     for nombre, derecha, abajo in esquinas:
         try:
-            marca = Image.open(MARCAS_DIR / f"{nombre}.png").convert("RGBA")
+            marca = Image.open(_marcas_dir() / f"{nombre}.png").convert("RGBA")
         except Exception:
             continue
         w = max(1, int(round(marca.width * esc)))
