@@ -1186,7 +1186,7 @@ def create_app(store: Session = session) -> FastAPI:
 
     @app.get("/api/pages/{i}.png")
     def page_png(i: int, v: str = "", sim: int = 0, bordes: int = 0,
-                 fase: int = 0, cont: str = "final"):
+                 fase: int = 0, cont: str = "final", marcas: int = 0):
         """Página renderizada (con simulación de impresión si se pide)."""
         if not store.last or not store.area:
             raise HTTPException(404, tr("sin optimización previa"))
@@ -1210,6 +1210,7 @@ def create_app(store: Session = session) -> FastAPI:
                      bool(settings.get("lienzo") == "pagina"),
                      str(settings.get("color_formato", "rgba")),
                      int(bordes), int(fase) % 12, str(cont), int(sim),
+                     int(marcas),
                      _delimitar_mm(), _delimitar_margen(),
                      # la simulación de impresión y el offset global también
                      # cambian la vista: van en la clave o se vería la vieja
@@ -1228,7 +1229,7 @@ def create_app(store: Session = session) -> FastAPI:
             store.area, [p for p in store.last.placements if p.page == i],
             store.images(), dpi, settings.get("lienzo") == "pagina",
             settings.get("color_formato", "rgba"), _delimitar_mm(),
-            _delimitar_margen(), _separacion_px())
+            _delimitar_margen(), _separacion_px(), bool(marcas))
         if bordes:
             img = compose.contornos_bordes(
                 img, [p for p in store.last.placements if p.page == i],

@@ -266,7 +266,8 @@ def render_page(area: CutArea, placements: list[Placement], images: dict[str, Im
                 dpi: float, full_page: bool = False, color: str = "rgba",
                 delimitar_mm: float = 0.0,
                 delimitar_margen_mm: float = 0.0,
-                separacion_px: int = 0) -> Image.Image:
+                separacion_px: int = 0,
+                marcas_cricut: bool = False) -> Image.Image:
     """Renderiza una página a PIL RGBA (fondo transparente).
 
     images: asset_id -> RGBA recortada. Con dpi igual al de origen y sin
@@ -306,6 +307,20 @@ def render_page(area: CutArea, placements: list[Placement], images: dict[str, Im
     if delimitar_mm > 0:
         canvas = marcas_delimitar(canvas, area, dpi, float(delimitar_mm),
                                   off_x, off_y, float(delimitar_margen_mm))
+    if marcas_cricut:
+        # las marcas negras se colocan según la CAJA de la tinta ya dibujada
+        # (se mueven con cada optimización: borde superior = píxel más alto…)
+        caja_real = None
+        try:
+            bb = canvas.convert("RGBA").getchannel("A").getbbox()
+            if bb:
+                caja_real = ((bb[0] + off_x * px_per_mm) / px_per_mm,
+                             (bb[1] + off_y * px_per_mm) / px_per_mm,
+                             (bb[2] + off_x * px_per_mm) / px_per_mm,
+                             (bb[3] + off_y * px_per_mm) / px_per_mm)
+        except Exception:
+            caja_real = None
+        canvas = con_marcas_cricut(canvas, area, dpi, caja_real)
     if color == "rgb":
         white = Image.new("RGBA", canvas.size, (255, 255, 255, 255))
         white.alpha_composite(canvas)

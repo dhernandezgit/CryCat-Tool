@@ -69,6 +69,29 @@ function FilaMini({ i, valor, refBase, onValor, onQuitar, t, modo = "mm" }: {
   );
 }
 
+/** Entrada numérica que conserva lo tecleado mientras tiene el foco. */
+function NumInput({ valor, onValor, min, max, step, testid, title }: {
+  valor: number; onValor: (v: number) => void; min: number; max: number;
+  step: number; testid: string; title?: string;
+}) {
+  const [texto, setTexto] = useState(String(valor));
+  const editando = useRef(false);
+  useEffect(() => {
+    if (!editando.current) setTexto(String(valor));
+  }, [valor]);
+  return (
+    <input type="number" min={min} max={max} step={step}
+           data-testid={testid} title={title} value={texto}
+           onFocus={() => { editando.current = true; }}
+           onBlur={() => { editando.current = false; setTexto(String(valor)); }}
+           onChange={(e) => {
+             setTexto(e.target.value);
+             const v = Number(e.target.value);
+             if (e.target.value !== "" && Number.isFinite(v)) onValor(v);
+           }} />
+  );
+}
+
 /** Sinónimos para el buscador de ajustes. */
 const SINONIMOS: Record<string, string[]> = {
   borde: ["offset", "contorno", "border", "margen"],
@@ -265,15 +288,10 @@ export default function SettingsPanel({ settings, saveSettings,
     <div className="ctl">
       <label {...(tip ? { "data-tip": t(tip) } : {})}>{t(label)}</label>
       <div className="row">
-        <input
-          type="number" min={min} max={max} step={step}
-          data-testid={`set-${key}`}
-          value={String(settings[key])}
-          onChange={(e) => {
-            const v = Number(e.target.value);
-            if (!Number.isNaN(v)) set({ [key]: v } as Partial<AppSettings>);
-          }}
-        />
+        <NumInput valor={Number(settings[key]) || 0} min={min} max={max}
+                  step={step} testid={`set-${key}`}
+                  title={tip ? t(tip) : undefined}
+                  onValor={(v) => set({ [key]: v } as Partial<AppSettings>)} />
         {unit && <span className="hint">{unit}</span>}
         {extra}
       </div>

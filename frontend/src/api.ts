@@ -366,10 +366,11 @@ export const api = {
       desglose: { corte_s?: number; viaje_s?: number; extra_s?: number };
     }>("/api/estimate"),
   pageUrl: (i: number, v: number | string, sim = false, bordes = false,
-            fase = 0, cont = "final") =>
+            fase = 0, cont = "final", marcas = false) =>
     `${apiBase().replace(/\/$/, "")}/api/pages/${i}.png?v=${v}` +
     `${sim ? "&sim=1" : ""}${bordes ? "&bordes=1" : ""}` +
-    `${bordes ? `&fase=${fase}&cont=${cont}` : ""}`,
+    `${bordes ? `&fase=${fase}&cont=${cont}` : ""}` +
+    `${marcas ? "&marcas=1" : ""}`,
   move: (uid: string, x: number, y: number) =>
     req<{ ok: boolean; placement: Placement; job: Job | null }>(
       `/api/placements/move`, {
