@@ -1215,6 +1215,22 @@ def _one_pass(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
             break
         if a["id"] not in angulos_cache:
             angs = angulos_fijos.get(a["id"]) or angles_n
+            # LÓGICA HUMANA: las figuras IGUALES suelen encajar entre sí
+            # giradas 180° → esos ángulos (los de las iguales ya puestas y su
+            # opuesto) se prueban PRIMERO; el resto de ángulos después
+            pares = [q.angle for q in ctx.placements
+                     if q.asset_id == a["id"]
+                     and not getattr(q, "rata", False)]
+            if pares:
+                prio: list[float] = []
+                for a0 in pares[:3]:
+                    for cand in ((a0 + 180.0) % 360.0, a0 % 360.0):
+                        if all(abs((cand - x + 180.0) % 360.0 - 180.0) > 0.5
+                               for x in prio):
+                            prio.append(cand)
+                angs = prio + [x for x in angs
+                               if all(abs((x - q + 180.0) % 360.0 - 180.0)
+                                      > 0.5 for q in prio)]
             angulos_cache[a["id"]] = _angulos_unicos(
                 ctx, a["id"], a["w_mm"], a["h_mm"], masks[a["id"]], angs)
         ok = _try_place(ctx, a["id"], a.get("name", ""), a["w_mm"], a["h_mm"],
