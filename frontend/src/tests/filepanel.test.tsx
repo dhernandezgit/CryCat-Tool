@@ -169,20 +169,18 @@ describe("Panel de archivos", () => {
     expect(screen.queryByText(/NaN/)).toBeNull();
   });
 
-  it("ajusta el borde de un elemento SOBRE el global (y permite menos)", async () => {
+  it("el borde ADICIONAL del elemento va aparte del global (desde 0)", async () => {
     render(<FilePanel assets={[asset()]} result={result} settings={settings}
                        onChange={onChange} saveSettings={saveSettings} />);
-    // el control muestra el TOTAL (el global de 2 mm ya incluido)
-    expect(screen.getByTestId("offset-a1")).toHaveTextContent("2.0 mm");
+    // el control es SOLO el borde ADICIONAL (empieza en 0, desacoplado)
+    expect(screen.getByTestId("offset-a1")).toHaveTextContent("0.0 mm");
     fireEvent.click(screen.getByTestId("borde-a1"));
     fireEvent.click(screen.getByTestId("offset-mas-a1"));
-    expect(screen.getByTestId("offset-a1")).toHaveTextContent("2.5 mm");
+    expect(screen.getByTestId("offset-a1")).toHaveTextContent("0.5 mm");
     fireEvent.click(screen.getByTestId("offset-menos-a1"));
-    expect(screen.getByTestId("offset-a1")).toHaveTextContent("2.0 mm");
-    // se puede poner MENOS que el global (baja hasta 0 sin volverse loco)
-    for (let i = 0; i < 6; i++) {
-      fireEvent.click(screen.getByTestId("offset-menos-a1"));
-    }
+    expect(screen.getByTestId("offset-a1")).toHaveTextContent("0.0 mm");
+    // nunca baja de 0
+    fireEvent.click(screen.getByTestId("offset-menos-a1"));
     expect(screen.getByTestId("offset-a1")).toHaveTextContent("0.0 mm");
     await waitFor(() =>
       expect(global.fetch).toHaveBeenCalledWith(

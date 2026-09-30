@@ -125,9 +125,9 @@ def _delimitar_margen() -> float:
 def _separacion_px() -> int:
     """Separación artificial (px del resultado) entre piezas al renderizar."""
     try:
-        return max(0, min(8, int(settings.get("separacion_px", 1) or 0)))
+        return max(0, min(12, int(settings.get("separacion_px", 3) or 0)))
     except Exception:
-        return 1
+        return 3
 
 
 def _avisar_blobs(a: Asset) -> None:
@@ -535,13 +535,11 @@ def create_app(store: Session = session) -> FastAPI:
             raise HTTPException(400, str(e))
         aid = new_id()
         dpi_use = info.dpi_src if 10 < info.dpi_src <= 2400 else dpi
-        if not (10 < info.dpi_src <= 2400):
-            a_dpi_aviso = tr("se supone {d} ppp (el archivo no lo indicaba)",
-                             d=f"{dpi:.0f}")
+        # SIN avisos de PPP supuestos (ni el genérico de resolución): el
+        # tamaño ya sale correcto y el aviso solo molesta
         avisos = [w for w in info.warnings
-                  if "sin datos de resolución" not in w]
-        if not (10 < info.dpi_src <= 2400):
-            avisos.append(a_dpi_aviso)
+                  if "sin datos de resolución" not in w
+                  and "se supone" not in w.lower()]
         a = Asset(aid, name, imaging.trim(img), raw, dpi_use,
                   avisos, info.color_mode)
         if settings.get("chequear_lineas"):

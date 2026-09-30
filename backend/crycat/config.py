@@ -154,7 +154,7 @@ DEFAULTS: dict = {
     # Offset / borde de los elementos (contorno que se añade al recorte)
     "offset_activo": False,
     "marcas_delimitar": True,    # 2 cuadrados blancos de 1 mm pegados a los límites
-    "separacion_px": 1,          # separación artificial entre piezas al renderizar (px del resultado)
+    "separacion_px": 3,          # separación artificial entre piezas al renderizar (px del resultado)
     "offset_mm": 2.0,
     "offset_modo": "blanco",     # blanco (por defecto) | extender | color
     "offset_color": "#ffffff",

@@ -231,16 +231,33 @@ describe("App completa", () => {
 });
 
 describe("Nuevas funciones 2.8", () => {
-  it("la vista compacta de ajustes existe y despliega todo", async () => {
+  it("el raíl de ajustes abre una sección y cierra el resto", async () => {
     const u = userEvent.setup();
     render(<App />);
     await waitFor(() =>
       expect(screen.getByTestId("settings-panel")).toBeInTheDocument());
-    const btn = screen.getByTestId("btn-compacta");
-    await u.click(btn);
-    // el panel de ajustes se marca como compacto (todos los menús abiertos)
-    expect(document.querySelector(".settings-panel.compacta")).not.toBeNull();
-    expect(screen.getByTestId("set-espacio_mm")).toBeInTheDocument();
+    await u.click(screen.getByTestId("rail-minis"));
+    expect(screen.getByTestId("sect-minis")).toHaveClass("open");
+    await u.click(screen.getByTestId("rail-offset"));
+    expect(screen.getByTestId("sect-offset")).toHaveClass("open");
+    expect(screen.getByTestId("sect-minis")).not.toHaveClass("open");
+  });
+
+  it("el buscador de ajustes encuentra con erratas y sinónimos", async () => {
+    const u = userEvent.setup();
+    render(<App />);
+    await waitFor(() =>
+      expect(screen.getByTestId("settings-panel")).toBeInTheDocument());
+    const caja = screen.getByTestId("busca-ajustes");
+    await u.type(caja, "separacion");      // sinónimo de «Espacio»
+    await u.keyboard("{Enter}");
+    await waitFor(() =>
+      expect(screen.getByTestId("sect-general")).toHaveClass("open"));
+    await u.clear(caja);
+    await u.type(caja, "tamañoo");         // errata de «tamaño»
+    await u.keyboard("{Enter}");
+    await waitFor(() =>
+      expect(screen.getByTestId("sect-general")).toHaveClass("open"));
   });
 
   it("el popup de guardado muestra la miniatura de lo guardado", async () => {

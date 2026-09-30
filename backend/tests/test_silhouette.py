@@ -389,11 +389,11 @@ def test_minis_con_hoja_llena_no_quitan_copias():
                            dict(base, usar_minis=False, rotacion=rot))
         res_on = sil_pack(assets, {"c": circle}, area_a4(),
                           dict(base, usar_minis=True, rotacion=rot,
-                               mini_rotacion=rot, mini_min_mm=20.0,
+                               mini_rotacion=rot, mini_min_mm=5.0,
                                mini_max_rescale=70.0,
                                mini_tamanos="iguales", mini_borde_modo="igual",
                                mini_usar_lista=True, mini_lista_modo="mm",
-                               mini_tamanos_lista=[20.0]))
+                               mini_tamanos_lista=[8.0]))
         n_off = sum(1 for p in res_off.placements if not p.mini)
         n_on = sum(1 for p in res_on.placements if not p.mini)
         assert n_off == 40 and not res_off.unplaced

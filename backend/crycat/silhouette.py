@@ -950,7 +950,7 @@ def _rellenar_minis(ctx: _Ctx, assets: list[dict], masks: dict,
         return 0
     # los minis son RELLENO: nunca pueden eternizar el trabajo (pero con
     # margen para llenar de verdad: 4 s)
-    fin_minis = time.time() + 4.0
+    fin_minis = time.time() + 10.0
     if deadline is not None:
         fin_minis = min(fin_minis, deadline)
     pesos = {a["id"]: min(100.0, max(1.0, float(a.get("mini_quota", 1.0))))

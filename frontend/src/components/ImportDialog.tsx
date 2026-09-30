@@ -62,7 +62,9 @@ export default function ImportDialog({ open, assets, onClose, onDone }: {
     return { w: (a.w_mm_base || 0) * f, h: (a.h_mm_base || 0) * f };
   };
 
-  const aplicar = async () => {
+  /** Aplica el tamaño actual a los seleccionados SIN cerrar el diálogo:
+   *  así se puede seguir ajustando y ver cómo queda antes de «Siguiente». */
+  const aplicarSolo = async () => {
     let n = 0;
     for (const a of assets) {
       if (!seleccionado(a.id)) continue;
@@ -74,6 +76,10 @@ export default function ImportDialog({ open, assets, onClose, onDone }: {
     }
     await onDone();
     setAviso(t("{n} elementos ajustados ", { n }));
+  };
+
+  const aplicar = async () => {
+    await aplicarSolo();
     onClose();
   };
 
@@ -108,6 +114,14 @@ export default function ImportDialog({ open, assets, onClose, onDone }: {
                 );
               })}
             </div>
+            <div className="modal-botones" style={{ marginTop: 8 }}>
+              <button className="primary" data-testid="import-aplicar-izq"
+                      onClick={aplicarSolo}>
+                {t("Aplicar tamaño")}
+              </button>
+            </div>
+            {aviso && <div className="hint" data-testid="import-aviso-izq">
+              {aviso}</div>}
           </div>
 
           {/* centro: cuadrícula seleccionable con PPP y tamaño */}

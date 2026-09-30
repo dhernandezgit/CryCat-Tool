@@ -69,6 +69,58 @@ function FilaMini({ i, valor, refBase, onValor, onQuitar, t, modo = "mm" }: {
   );
 }
 
+/** Sinónimos para el buscador de ajustes. */
+const SINONIMOS: Record<string, string[]> = {
+  borde: ["offset", "contorno", "border", "margen"],
+  offset: ["borde", "contorno"],
+  tamano: ["escala", "size", "medida"], escala: ["tamano", "size"],
+  separacion: ["espacio", "gap", "distancia"], espacio: ["separacion", "gap"],
+  copias: ["copies", "cantidad", "numero"],
+  hoja: ["pagina", "page", "papel"], pagina: ["hoja", "page"],
+  maquina: ["cricut", "machine", "cortadora"],
+  color: ["colour", "tono"], idioma: ["language", "lengua"],
+  minis: ["mini", "relleno"], rotacion: ["giro", "angulo", "rotate"],
+  ajustes: ["configuracion", "settings", "opciones"],
+};
+
+function normaliza(t: string): string {
+  return t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
+/** Distancia de Levenshtein (para erratas). */
+function distancia(a: string, b: string): number {
+  const m = a.length, n = b.length;
+  if (!m) return n;
+  if (!n) return m;
+  const d: number[][] = Array.from({ length: m + 1 }, () => [0]);
+  for (let i = 0; i <= m; i += 1) d[i][0] = i;
+  for (let j = 0; j <= n; j += 1) d[0][j] = j;
+  for (let i = 1; i <= m; i += 1) {
+    for (let j = 1; j <= n; j += 1) {
+      d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1,
+                         d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    }
+  }
+  return d[m][n];
+}
+
+/** Puntuación de un texto para la búsqueda: exacta, prefijo, errata o sinónimo. */
+function puntua(q: string, texto: string): number {
+  if (!q) return 0;
+  if (texto.includes(q)) return 3;
+  const palabras = texto.split(/[^a-z0-9]+/).filter(Boolean);
+  for (const p of palabras) {
+    if (p.startsWith(q)) return 2;
+    if (q.length >= 4 && distancia(p, q) <= 2) return 1;   // erratas
+  }
+  for (const [clave, sins] of Object.entries(SINONIMOS)) {
+    if (clave.includes(q) || q.includes(clave)) {
+      for (const sin of sins) if (texto.includes(sin)) return 1;
+    }
+  }
+  return 0;
+}
+
 function Section({ id, title, open, toggle, children, icon }: {
   id: string;
   title: string;
@@ -118,9 +170,41 @@ export default function SettingsPanel({ settings, saveSettings,
     perfiles: false, corte: false, extras: false, offset: false,
   });
   const [pickerOpen, setPickerOpen] = useState(false);
-  // vista COMPRIMIDA: todos los menús desplegados y compactos de una vez
-  const [compacta, setCompacta] = useState(false);
-  const abierto = (id: keyof typeof open) => compacta || open[id];
+  const abierto = (id: keyof typeof open) => open[id];
+  // BUSCADOR inteligente (erratas + sinónimos) y raíl de secciones: al pulsar
+  // un icono se abre ESA sección y se cierran las demás
+  const [busca, setBusca] = useState("");
+  const abrirSolo = (id: keyof typeof open, forzar = false) =>
+    setOpen((o) => {
+      const n = { ...o };
+      (Object.keys(n) as (keyof typeof open)[]).forEach((k) => {
+        n[k] = k === id ? (forzar ? true : !o[k]) : false;
+      });
+      return n;
+    });
+  const buscar = () => {
+    const q = normaliza(busca.trim());
+    if (!q) return;
+    const panel = document.querySelector(".settings-panel");
+    for (const c of Array.from(panel?.querySelectorAll(".ctl") ?? [])) {
+      if (puntua(q, normaliza(c.textContent || "")) <= 0) continue;
+      const sect = c.closest(".sect");
+      const id = (sect?.getAttribute("data-testid") || "")
+        .replace("sect-", "") as keyof typeof open;
+      if (id) abrirSolo(id, true);
+      const inp = c.querySelector("input, select, textarea");
+      const testid = inp?.getAttribute("data-testid");
+      if (testid) {
+        window.setTimeout(() => {
+          const el = document.querySelector(`[data-testid="${testid}"]`);
+          el?.scrollIntoView({ block: "center", behavior: "smooth" });
+          el?.classList.add("resalta");
+          window.setTimeout(() => el?.classList.remove("resalta"), 2400);
+        }, 150);
+      }
+      return;
+    }
+  };
 
   // imagen de referencia para la columna de mm: la más grande con minis
   // activados (o la más grande a secas); el backend escala por el lado menor
@@ -184,16 +268,34 @@ export default function SettingsPanel({ settings, saveSettings,
   );
 
   return (
-    <div className={`file-panel settings-panel${compacta ? " compacta" : ""}`}>
+    <div className="file-panel settings-panel">
       <div className="file-head">
         <h2>{t("Ajustes")}</h2>
-        <button className={`chip${compacta ? " on" : ""}`}
-                data-testid="btn-compacta"
-                title={t("Ver TODOS los menús desplegados y compactos")}
-                onClick={() => setCompacta((c) => !c)}>
-          {t("Compacta")}
-        </button>
+        <input className="busca-ajustes" data-testid="busca-ajustes"
+               value={busca} placeholder={t("Buscar…")}
+               title={t("Busca parámetros (admite erratas y sinónimos): p. ej. «borde», «separacion», «tamano»")}
+               onChange={(e) => setBusca(e.target.value)}
+               onKeyDown={(e) => { if (e.key === "Enter") buscar(); }} />
         <span className="count-badge">{settings.tema}</span>
+      </div>
+      {/* raíl de secciones: un icono por menú; abre ese y cierra el resto */}
+      <div className="rail-ajustes" data-testid="rail-ajustes">
+        {([["general", <IconoAjustar size={16} />, t("General")],
+           ["minis", <IconoMini size={16} />, t("Minis")],
+           ["optimizacion", <IconoRecalcular size={16} />, t("Optimización")],
+           ["imagen", <IconoFondo size={16} />, t("Imagen")],
+           ["offset", <IconoBordes size={16} />, t("Borde")],
+           ["corte", <IconoTijeras size={16} />, t("Estimación de corte")],
+           ["visualizacion", <IconoGuias size={16} />, t("Visualización")],
+           ["historial", <IconoDeshacer size={16} />, t("Historial (deshacer/rehacer)")],
+           ["extras", <IconoVolumen size={16} />, t("Extras")]] as
+          [keyof typeof open, JSX.Element, string][]).map(([id, ico, etiq]) => (
+          <button key={id} data-testid={`rail-${id}`} title={etiq}
+                  className={open[id] ? "on" : ""}
+                  onClick={() => abrirSolo(id)}>
+            {ico}
+          </button>
+        ))}
       </div>
       {/* los dos modos, ARRIBA del todo y bien claros: o uno u otro */}
       <Modos settings={settings} saveSettings={saveSettings} />
@@ -221,6 +323,9 @@ export default function SettingsPanel({ settings, saveSettings,
           ["90", "Giros de 0º / 90º / 180º / 270º"],
           ["libre", "Cualquier ángulo"],
         ])}
+        {num("Separación entre elementos en la imagen", "separacion_px",
+             1, 12, 1, "px", undefined,
+             "Píxeles que se separan las piezas AL RENDERIZAR (aunque se toquen o solapen): la Cricut las detecta como elementos distintos y las corta por separado. 3 px va bien a 300 ppp.")}
         </Grupo>
         <Grupo titulo="Hoja y máquina">
         <Av>{num("Resolución de salida", "dpi_salida", 72, 1200, 1, "ppp")}</Av>

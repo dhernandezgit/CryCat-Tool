@@ -286,3 +286,19 @@ def test_marcas_negras_adaptan_a_la_caja_del_contenido():
     assert abs(xs.min() / px - caja[0]) < 0.6, xs.min() / px
     assert abs(ys.max() / px - caja[3]) < 0.6, ys.max() / px
     assert abs(xs.max() / px - caja[2]) < 0.6, xs.max() / px
+
+
+def test_marcas_pdf_usan_la_tinta_real():
+    """En el PDF las marcas se ajustan al rectángulo REAL de la tinta de la
+    imagen final (no a las cajas conservadoras del optimizador)."""
+    import numpy as np
+    area = cut_area(210.0, 297.0, "maker3")
+    img = Image.new("RGBA", (200, 200), (0, 0, 0, 0))
+    # contenido en una zona concreta de la página
+    img.paste((200, 60, 90, 255), (100, 120, 180, 220))
+    # una pieza colocada en otro sitio: la caja del optimizador es MÁS grande
+    pl = Placement(uid="a#0", asset_id="a", page=0, x=60, y=70, w=120, h=120,
+                   angle=45.0, scale=1.0, w0=60, h0=60)
+    data = compose.export_pdf(area, [pl], {"a": img}, 100.0, full_page=False,
+                              color="rgba", marcas=True, bleed_mm=0.0)
+    assert data[:4] == b"%PDF"

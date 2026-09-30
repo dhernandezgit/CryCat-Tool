@@ -610,6 +610,12 @@ export const EN: Record<string, string> = {
   "Lado menor": "Shortest side",
   "Círculo equivalente (aprox.)": "Equivalent circle (approx.)",
   "Marcas para delimitar": "Alignment marks",
+  "Ctrl/Shift+clic = varios": "Ctrl/Shift+click = multi",
+  "Clic en una tarjeta (o en una pieza del visor) para seleccionarla; Ctrl/Cmd o Shift + clic para seleccionar VARIAS y editarlas a la vez.":
+    "Click a card (or a piece in the viewer) to select it; Ctrl/Cmd or Shift + click to select SEVERAL and edit them together.",
+  "Separación entre elementos en la imagen": "Separation between items in the image",
+  "Píxeles que se separan las piezas AL RENDERIZAR (aunque se toquen o solapen): la Cricut las detecta como elementos distintos y las corta por separado. 3 px va bien a 300 ppp.":
+    "Pixels the pieces are separated by WHEN RENDERING (even if they touch or overlap): Cricut detects them as separate items and cuts them apart. 3 px works well at 300 dpi.",
   "Rellena el informe y envíalo por EMAIL (no hace falta cuenta ni login). También puedes copiarlo o abrirlo en GitHub si prefieres.":
     "Fill in the report and send it by EMAIL (no account or login needed). You can also copy it or open it on GitHub if you prefer.",
   "Enviar por email": "Send by email",
