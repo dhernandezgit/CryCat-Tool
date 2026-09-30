@@ -1037,21 +1037,30 @@ def _rellenar_ratas(res: PackResult, assets: list[dict], masks: dict,
     ratas = [a for a in assets if a.get("rata_enabled") and a["id"] in masks]
     if not ratas or not res.placements:
         return []
-    # caja de las piezas y de las marcas (las marcas van en la caja)
-    x0 = min(p.x for p in res.placements)
-    y0 = min(p.y for p in res.placements)
-    x1 = max(p.x + p.w for p in res.placements)
-    y1 = max(p.y + p.h for p in res.placements)
+    # caja de las PIEZAS (sin contar ratas ya puestas: el pase se llama más
+    # de una vez y la caja no debe crecer con las ratas)
+    piezas = [p for p in res.placements if not getattr(p, "rata", False)]
+    if not piezas:
+        return []
+    x0 = min(p.x for p in piezas)
+    y0 = min(p.y for p in piezas)
+    x1 = max(p.x + p.w for p in piezas)
+    y1 = max(p.y + p.h for p in piezas)
     pw, ph = area.page_w, area.page_h
     zonas: list[tuple[float, float, float, float]] = []
     if y0 - margen > 2:
         zonas.append((0.0, 0.0, pw, y0 - margen))
     if y1 + margen < ph - 2:
         zonas.append((0.0, y1 + margen, pw, ph - (y1 + margen)))
+    # las bandas laterales solo cubren la ALTURA de la caja (con margen): si
+    # no, pisarían la zona de las piezas por arriba/abajo
     if x0 - margen > 2:
-        zonas.append((0.0, 0.0, x0 - margen, ph))
+        zonas.append((0.0, max(0.0, y0 - margen), x0 - margen,
+                      min(ph, y1 + margen) - max(0.0, y0 - margen)))
     if x1 + margen < pw - 2:
-        zonas.append((x1 + margen, 0.0, pw - (x1 + margen), ph))
+        zonas.append((x1 + margen, max(0.0, y0 - margen),
+                      pw - (x1 + margen),
+                      min(ph, y1 + margen) - max(0.0, y0 - margen)))
     # exclusión alrededor de las 4 marcas (caja del contenido ± 12 mm)
     exc = (x0 - 12.0, y0 - 12.0, x1 + 12.0, y1 + 12.0)
     salida: list = []
@@ -1536,7 +1545,17 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
         Así activar los minis no cambia NADA de las copias (mismas hojas y
         posiciones): los minis solo AÑADEN piezas en lo que sobra.
         """
-        if not settings.get("usar_minis") or res.unplaced or not res.placements:
+        if res.unplaced or not res.placements:
+            return res
+        # MODO RATA: independiente de los minis normales
+        if settings.get("rata_activo"):
+            try:
+                ratas = _rellenar_ratas(res, assets, masks, settings, area)
+                if ratas:
+                    res.placements.extend(ratas)
+            except Exception:
+                pass
+        if not settings.get("usar_minis"):
             return res
         try:
             # celda media para los minis (0,5 mm): llenar huecos no necesita
@@ -1556,13 +1575,6 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
             nuevos = ctx_mini.placements[n0:]
             if nuevos:
                 res.placements.extend(nuevos)
-            # MODO RATA: copias extra para la impresión en los márgenes
-            try:
-                ratas = _rellenar_ratas(res, assets, masks, settings, area)
-                if ratas:
-                    res.placements.extend(ratas)
-            except Exception:
-                pass
                 _recalcular_eficiencia(res, masks_reales, area, assets)
         except Exception:
             pass
