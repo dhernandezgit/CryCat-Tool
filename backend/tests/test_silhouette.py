@@ -505,6 +505,30 @@ def test_minis_medida_mayor_y_circulo():
     assert abs(equiv - 20.0) < 0.5, equiv
 
 
+def test_minis_un_tamano_llena_todo_lo_que_cabe():
+    """Con UN solo tamaño en la lista, los minis se colocan hasta que no cabe
+    ninguno más: cada tamaño puede llenar el espacio por sí solo."""
+    import math
+    circle = _circle(20)
+    assets = [{"id": "c", "name": "c", "w_mm": 20, "h_mm": 20, "copies": 1,
+               "mini_enabled": True, "mini_quota": 1.0}]
+    st = dict(SET, usar_minis=True, opt_metodo="greedy",
+              opt_tiempo_auto=False, opt_tiempo_max_s=2.0, espacio_mm=1.0,
+              mini_usar_lista=True, mini_lista_modo="mm",
+              mini_lista_medida="circulo", mini_tamanos_lista=[12.0],
+              mini_min_mm=5.0, mini_borde_modo="proporcional")
+    res = sil_pack(assets, {"c": circle}, area_a4(), st)
+    minis = [p for p in res.placements if p.mini]
+    libre = area_a4().area_mm2 - math.pi * 10 ** 2
+    # llenan la mayor parte del hueco (no se paran por cupos ni topes)
+    area_minis = sum(m.w * m.h for m in minis)
+    assert area_minis >= 0.70 * libre, (len(minis), area_minis, libre)
+    # y TODOS son de ese tamaño (la lista manda): 12 mm de círculo equiv.
+    for m in minis:
+        equiv = 2.0 * math.sqrt(m.w * m.h / math.pi)
+        assert abs(equiv - 12.0) < 0.3, (equiv, m.w, m.h)
+
+
 def test_modo_rata_coloca_fuera_y_sin_borde():
     """Modo rata: copias extra SOLO para imprimir, FUERA de los límites (el
     área recortable) y del contenido, con el margen pedido y dentro de la
@@ -546,6 +570,16 @@ def test_modo_rata_coloca_fuera_y_sin_borde():
     assert firma(res) == firma(res_off)
     # sin modo rata no hay nada
     assert not [p for p in res_off.placements if getattr(p, "rata", False)]
+    # DISTANCIA A LAS MARCAS: con 12 mm, nada se acerca a la caja del
+    # contenido (donde van las marcas negras) menos de esa distancia
+    st2 = dict(st, rata_margen_mm=2.0, rata_marcas_mm=12.0)
+    res3 = sil_pack(assets, {"c": circle}, area, st2)
+    ratas3 = [p for p in res3.placements if getattr(p, "rata", False)]
+    assert ratas3, "debe haber ratas también con la distancia a las marcas"
+    for r in ratas3:
+        assert (r.x + r.w <= x0 - 12.0 + 0.6 or r.x >= x1 + 12.0 - 0.6
+                or r.y + r.h <= y0 - 12.0 + 0.6
+                or r.y >= y1 + 12.0 - 0.6), (r.x, r.y)
 
 
 def test_modo_solo_una_pagina_no_crea_segunda():

@@ -174,15 +174,6 @@ def _pl_dict(p: Placement) -> dict:
             "rata": bool(getattr(p, "rata", False))}
 
 
-def _cuenta_para_marcas(p: Placement) -> bool:
-    """¿Cuenta para la CAJA de las marcas? (solo se excluyen las ratas)
-
-    Los cuadrados guía SÍ cuentan: son cosas visibles en la imagen y las
-    marcas deben delimitar TODO lo que hay.
-    """
-    return not getattr(p, "rata", False)
-
-
 # Gancho opcional de progreso: la versión web lo usa para informar a la barra
 # desde el worker de Pyodide (en escritorio se queda en None).
 progreso_hook = None
@@ -1083,11 +1074,29 @@ def create_app(store: Session = session) -> FastAPI:
         if not store.last or not store.area:
             return {"pages": 0, "placements": [], "efficiency": 0.0,
                     "bbox_mm": [0, 0], "bbox_offset_mm": [0, 0], "poly_mm": [],
-                    "marcas": {},
+                    "marcas": {}, "cajas_marcas_mm": [],
                     "page_mm": [settings.get("pagina_w"), settings.get("pagina_h")],
                     "warnings": [], "method": "", "minis": 0, "placed": 0}
         r, area = store.last, store.area
         bx, by, bw, bh = area.bbox
+        # caja de la TINTA de cada página (para las marcas de la vista): se
+        # calcula una vez por resultado y se cachea en él
+        cajas = getattr(r, "_cajas_marcas", None)
+        if cajas is None:
+            try:
+                dpi_caja = float(settings.get("dpi_salida", 300))
+                cajas = []
+                for i in range(max(1, int(r.pages))):
+                    caja = compose.caja_tinta_piezas(
+                        [p for p in r.placements if p.page == i],
+                        store.images(), dpi_caja, _separacion_px())
+                    cajas.append([round(v, 3) for v in caja] if caja else None)
+            except Exception:
+                cajas = []
+            try:
+                r._cajas_marcas = cajas
+            except Exception:
+                pass
         return {
             "pages": r.pages,
             "placements": [_pl_dict(p) for p in r.placements],
@@ -1095,6 +1104,7 @@ def create_app(store: Session = session) -> FastAPI:
             "densidad": getattr(r, "densidad", 0.75),
             "marcas": {k: [round(w, 2), round(h, 2)]
                        for k, (w, h) in compose.marcas_mm().items()},
+            "cajas_marcas_mm": cajas,
             "bbox_mm": [bw, bh],
             "bbox_offset_mm": [bx, by],
             "poly_mm": [[round(x, 3), round(y, 3)] for x, y in area.poly],
@@ -1169,7 +1179,7 @@ def create_app(store: Session = session) -> FastAPI:
                 archivo = base / f"{base_name}_{n}.png"
                 n += 1
             compose.export_single(store.area, store.last.placements,
-                                  store.images(), archivo, dpi,
+                                  store.images_render(), archivo, dpi,
                                   full_page=full, color=color,
                                   perfil=settings.get("espacio_color", "srgb"),
                                   bleed_mm=float(settings.get("bleed_mm", 0) or 0),
@@ -1186,7 +1196,7 @@ def create_app(store: Session = session) -> FastAPI:
             out = base / f"{base_name}_{n}"
             n += 1
         written = compose.export_pages(
-            store.area, store.last.placements, store.images(), out, name,
+            store.area, store.last.placements, store.images_render(), out, name,
             dpi, full_page=full, color=color,
             perfil=settings.get("espacio_color", "srgb"),
             bleed_mm=float(settings.get("bleed_mm", 0) or 0),
@@ -1242,21 +1252,14 @@ def create_app(store: Session = session) -> FastAPI:
         if cache is not None:
             return Response(cache, media_type="image/png")
         pls_pag = [p for p in store.last.placements if p.page == i]
-        # las marcas se dibujan UNA vez, ajustadas a la caja de lo que hay en
-        # la página (incluidos los cuadrados guía; sin las ratas, que van
-        # fuera): así delimitan el área donde hay cosas
+        # las marcas negras (si se piden) se anclan a la TINTA REAL de las
+        # piezas: cada píxel exterior de la marca coincide con el de lo
+        # colocado (render_page las dibuja UNA vez)
         img = compose.render_page(
             store.area, pls_pag,
-            store.images(), dpi, settings.get("lienzo") == "pagina",
+            store.images_render(), dpi, settings.get("lienzo") == "pagina",
             settings.get("color_formato", "rgba"), _delimitar_mm(),
-            _delimitar_margen(), _separacion_px(), False, True)
-        if marcas:
-            reals = [p for p in pls_pag if _cuenta_para_marcas(p)]
-            if reals:
-                caja = (min(p.x for p in reals), min(p.y for p in reals),
-                        max(p.x + p.w for p in reals),
-                        max(p.y + p.h for p in reals))
-                img = compose.con_marcas_cricut(img, store.area, dpi, caja)
+            _delimitar_margen(), _separacion_px(), bool(marcas), True)
         if bordes:
             img = compose.contornos_bordes(
                 img, [p for p in store.last.placements if p.page == i],
@@ -1282,24 +1285,16 @@ def create_app(store: Session = session) -> FastAPI:
     def print_pdf():
         if not store.last or not store.area:
             raise HTTPException(400, tr("nada que imprimir"))
-        # las marcas negras se colocan en función del CONTENIDO: el borde
-        # superior coincide con el píxel más alto y el izquierdo con el más
-        # izquierdo de lo que hay en la hoja (cuadrados guía incluidos; las
-        # ratas van fuera y no cuentan)
-        pls = [p for p in store.last.placements if _cuenta_para_marcas(p)]
-        caja = None
-        if pls:
-            caja = (min(p.x for p in pls), min(p.y for p in pls),
-                    max(p.x + p.w for p in pls), max(p.y + p.h for p in pls))
+        # las marcas negras se anclan a la TINTA REAL de las piezas (el borde
+        # superior coincide con su píxel más alto, etc.): lo calcula render_page
         data = compose.export_pdf(
-            store.area, store.last.placements, store.images(),
+            store.area, store.last.placements, store.images_render(),
             float(settings.get("dpi_salida", 300)),
             full_page=settings.get("lienzo") == "pagina", marcas=True,
             bleed_mm=float(settings.get("bleed_mm", 0) or 0),
             color=settings.get("color_formato", "rgba"),
             delimitar_mm=_delimitar_mm(),
-            delimitar_margen_mm=_delimitar_margen(),
-            caja_marcas=caja)
+            delimitar_margen_mm=_delimitar_margen())
         return Response(data, media_type="application/pdf",
                         headers={"Content-Disposition":
                                  "inline; filename=crycat.pdf"})

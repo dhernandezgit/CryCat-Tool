@@ -20,55 +20,61 @@ export default function AccionesRapidas({ settings, saveSettings }: {
   return (
     <div className="acciones-panel">
       <div className="acciones-rapidas">
-        <button
-          className={`chip${usarMinis ? " on" : ""}`}
-          data-testid="chip-minis"
-          data-tip={t("Generar minis: rellenar los huecos con copias pequeñas")}
-          onClick={() => saveSettings({
-            usar_minis: !usarMinis,
-            // al activarlos se desactiva el recálculo automático (solo ahora)
-            ...(usarMinis ? {} : { auto_recalcular: false }),
-          })}
-        >
-          <IconoMini size={16} /> {t("Minis")}
-        </button>
-        <button
-          className={`chip${(settings.paginas_modo ?? "una") === "una" ? " on" : ""}`}
-          data-testid="chip-paginas"
-          data-tip={t("Solo 1 página (por defecto): nunca crea una segunda hoja; si no entra todo, avisa. Varias páginas: reparte como hasta ahora.")}
-          onClick={() => saveSettings({
-            paginas_modo: (settings.paginas_modo ?? "una") === "una"
-              ? "varias" : "una" })}
-        >
-          {(settings.paginas_modo ?? "una") === "una"
-            ? t("Solo 1 página") : t("Varias páginas")}
-        </button>
-        <button
-          className={`chip${settings.auto_recalcular ? " on" : ""}`}
-          data-testid="chip-auto"
-          data-tip={t("Recalcular automáticamente con cada cambio")}
-          onClick={() => saveSettings({ auto_recalcular: !settings.auto_recalcular })}
-        >
-          <IconoRecalcular size={16} /> {t("Auto optimizar")}
-        </button>
-        <button
-          className={`chip${experto ? " on" : ""}`}
-          data-testid="chip-modo"
-          data-tip={t("Modo básico (lo esencial) o experto (todos los menús)")}
-          onClick={() => saveSettings({ modo: experto ? "rapido" : "experto" })}
-        >
-          {experto ? t("Modo experto") : t("Modo básico")}
-        </button>
-        <button
-          className="chip"
-          data-testid="chip-rotacion"
-          data-tip={t("Rotación admitida: pulsa para cambiar entre 90°, libre y fijo")}
-          onClick={() => saveSettings({
-            rotacion: ROT_SIGUIENTE[settings.rotacion] ?? "90",
-          })}
-        >
-          <IconoRotar size={16} /> {ROT_ETIQUETA[settings.rotacion] ?? "90°"}
-        </button>
+        {/* primera fila: minis, solo 1 página y auto optimizar */}
+        <div className="fila">
+          <button
+            className={`chip${usarMinis ? " on" : ""}`}
+            data-testid="chip-minis"
+            data-tip={t("Generar minis: rellenar los huecos con copias pequeñas")}
+            onClick={() => saveSettings({
+              usar_minis: !usarMinis,
+              // al activarlos se desactiva el recálculo automático (solo ahora)
+              ...(usarMinis ? {} : { auto_recalcular: false }),
+            })}
+          >
+            <IconoMini size={16} /> {t("Minis")}
+          </button>
+          <button
+            className={`chip${(settings.paginas_modo ?? "una") === "una" ? " on" : ""}`}
+            data-testid="chip-paginas"
+            data-tip={t("Solo 1 página (por defecto): nunca crea una segunda hoja; si no entra todo, avisa. Varias páginas: reparte como hasta ahora.")}
+            onClick={() => saveSettings({
+              paginas_modo: (settings.paginas_modo ?? "una") === "una"
+                ? "varias" : "una" })}
+          >
+            {(settings.paginas_modo ?? "una") === "una"
+              ? t("Solo 1 página") : t("Varias páginas")}
+          </button>
+          <button
+            className={`chip${settings.auto_recalcular ? " on" : ""}`}
+            data-testid="chip-auto"
+            data-tip={t("Recalcular automáticamente con cada cambio")}
+            onClick={() => saveSettings({ auto_recalcular: !settings.auto_recalcular })}
+          >
+            <IconoRecalcular size={16} /> {t("Auto optimizar")}
+          </button>
+        </div>
+        {/* segunda fila: modo y rotación */}
+        <div className="fila">
+          <button
+            className={`chip${experto ? " on" : ""}`}
+            data-testid="chip-modo"
+            data-tip={t("Modo básico (lo esencial) o experto (todos los menús)")}
+            onClick={() => saveSettings({ modo: experto ? "rapido" : "experto" })}
+          >
+            {experto ? t("Modo experto") : t("Modo básico")}
+          </button>
+          <button
+            className="chip"
+            data-testid="chip-rotacion"
+            data-tip={t("Rotación admitida: pulsa para cambiar entre 90°, libre y fijo")}
+            onClick={() => saveSettings({
+              rotacion: ROT_SIGUIENTE[settings.rotacion] ?? "90",
+            })}
+          >
+            <IconoRotar size={16} /> {ROT_ETIQUETA[settings.rotacion] ?? "90°"}
+          </button>
+        </div>
       </div>
     </div>
   );

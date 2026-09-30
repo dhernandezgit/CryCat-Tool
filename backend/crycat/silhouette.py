@@ -1073,9 +1073,10 @@ def _rellenar_minis(ctx: _Ctx, assets: list[dict], masks: dict,
     cand = [a for a in assets if a.get("mini_enabled") and a["id"] in masks]
     if not cand:
         return 0
-    # los minis son RELLENO: nunca pueden eternizar el trabajo (pero con
-    # margen para llenar de verdad: 4 s)
-    fin_minis = time.time() + 10.0
+    # los minis son RELLENO: se colocan hasta que NINGUNO cabe; solo los
+    # paran el hueco libre y este tope de seguridad (el presupuesto manda si
+    # es menor)
+    fin_minis = time.time() + 45.0
     if deadline is not None:
         fin_minis = min(fin_minis, deadline)
     pesos = {a["id"]: min(100.0, max(1.0, float(a.get("mini_quota", 1.0))))
@@ -1085,7 +1086,10 @@ def _rellenar_minis(ctx: _Ctx, assets: list[dict], masks: dict,
     comunes: dict[str, float] = {}
     viables: dict[str, list[float]] = {}   # tamaños que aún pueden caber
     total = 0
-    while total < 800:
+    # SIN tope de cantidad: los minis se generan hasta que NINGUNO cabe (solo
+    # el tiempo de seguridad y el hueco libre limitan). Antes había un tope
+    # de 800 que dejaba huecos sin llenar aunque cupieran más.
+    while True:
         if time.time() > fin_minis:
             break
         # primero el elemento más subrepresentado según su cuota
@@ -1164,6 +1168,7 @@ def _rellenar_ratas(res: PackResult, assets: list[dict], masks: dict,
     from .geometry import polygon_contains
     min_mm = max(2.0, float(settings.get("rata_min_mm", 8.0)))
     margen = max(0.0, float(settings.get("rata_margen_mm", 5.0)))
+    dist_marcas = max(0.0, float(settings.get("rata_marcas_mm", 5.0)))
     ratas = [a for a in assets if a.get("rata_enabled") and a["id"] in masks]
     if not ratas or not res.placements:
         return []
@@ -1191,6 +1196,15 @@ def _rellenar_ratas(res: PackResult, assets: list[dict], masks: dict,
         zonas.append((ax1, ay, pw - ax1, ah))
     # separación de las piezas: la caja del contenido crece `margen`
     exc = (x0 - margen, y0 - margen, x1 + margen, y1 + margen)
+    # DISTANCIA A LAS MARCAS: no se pone nada cerca de las marcas negras (que
+    # se anclan a la caja del contenido) ni de los cuadrados guía
+    marcas_rects = [(x0, y0, x1, y1)]
+    for p in res.placements:
+        if str(p.asset_id).startswith("__delim"):
+            marcas_rects.append((p.x, p.y, p.x + p.w, p.y + p.h))
+    exc_marcas = [(a - dist_marcas, b - dist_marcas,
+                   c + dist_marcas, d + dist_marcas)
+                  for (a, b, c, d) in marcas_rects]
     salida: list = []
     ocupadas: list[tuple[float, float, float, float]] = []
 
@@ -1202,6 +1216,11 @@ def _rellenar_ratas(res: PackResult, assets: list[dict], masks: dict,
         if not (rx + rw <= exc[0] or rx >= exc[2]
                 or ry + rh <= exc[1] or ry >= exc[3]):
             return False
+        # ni a las marcas (caja del contenido y cuadrados guía + distancia)
+        for (mx0, my0, mx1, my1) in exc_marcas:
+            if (rx < mx1 and rx + rw > mx0
+                    and ry < my1 and ry + rh > my0):
+                return False
         for (ox, oy, ow, oh) in ocupadas:
             if (rx < ox + ow and rx + rw > ox
                     and ry < oy + oh and ry + rh > oy):
@@ -1213,36 +1232,65 @@ def _rellenar_ratas(res: PackResult, assets: list[dict], masks: dict,
                 return False
         return True
 
+    off_glob = settings.get("_offset_global")
+    borde_modo = str(settings.get("rata_borde_modo", "sin") or "sin")
     for a in ratas:
-        base = max(min(a["w_mm"], a["h_mm"]), 1e-6)
-        # tamaños: del mayor al mínimo (el máximo lo delimita el hueco)
+        # el tamaño pedido se mide sobre el CONTENIDO (sin el borde) y luego
+        # se añade el borde de las ratas según su modo (como en los minis)
+        propio = float(a.get("offset_mm", 0) or 0)
+        mm_b = propio if propio > 0 else (off_glob[0] if off_glob else 0.0)
+        quita = 2.0 * mm_b if borde_modo in ("sin", "igual") else 0.0
+        anade = 2.0 * mm_b if borde_modo == "igual" else 0.0
+        base = max(min(a["w_mm"] - quita, a["h_mm"] - quita), 1e-6)
+        # tamaños: del mayor al mínimo. Cada tamaño llena TODO lo que puede
+        # (todas las bandas) y los demás rellenan después lo que sobró: así
+        # cada tamaño, por sí solo, puede llenar todo lo que quepa.
         cands = [min_mm * 3.0, min_mm * 2.0, min_mm * 1.5, min_mm]
         for (zx, zy, zw, zh) in zonas:
-            puesto = False
+            # primero el tamaño que MÁS ratas mete en esta banda (así caben
+            # muchas más: en los márgenes estrechos los pequeños llenan el
+            # doble o el triple que los grandes)
+            mejor_n, mejor_lado = 0, None
             for lado in cands:
+                esc0 = lado / base
+                w0_ = (a["w_mm"] - quita + anade) * esc0
+                h0_ = (a["h_mm"] - quita + anade) * esc0
+                if w0_ > zw or h0_ > zh:
+                    continue
+                n = (max(1, int(zw // w0_)) * max(1, int(zh // h0_)))
+                if n > mejor_n:
+                    mejor_n, mejor_lado = n, lado
+            orden = ([mejor_lado] if mejor_lado is not None else []) + \
+                [x for x in cands if x != mejor_lado]
+            for lado in orden:
+                if lado is None:
+                    continue
                 esc = lado / base
-                w_m = a["w_mm"] * esc
-                h_m = a["h_mm"] * esc
+                w_m = (a["w_mm"] - quita + anade) * esc
+                h_m = (a["h_mm"] - quita + anade) * esc
                 if w_m > zw or h_m > zh:
                     continue
-                # rejilla en la banda (filas/columnas con el hueco justo)
-                nx = max(1, int(zw // w_m))
-                ny = max(1, int(zh // h_m))
-                for iy in range(ny):
-                    for ix in range(nx):
-                        px_ = zx + ix * w_m + (zw - nx * w_m) / 2.0
-                        py_ = zy + iy * h_m + (zh - ny * h_m) / 2.0
-                        if not libre(px_, py_, w_m, h_m):
-                            continue
-                        ocupadas.append((px_, py_, w_m, h_m))
-                        salida.append(Placement(
-                            uid=f"{a['id']}#rata{len(salida)}",
-                            asset_id=a["id"], page=0, x=px_, y=py_,
-                            w=w_m, h=h_m, angle=0.0, mini=True, scale=esc,
-                            rata=True, w0=w_m, h0=h_m))
-                        puesto = True
-                if puesto:
-                    break
+                # BARRIDO FINO por toda la banda: cada tamaño llena TODO lo
+                # que puede por sí solo y los menores rellenan después lo que
+                # dejan los mayores. El paso fino permite encajar en los
+                # huecos que quedan entre las piezas ya puestas (así caben
+                # muchas más que con una rejilla alineada)
+                paso = max(0.5, min(w_m, h_m) / 3.0)
+                py_ = zy
+                while py_ + h_m <= zy + zh + 1e-6:
+                    px_ = zx
+                    while px_ + w_m <= zx + zw + 1e-6:
+                        if libre(px_, py_, w_m, h_m):
+                            ocupadas.append((px_, py_, w_m, h_m))
+                            salida.append(Placement(
+                                uid=f"{a['id']}#rata{len(salida)}",
+                                asset_id=a["id"], page=0, x=px_, y=py_,
+                                w=w_m, h=h_m, angle=0.0, mini=True,
+                                scale=esc, rata=True, w0=w_m, h0=h_m))
+                            px_ += w_m      # la siguiente, pegada
+                        else:
+                            px_ += paso
+                    py_ += paso
     return salida
 
 
@@ -1783,14 +1831,13 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
             n0 = len(ctx_mini.placements)
             if progress:
                 progress(0.86, res.pages)
-            # los minis son lo ÚLTIMO: se les da margen para llenar de verdad
-            # (en modo automático cada tamaño nuevo cuesta máscaras y
-            # correlaciones: con poco tiempo solo se probaban los grandes),
-            # pero ACOTADO: como mucho 5 s más que el presupuesto principal
-            # (antes 10 s fijos: un trabajo de 5 s tardaba 17 s)
+            # los minis son lo ÚLTIMO: se les da margen para llenar TODO lo
+            # que quepa (solo el hueco libre y este tope de seguridad los
+            # paran). Antes el tope era de 800 minis y muchos huecos se
+            # quedaban vacíos aunque cupieran más
             _rellenar_minis(ctx_mini, assets, masks, settings,
-                            deadline=min(time.time() + 10.0,
-                                         max(deadline, time.time()) + 5.0),
+                            deadline=min(time.time() + 45.0,
+                                         max(deadline, time.time()) + 30.0),
                             progress=progress)
             nuevos = ctx_mini.placements[n0:]
             if nuevos:

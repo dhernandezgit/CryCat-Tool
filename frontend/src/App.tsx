@@ -254,13 +254,19 @@ export default function App() {
       return sel.includes(id) ? sel.filter((x) => x !== id) : [...sel, id];
     });
   }, []);
-  const bulkPatch = useCallback(async (ids: string[],
-                                       patch: Partial<Asset>) => {
+  const bulkPatch = useCallback(async (
+    ids: string[],
+    patch: Partial<Asset> | ((a: Asset) => Partial<Asset>),
+  ) => {
+    const porId = new Map(assets.map((a) => [a.id, a]));
     for (const id of ids) {
-      await api.patchAsset(id, patch as never).catch(() => undefined);
+      const a = porId.get(id);
+      const p = typeof patch === "function"
+        ? (a ? patch(a) : {}) : patch;
+      await api.patchAsset(id, p as never).catch(() => undefined);
     }
     await refresh();
-  }, [refresh]);
+  }, [assets, refresh]);
 
   // ---- historial local (deshacer/rehacer) ----
   // cada foto guarda los ELEMENTOS, el RESULTADO y los AJUSTES: deshacer

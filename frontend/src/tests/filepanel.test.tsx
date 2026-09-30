@@ -169,6 +169,43 @@ describe("Panel de archivos", () => {
     expect(screen.queryByText(/NaN/)).toBeNull();
   });
 
+  it("la tarjeta de multiselección es como una tarjeta normal (parámetros)", async () => {
+    const onBulk = vi.fn().mockResolvedValue(undefined);
+    const a1 = asset({ id: "a1", name: "uno.png", copies: 2 });
+    const a2 = asset({ id: "a2", name: "dos.png", copies: 3 });
+    render(<FilePanel assets={[a1, a2]} result={result}
+                       settings={{ ...settings, rata_activo: true }}
+                       onChange={onChange} saveSettings={saveSettings}
+                       seleccion={["a1", "a2"]} onSeleccion={vi.fn()}
+                       onBulk={onBulk} />);
+    // cabecera con el número de elementos y estilo de tarjeta
+    const card = screen.getByTestId("bulk-card");
+    expect(card).toHaveTextContent("2 elementos seleccionados");
+    expect(card.className).toContain("asset-card");
+    // parámetros de una tarjeta normal
+    expect(screen.getByTestId("bulk-mini")).toBeInTheDocument();
+    expect(screen.getByTestId("bulk-rata")).toBeInTheDocument();
+    expect(screen.getByTestId("bulk-copias-mas")).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("bulk-copias-mas"));
+    expect(onBulk).toHaveBeenCalledWith(["a1", "a2"], { copies: 3 });
+    // tamaño (plegable): escala + ancho exacto por elemento
+    fireEvent.click(screen.getByTestId("bulk-fold-tamano"));
+    expect(screen.getByTestId("bulk-escala")).toBeInTheDocument();
+    const ancho = screen.getByTestId("bulk-ancho-mm") as HTMLInputElement;
+    fireEvent.blur(ancho, { target: { value: "20" } });
+    const llamada = onBulk.mock.calls[onBulk.mock.calls.length - 1];
+    expect(typeof llamada[1]).toBe("function");
+    expect(llamada[1](a1)).toEqual({ scale_pct: 236 });   // 20 / 8.47
+    // borde (plegable) con modos y color
+    fireEvent.click(screen.getByTestId("bulk-fold-borde"));
+    expect(screen.getByTestId("bulk-offset-range")).toBeInTheDocument();
+    expect(screen.getByTestId("bulk-offset-modo-blanco")).toBeInTheDocument();
+    expect(screen.getByTestId("bulk-offset-color")).toBeInTheDocument();
+    // cuota de mini (plegable, con el mini activo)
+    fireEvent.click(screen.getByTestId("bulk-mini"));
+    expect(onBulk).toHaveBeenCalledWith(["a1", "a2"], { mini_enabled: true });
+  });
+
   it("el borde ADICIONAL del elemento va aparte del global (desde 0)", async () => {
     render(<FilePanel assets={[asset()]} result={result} settings={settings}
                        onChange={onChange} saveSettings={saveSettings} />);

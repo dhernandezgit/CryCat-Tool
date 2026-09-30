@@ -128,16 +128,22 @@ export default function PikminPet({
     }
   };
 
-  const soltar = () => {
-    const muere = sonidoMorir && Math.random() < 0.1;   // ~1 de cada 10
-    const src = muere
-      ? assetUrl(ALMA)
-      : catalogo[Math.floor(Math.random() * catalogo.length)] ?? assetUrl(ALMA);
-    setPets((ps) => [...ps, {
-      src, left: 3 + Math.random() * 92, key: Date.now() + ps.length,
-      morir: muere, estado: "paseando",
-    }]);
-    suena(muere);
+  /** Suelta `n` Pikmin a la vez (1 normal; ~30 con el easter egg). */
+  const soltar = (n = 1) => {
+    const nuevos: Pet[] = [];
+    for (let i = 0; i < n; i++) {
+      const muere = sonidoMorir && Math.random() < 0.1;   // ~1 de cada 10
+      const src = muere
+        ? assetUrl(ALMA)
+        : catalogo[Math.floor(Math.random() * catalogo.length)] ?? assetUrl(ALMA);
+      nuevos.push({
+        src, left: 3 + Math.random() * 92, key: Date.now() + i,
+        morir: muere, estado: "paseando",
+      });
+    }
+    setPets((ps) => [...ps, ...nuevos]);
+    // un solo sonido por tanda: 30 sonidos a la vez sería un caos
+    suena(false);
   };
 
   const programar = () => {
@@ -150,9 +156,9 @@ export default function PikminPet({
     timer.current = window.setTimeout(soltar, delay);
   };
 
-  // la FIESTA (easter egg de los 5 clics) saca un Pikmin al momento
+  // la FIESTA (easter egg de los 5 clics) saca MUCHÍSIMOS Pikmin a la vez
   useEffect(() => {
-    if (activo && fiesta) soltar();
+    if (activo && fiesta) soltar(30);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fiesta]);
 

@@ -299,10 +299,17 @@ def render_page(area: CutArea, placements: list[Placement], images: dict[str, Im
 
     canvas = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     px_per_mm = dpi / 25.4
+    tinta = None      # caja de la TINTA de las piezas (px del lienzo)
     for p in placements:
         if getattr(p, "rata", False) and not ratas:
             continue     # las ratas solo salen en la vista y en la impresión
         src = images.get(p.asset_id)
+        # minis y ratas pueden llevar una imagen propia por escala (borde
+        # «igual» en mm o «sin borde»): se busca la variante (asset, escala)
+        if p.mini or getattr(p, "rata", False):
+            alt = images.get((p.asset_id, round(float(p.scale or 1.0), 3)))
+            if alt is not None:
+                src = alt
         if src is None:
             continue
         img = _content_trimmed(src, p, px_per_mm)
@@ -320,22 +327,28 @@ def render_page(area: CutArea, placements: list[Placement], images: dict[str, Im
         x = round(p.x * px_per_mm - off_x * px_per_mm)
         y = round(p.y * px_per_mm - off_y * px_per_mm)
         canvas.alpha_composite(img, (max(0, x), max(0, y)))
+        # la caja de las marcas es la TINTA REAL de las piezas (ni las cajas
+        # conservadoras de los giros ni los cuadrados guía ni las ratas): así
+        # el píxel exterior de cada marca coincide con el de lo colocado
+        if marcas_cricut and not getattr(p, "rata", False):
+            try:
+                bb = img.convert("RGBA").getchannel("A").getbbox()
+            except Exception:
+                bb = None
+            if bb:
+                rect = (max(0, x) + bb[0], max(0, y) + bb[1],
+                        max(0, x) + bb[2], max(0, y) + bb[3])
+                tinta = rect if tinta is None else (
+                    min(tinta[0], rect[0]), min(tinta[1], rect[1]),
+                    max(tinta[2], rect[2]), max(tinta[3], rect[3]))
     if delimitar_mm > 0:
         canvas = marcas_delimitar(canvas, area, dpi, float(delimitar_mm),
                                   off_x, off_y, float(delimitar_margen_mm))
     if marcas_cricut:
-        # las marcas negras se colocan según la CAJA de la tinta ya dibujada
-        # (se mueven con cada optimización: borde superior = píxel más alto…)
-        caja_real = None
-        try:
-            bb = canvas.convert("RGBA").getchannel("A").getbbox()
-            if bb:
-                caja_real = ((bb[0] + off_x * px_per_mm) / px_per_mm,
-                             (bb[1] + off_y * px_per_mm) / px_per_mm,
-                             (bb[2] + off_x * px_per_mm) / px_per_mm,
-                             (bb[3] + off_y * px_per_mm) / px_per_mm)
-        except Exception:
-            caja_real = None
+        # las marcas negras se colocan según la CAJA DE LA TINTA de las
+        # piezas (el borde superior coincide con su píxel más alto, etc.)
+        caja_real = (tuple(v / px_per_mm for v in tinta)
+                     if tinta is not None else None)
         canvas = con_marcas_cricut(canvas, area, dpi, caja_real)
     if color == "rgb":
         white = Image.new("RGBA", canvas.size, (255, 255, 255, 255))
@@ -572,6 +585,51 @@ def export_layout(area: CutArea, placements: list[Placement], out_dir: Path,
     return fp
 
 
+def caja_tinta_piezas(placements: list[Placement],
+                       images: dict[str, Image.Image],
+                       dpi: float,
+                       separacion_px: int = 0
+                       ) -> tuple[float, float, float, float] | None:
+    """Caja (mm ABSOLUTOS de la página) de la TINTA real de las piezas.
+
+    Es la misma caja que usan las marcas negras: píxel exterior de lo
+    colocado de verdad (giros libres recortados a su alfa y con la misma
+    separación artificial que al renderizar), SIN los cuadrados guía y SIN
+    las ratas (van fuera). Devuelve None si no hay tinta.
+    """
+    px = dpi / 25.4
+    caja = None
+    for p in placements:
+        if getattr(p, "rata", False):
+            continue
+        if str(p.asset_id).startswith("__delim"):
+            continue
+        src = images.get(p.asset_id)
+        if src is None:
+            continue
+        img = _content_trimmed(src, p, px)
+        tw = max(1, round(p.w * px))
+        th = max(1, round(p.h * px))
+        img, _ = _fit_box(img, tw, th)
+        if separacion_px > 0:
+            img = _erosionar_alfa(img, float(separacion_px) / 2.0)
+        try:
+            bb = img.convert("RGBA").getchannel("A").getbbox()
+        except Exception:
+            bb = None
+        if not bb:
+            continue
+        x = round(p.x * px)
+        y = round(p.y * px)
+        rect = (x + bb[0], y + bb[1], x + bb[2], y + bb[3])
+        caja = rect if caja is None else (
+            min(caja[0], rect[0]), min(caja[1], rect[1]),
+            max(caja[2], rect[2]), max(caja[3], rect[3]))
+    if caja is None:
+        return None
+    return tuple(round(v / px, 3) for v in caja)
+
+
 def con_marcas_cricut(img: Image.Image, area: CutArea,
                       dpi: float, caja: tuple | None = None) -> Image.Image:
     """Superpone SOLO las marcas negras de Cricut (4 esquinas + flecha).
@@ -617,7 +675,6 @@ def export_pdf(area: CutArea, placements: list[Placement],
                marcas: bool = False, bleed_mm: float = 0.0,
                delimitar_mm: float = 0.0,
                delimitar_margen_mm: float = 0.0,
-               caja_marcas: tuple | None = None,
                separacion_px: int = 0) -> bytes:
     """PDF a tamaño real para imprimir (una página por hoja, sin márgenes).
 
@@ -629,27 +686,14 @@ def export_pdf(area: CutArea, placements: list[Placement],
     imgs = []
     for i in pages:
         # el PDF es la IMPRESIÓN: aquí las ratas SÍ salen (van en los márgenes
-        # de la página completa); en los PNG normales no
+        # de la página completa); en los PNG normales no. Las marcas negras se
+        # anclan a la TINTA real de las piezas (las dibuja render_page)
         img = render_page(area, [p for p in placements if p.page == i], images,
                           dpi, True if marcas else full_page, color,
                           delimitar_mm, delimitar_margen_mm, separacion_px,
-                          False, True)
+                          marcas, True)
         if bleed_mm > 0:
             img = con_bleed(img, int(round(bleed_mm / 25.4 * dpi)))
-        if marcas:
-            # la caja de las marcas: la de los ELEMENTOS de la optimización
-            # final (sin las ratas, que van fuera); si no llega, la tinta
-            caja_real = caja_marcas
-            if caja_real is None:
-                try:
-                    bb = img.convert("RGBA").getchannel("A").getbbox()
-                    if bb:
-                        px = dpi / 25.4
-                        caja_real = (bb[0] / px, bb[1] / px,
-                                     bb[2] / px, bb[3] / px)
-                except Exception:
-                    caja_real = None
-            img = con_marcas_cricut(img, area, dpi, caja_real)
         if img.mode == "RGBA":
             bg = Image.new("RGBA", img.size, (255, 255, 255, 255))
             bg.alpha_composite(img)

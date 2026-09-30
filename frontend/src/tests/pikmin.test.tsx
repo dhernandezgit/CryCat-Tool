@@ -60,6 +60,12 @@ describe("Pikmin animado", () => {
     expect(spy).not.toHaveBeenCalled();
   });
 
+  it("el easter egg (fiesta) suelta ~30 Pikmin a la vez", () => {
+    render(<PikminPet fiesta minDelay={999999} maxDelay={999999} />);
+    act(() => { vi.advanceTimersByTime(50); });
+    expect(screen.getAllByTestId("pikmin-pet").length).toBeGreaterThanOrEqual(25);
+  });
+
   it("desactivado no programa nada", () => {
     render(<PikminPet activo={false} minDelay={100} maxDelay={100} />);
     act(() => { vi.advanceTimersByTime(500); });

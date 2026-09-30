@@ -260,13 +260,14 @@ describe("Nuevas funciones 2.8", () => {
       expect(screen.getByTestId("sect-general")).toHaveClass("open"));
   });
 
-  it("las marcas se anclan a la caja del CONTENIDO (guías incluidas, sin ratas)", async () => {
+  it("las marcas se anclan a la TINTA real de las piezas (ni guías ni ratas)", async () => {
     // pieza en (40,50)-(70,70) + cuadrado guía en (13.6,100) y rata fuera:
-    // las marcas deben delimitar TODO lo que hay (guía incluida; rata no)
+    // las marcas usan la caja de TINTA que da el backend (solo la pieza)
     const resMarcas = {
       ...result,
       marcas: { esquina_flecha: [25, 25], esquina_sd: [25, 25],
                 esquina_ii: [25, 25], esquina_id: [25, 25] },
+      cajas_marcas_mm: [[40, 50, 70, 70]],
       placements: [
         { ...result.placements[0], x: 40, y: 50, w: 30, h: 20 },
         { uid: "__delim0#0", asset_id: "__delim0", page: 0, x: 13.6,
@@ -294,8 +295,8 @@ describe("Nuevas funciones 2.8", () => {
     expect(flecha).toBeTruthy();
     expect(sd).toBeTruthy();
     // lienzo recortable: offX/offY = bbox_offset_mm (13.6, 13.5).
-    // El cuadrado guía (x=13.6) marca el borde izquierdo de la caja.
-    expect(Number(flecha!.getAttribute("x"))).toBeCloseTo(13.6 - 13.6, 2);
+    // La caja es la TINTA de la pieza: (40,50)-(70,70), no la del guía.
+    expect(Number(flecha!.getAttribute("x"))).toBeCloseTo(40 - 13.6, 2);
     expect(Number(flecha!.getAttribute("y"))).toBeCloseTo(50 - 13.5, 2);
     // la esquina superior derecha se ancla al borde derecho (70) menos su ancho
     expect(Number(sd!.getAttribute("x"))).toBeCloseTo(70 - 13.6 - 25, 2);

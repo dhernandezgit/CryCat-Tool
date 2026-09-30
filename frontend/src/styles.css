@@ -263,7 +263,16 @@ input::placeholder { color: #cbbfc8; opacity: 1; font-style: italic; }
 .resalta { animation: resalta-ajuste 1.1s ease-in-out 2; border-radius: 8px; }
 .asset-card.sel { outline: 2.5px solid var(--accent); outline-offset: -2px; background: color-mix(in srgb, var(--accent) 8%, var(--panel)); }
 .item-box.sel { outline: 2px dashed var(--accent); outline-offset: 1px; }
-.bulk-card { border: 2px solid var(--accent); border-radius: 14px; padding: 8px 10px; margin: 0 0 10px; background: var(--panel); }
+/* tarjeta de multiselección: como una tarjeta normal pero con el color de
+   acento y FLOTANTE (se queda arriba al hacer scroll por la lista) */
+.bulk-card {
+  position: sticky; top: 4px; z-index: 8;
+  border: 2px solid var(--accent); border-radius: var(--radius);
+  padding: 8px 10px; margin: 0 0 10px;
+  background: color-mix(in srgb, var(--accent) 7%, var(--panel2));
+  box-shadow: 0 6px 18px rgba(120, 40, 70, .16);
+}
+.bulk-card .name { color: var(--accent); }
 .bulk-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
 
 .page-box.fondo-blanco { background: #ffffff; }
@@ -498,7 +507,12 @@ input::placeholder { color: #cbbfc8; opacity: 1; font-style: italic; }
   white-space: nowrap;
 }
 .acciones-panel { margin: 4px 0 10px; }
-.acciones-panel .acciones-rapidas { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin: 0 0 8px; }
+.acciones-panel .acciones-rapidas {
+  display: flex; flex-direction: column; gap: 8px; margin: 0 0 8px;
+}
+/* cada fila reparte sus botones a partes iguales (minis | 1 página | auto) */
+.acciones-panel .acciones-rapidas .fila { display: flex; gap: 8px; }
+.acciones-panel .acciones-rapidas .fila .chip { flex: 1 1 0; min-width: 0; }
 .acciones-panel .acciones-rapidas .chip {
   justify-content: center; font-size: 13.5px; padding: 10px 12px;
   border-radius: 12px;

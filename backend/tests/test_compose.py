@@ -304,6 +304,80 @@ def test_marcas_pdf_usan_la_tinta_real():
     assert data[:4] == b"%PDF"
 
 
+def test_render_marcas_se_anclan_a_la_tinta_real():
+    """Al renderizar, las marcas se anclan a la TINTA real de las piezas (no
+    a sus cajas conservadoras) y respetan el recorte del lienzo (recortable)."""
+    import numpy as np
+    area = cut_area(210.0, 297.0, "maker3")
+    img = sticker_rgba((900, 600))     # grande: las marcas no se solapan
+    pl = Placement(uid="a#0", asset_id="a", page=0, x=30, y=40, w=76.2,
+                   h=50.8, angle=0.0, scale=1.0, w0=76.2, h0=50.8)
+    for full in (True, False):
+        sin = compose.render_page(area, [pl], {"a": img}, 100.0, full,
+                                  "rgba").convert("RGBA")
+        con = compose.render_page(area, [pl], {"a": img}, 100.0, full,
+                                  "rgba", 0.0, 0.0, 0, True, False
+                                  ).convert("RGBA")
+        bb = sin.getchannel("A").getbbox()
+        assert bb, "la pieza debe tener tinta"
+        dif = (np.abs(np.asarray(sin, int) - np.asarray(con, int)
+                      ).sum(axis=2) > 30)
+        ys, xs = np.nonzero(dif)
+        assert len(ys), "deben pintarse las marcas"
+        marcas = (xs.min(), ys.min(), xs.max() + 1, ys.max() + 1)
+        for a_, b_ in zip(marcas, bb):
+            assert abs(a_ - b_) <= 2, (full, marcas, bb)   # ±1 px de redondeo
+
+
+def test_mini_borde_igual_conserva_los_mm(tmp_path, monkeypatch):
+    """El borde «igual» de los minis conserva los mm del original (antes se
+    reducía proporcionalmente, que es lo que hace «proporcional»)."""
+    import numpy as np
+    import crycat.config as cfg
+    from crycat.store import Session, Asset
+    from crycat.packer import PackResult
+
+    monkeypatch.setattr(cfg, "ASSETS_DIR", tmp_path / "assets")
+    monkeypatch.setattr(cfg, "DATA_DIR", tmp_path)
+    monkeypatch.setattr(cfg, "SESSION_FILE", tmp_path / "s.json")
+    monkeypatch.setattr(cfg, "CONFIG_FILE", tmp_path / "c.json")
+    cfg.settings._data = dict(cfg.DEFAULTS)
+    cfg.settings._data.update({"offset_activo": True, "offset_mm": 2.0,
+                               "offset_modo": "blanco"})
+    st = Session()
+    st.assets = {"a": Asset("a", "a", Image.new("RGBA", (60, 60),
+                                                (200, 60, 90, 255)),
+                            b"", 100.0, [])}
+    area = cut_area(210.0, 297.0, "maker3")
+    st.area = area
+    px = 100.0 / 25.4
+    # contenido 60 px = 15,24 mm; borde 2 mm; mini al 50 %
+    casos = {
+        "igual": 15.24 * 0.5 + 2 * 2.0,          # mismo borde en mm
+        "proporcional": (15.24 + 2 * 2.0) * 0.5,  # el borde se reduce
+        "sin": 15.24 * 0.5,                       # sin borde
+    }
+    for modo, esperado in casos.items():
+        cfg.settings._data["mini_borde_modo"] = modo
+        mini = Placement(uid="a#m", asset_id="a", page=0, x=50, y=50,
+                         w=esperado, h=esperado, angle=0.0, mini=True,
+                         scale=0.5, w0=esperado, h0=esperado)
+        st.last = PackResult(placements=[mini], pages=1)
+        out = compose.render_page(area, [mini], st.images_render(),
+                                  100.0, True, "rgba").convert("RGBA")
+        bb = out.getchannel("A").getbbox()
+        assert bb, modo
+        ancho = (bb[2] - bb[0]) / px
+        assert abs(ancho - esperado) < 0.3, (modo, ancho, esperado)
+        if modo == "igual":
+            # el borde blanco mide 2 mm: a 0,5 mm del borde ya es blanco y el
+            # centro sigue siendo el color de la pegatina
+            borde = out.getpixel((bb[0] + int(0.5 * px), (bb[1] + bb[3]) // 2))
+            centro = out.getpixel(((bb[0] + bb[2]) // 2, (bb[1] + bb[3]) // 2))
+            assert borde[0] > 240 and borde[1] > 240 and borde[2] > 240, borde
+            assert centro[0] > 150 and centro[2] < 130, centro
+
+
 def test_render_ratas_solo_en_impresion():
     """Las ratas del modo rata solo se pintan con `ratas=True` (vista y PDF);
     en el PNG normal (sin el flag) no aparecen."""

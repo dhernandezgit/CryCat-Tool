@@ -20,7 +20,9 @@ interface Props {
   destacado?: string;
   seleccion?: string[];
   onSeleccion?: (id: string, multi: boolean) => void;
-  onBulk?: (ids: string[], patch: Partial<Asset>) => Promise<void>;
+  onBulk?: (ids: string[],
+            patch: Partial<Asset> | ((a: Asset) => Partial<Asset>)
+           ) => Promise<void>;
 }
 
 function AssetCard({ a, result, onChange, onEditarContorno,
@@ -386,6 +388,8 @@ export default function FilePanel({ assets, result, settings, onChange,
   const t = useT();
   const inputRef = useRef<HTMLInputElement>(null);
   const [over, setOver] = useState(false);
+  const [bulkAbierto, setBulkAbierto] = useState(
+    { tamano: false, borde: false, mini: false });
 
   const [importados, setImportados] = useState<Asset[] | null>(null);
 
@@ -450,57 +454,176 @@ export default function FilePanel({ assets, result, settings, onChange,
         />
       </div>
 
-      {seleccion.length >= 2 && (
-        <div className="bulk-card" data-testid="bulk-card">
-          <div className="bulk-head">
-            <b>{t("{n} elementos seleccionados", { n: seleccion.length })}</b>
-            <button className="chip" data-testid="bulk-quitar"
-                    onClick={() => onSeleccion?.(seleccion[0], false)}>
-              {t("Quitar selección")}
-            </button>
-          </div>
-          <div className="seg-row">
-            <span>{t("Copias")}</span>
-            <button className="quota-btn" data-testid="bulk-copias-menos"
-              onClick={() => onBulk?.(seleccion, {
-                copies: Math.max(0, (assets.find((x) => x.id === seleccion[0])?.copies ?? 1) - 1) })}>−</button>
-            <span className="quota-val">
-              {assets.find((x) => x.id === seleccion[0])?.copies ?? 1}
-            </span>
-            <button className="quota-btn" data-testid="bulk-copias-mas"
-              onClick={() => onBulk?.(seleccion, {
-                copies: (assets.find((x) => x.id === seleccion[0])?.copies ?? 1) + 1 })}>+</button>
-          </div>
-          <div className="scale-row">
-            <span>{t("Escala")}</span>
-            <input type="range" min={10} max={400} step={5}
-              data-testid="bulk-escala"
-              value={Math.round(assets.find((x) => x.id === seleccion[0])?.scale_pct ?? 100)}
-              onChange={(e) => onBulk?.(seleccion,
-                                        { scale_pct: Number(e.target.value) })} />
-            <span className="scale-val">
-              {Math.round(assets.find((x) => x.id === seleccion[0])?.scale_pct ?? 100)}%
-            </span>
-          </div>
-          <div className="seg-row">
-            <button className={`mini-toggle${assets.find((x) => x.id === seleccion[0])?.mini_enabled ? " on" : ""}`}
-              data-testid="bulk-mini"
-              onClick={() => onBulk?.(seleccion, {
-                mini_enabled: !assets.find((x) => x.id === seleccion[0])?.mini_enabled })}>
-              {t("Mini")}
-            </button>
-            <button className="mini-toggle" data-testid="bulk-borde"
-              onClick={() => onBulk?.(seleccion, {
-                offset_mm: (assets.find((x) => x.id === seleccion[0])?.offset_mm ?? 0) > 0
-                  ? 0 : 1 })}>
-              {t("Borde")}
-            </button>
-          </div>
-          <div className="hint">
-            {t("Los cambios se aplican a TODOS los elementos seleccionados.")}
+      {seleccion.length >= 2 && (() => {
+        // valores de referencia (los del primer elemento seleccionado)
+        const ref = assets.find((x) => x.id === seleccion[0]);
+        const copias = ref?.copies ?? 1;
+        const escala = Math.round(ref?.scale_pct ?? 100);
+        const miniOn = ref?.mini_enabled ?? false;
+        const rataOn = ref?.rata_enabled ?? false;
+        const cuota = ref?.mini_quota ?? 1;
+        const bordeMm = Number(ref?.offset_mm ?? 0);
+        const bordeModo = ref?.offset_modo || "extender";
+        const bordeColor = ref?.offset_color || "#ffffff";
+        const ponerAncho = (mm: number) => {
+          if (!(mm > 0)) return;
+          onBulk?.(seleccion, (a) => {
+            const base = Number(a.w_mm_base || a.w_mm || 0);
+            if (!(base > 0)) return {};
+            return { scale_pct: Math.max(10, Math.min(400,
+              Math.round((mm / base) * 100))) };
+          });
+        };
+        return (
+        <div className="bulk-card asset-card" data-testid="bulk-card">
+          <div className="info">
+            <div className="name-row">
+              <span className="name">
+                {t("{n} elementos seleccionados", { n: seleccion.length })}
+              </span>
+              <button className="chip" data-testid="bulk-quitar"
+                      onClick={() => onSeleccion?.(seleccion[0], false)}>
+                {t("Quitar selección")}
+              </button>
+            </div>
+            <div className="card-actions">
+              <button className={`mini-toggle${miniOn ? " on" : ""}`}
+                data-testid="bulk-mini" data-tip={t("Incluir como mini (rellena huecos)")}
+                onClick={() => onBulk?.(seleccion, { mini_enabled: !miniOn })}>
+                <IconoMini size={15} /> {t("Mini")}
+              </button>
+              {settings.rata_activo === true && (
+                <button className={`mini-toggle rata${rataOn ? " on" : ""}`}
+                  data-testid="bulk-rata"
+                  data-tip={t("Modo rata: estos elementos colocan copias extra al imprimir")}
+                  onClick={() => onBulk?.(seleccion, { rata_enabled: !rataOn })}>
+                  🐀
+                </button>
+              )}
+              <button className={`mini-toggle${bordeMm > 0 ? " on" : ""}`}
+                data-testid="bulk-borde" data-tip={t("Borde adicional")}
+                onClick={() => setBulkAbierto((o) => ({ ...o, borde: !o.borde }))}>
+                <IconoBordes size={15} /> {t("Borde")}
+              </button>
+              <div className="copies-row" title={t("Copias")}>
+                <button data-testid="bulk-copias-menos"
+                  onClick={() => onBulk?.(seleccion,
+                    { copies: Math.max(0, copias - 1) })}>−</button>
+                <span className="n">{copias}</span>
+                <button data-testid="bulk-copias-mas"
+                  onClick={() => onBulk?.(seleccion, { copies: copias + 1 })}>+</button>
+              </div>
+            </div>
+
+            {/* ---- Tamaño (plegable) ---- */}
+            <div className="fold">
+              <button className="fold-head" data-testid="bulk-fold-tamano"
+                      onClick={() => setBulkAbierto((o) => ({ ...o, tamano: !o.tamano }))}>
+                <span className={`chev ${bulkAbierto.tamano ? "open" : ""}`}>›</span>
+                {t("Tamaño")}
+                <span className="fold-val">{escala} %</span>
+              </button>
+              {bulkAbierto.tamano && (
+                <div className="fold-body">
+                  <div className="scale-row">
+                    <span title={t("Escala de los elementos (100% = tamaño natural)")}>{t("Escala")}</span>
+                    <input type="range" min={10} max={400} step={5}
+                      data-testid="bulk-escala" value={escala}
+                      onChange={(e) => onBulk?.(seleccion,
+                                                { scale_pct: Number(e.target.value) })} />
+                    <span className="scale-val">{escala}%</span>
+                  </div>
+                  <div className="exact-row">
+                    <span title={t("Ancho exacto en milímetros (mantiene la proporción)")}>{t("Ancho")}</span>
+                    <input type="number" min={0.5} max={2000} step={0.5}
+                      key={seleccion.join(",")}
+                      data-testid="bulk-ancho-mm"
+                      defaultValue={ref ? ref.w_mm.toFixed(1) : ""}
+                      onBlur={(e) => ponerAncho(Number(e.target.value))} />
+                    <span>mm</span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* ---- Borde adicional (plegable) ---- */}
+            <div className="fold">
+              <button className="fold-head" data-testid="bulk-fold-borde"
+                      onClick={() => setBulkAbierto((o) => ({ ...o, borde: !o.borde }))}>
+                <span className={`chev ${bulkAbierto.borde ? "open" : ""}`}>›</span>
+                {t("Borde adicional")}
+                <span className="fold-val">{bordeMm.toFixed(1)} mm</span>
+              </button>
+              {bulkAbierto.borde && (
+                <div className="fold-body">
+                  <div className="seg-row">
+                    <button className="quota-btn" data-testid="bulk-offset-menos"
+                      onClick={() => onBulk?.(seleccion,
+                        { offset_mm: Math.max(0, bordeMm - 0.5) })}>−</button>
+                    <input type="range" min={0} max={10} step={0.5}
+                      data-testid="bulk-offset-range" value={bordeMm}
+                      onChange={(e) => onBulk?.(seleccion,
+                                                { offset_mm: Number(e.target.value) })} />
+                    <button className="quota-btn" data-testid="bulk-offset-mas"
+                      onClick={() => onBulk?.(seleccion,
+                        { offset_mm: bordeMm + 0.5 })}>+</button>
+                  </div>
+                  <div className="seg-row">
+                    {([["extender", t("Extender")], ["blanco", t("Blanco")],
+                       ["color", t("Color")], ["unir_recto", t("Unir recto")],
+                       ["unir_curvo", t("Unir curvo")]] as const).map(([modo, etiqueta]) => (
+                      <button key={modo}
+                        className={`seg ${bordeModo === modo ? "on" : ""}`}
+                        data-testid={`bulk-offset-modo-${modo}`}
+                        onClick={() => onBulk?.(seleccion, { offset_modo: modo })}>
+                        {etiqueta}
+                      </button>
+                    ))}
+                    <input type="color" className="color-pick"
+                      data-testid="bulk-offset-color" value={bordeColor}
+                      title={t("Color del borde")}
+                      onChange={(e) => onBulk?.(seleccion,
+                        { offset_color: e.target.value, offset_modo: "color" })} />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* ---- Opciones de mini (plegable, si el mini está activo) ---- */}
+            {miniOn && (
+              <div className="fold">
+                <button className="fold-head" data-testid="bulk-fold-mini"
+                        onClick={() => setBulkAbierto((o) => ({ ...o, mini: !o.mini }))}>
+                  <span className={`chev ${bulkAbierto.mini ? "open" : ""}`}>›</span>
+                  {t("Opciones de mini")}
+                  <span className="fold-val">×{cuota}</span>
+                </button>
+                {bulkAbierto.mini && (
+                  <div className="fold-body">
+                    <div className="seg-row">
+                      <span title={t("Cuántos minis quieres de estos elementos respecto a los demás")}>
+                        {t("Cuota")}
+                      </span>
+                      <button className="quota-btn" data-testid="bulk-cuota-menos"
+                        onClick={() => onBulk?.(seleccion, { mini_quota: Math.max(1,
+                          Math.round((cuota - 0.5) * 2) / 2) })}>−</button>
+                      <span className="quota-val">×{cuota}</span>
+                      <button className="quota-btn" data-testid="bulk-cuota-mas"
+                        onClick={() => onBulk?.(seleccion, { mini_quota: Math.min(100,
+                          Math.round((cuota + 0.5) * 2) / 2) })}>+</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="hint">
+              {t("Los cambios se aplican a TODOS los elementos seleccionados.")}
+            </div>
           </div>
         </div>
-      )}
+        );
+      })()}
       <div className="asset-list" data-testid="asset-list">
         {assets.map((a) => (
           <AssetCard key={a.id} a={a} result={result} onChange={onChange}

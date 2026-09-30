@@ -476,15 +476,19 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
 
   const pageEl = (i: number) => {
     const pls = result?.placements.filter((p) => p.page === i) ?? [];
-    // CAJA de las marcas: delimita el área donde hay cosas (cuadrados guía
-    // incluidos; las ratas del modo rata van fuera y no cuentan)
-    const reales = pls.filter((p) => !p.rata);
-    const cajaMarcas: [number, number, number, number] = reales.length
-      ? [Math.min(...reales.map((p) => p.x)),
-         Math.min(...reales.map((p) => p.y)),
-         Math.max(...reales.map((p) => p.x + p.w)),
-         Math.max(...reales.map((p) => p.y + p.h))]
-      : [bx, by, bx + bw, by + bh];
+    // CAJA de las marcas: la TINTA real de las piezas que da el backend
+    // (píxel exterior exacto, sin cuadrados guía ni ratas); si aún no llega,
+    // se aproxima con las cajas de las piezas
+    const reales = pls.filter((p) => !p.rata
+      && !p.asset_id.startsWith("__delim"));
+    const cajaMarcas: [number, number, number, number] =
+      result?.cajas_marcas_mm?.[i]
+      ?? (reales.length
+        ? [Math.min(...reales.map((p) => p.x)),
+           Math.min(...reales.map((p) => p.y)),
+           Math.max(...reales.map((p) => p.x + p.w)),
+           Math.max(...reales.map((p) => p.y + p.h))]
+        : [bx, by, bx + bw, by + bh]);
     return (
       <div
         key={i}

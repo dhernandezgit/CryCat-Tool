@@ -478,44 +478,8 @@ export default function SettingsPanel({ settings, saveSettings,
               10, 100, 5, "%", undefined,
               "Tope de tamaño de los minis. Siempre son algo más pequeños que el original (99 % como máximo).")
         )}
-        </Grupo>
-        <Grupo titulo="Modo rata">
-        <div className="ctl">
-          <label className="row">
-            <input type="checkbox" data-testid="set-rata-activo"
-              checked={settings.rata_activo === true}
-              onChange={(e) => set({ rata_activo: e.target.checked })} />
-            {t("Modo rata")}
-          </label>
-          <div className="hint">
-            {t("Coloca copias EXTRA de los elementos marcados con la rata: solo para IMPRIMIR (no se guardan en el PNG normal), sin borde, en los márgenes de la hoja, separadas de las piezas y evitando las marcas. El tamaño máximo lo pone el hueco libre.")}
-          </div>
-        </div>
-        {settings.rata_activo && (
-          <>
-            {num("Separación de las piezas", "rata_margen_mm", 0, 30, 0.5, "mm")}
-            {num("Tamaño mínimo", "rata_min_mm", 2, 100, 0.5, "mm")}
-          </>
-        )}
-        </Grupo>
-        <Grupo titulo="Comportamiento">
-        <Av>{sel("Rotaciones admitidas", "mini_rotacion", [
-          ["no", "No girar"],
-          ["90", "Giros de 0º / 90º / 180º / 270º"],
-          ["libre", "Cualquier ángulo"],
-        ])}
-        {sel("Selección de tamaños", "mini_tamanos", [
-          ["iguales", "Priorizar que sean iguales"],
-          ["grandes", "Priorizar grandes"],
-        ])}
-        {sel("Borde de los minis", "mini_borde_modo", [
-          ["proporcional", "Proporcional (se reduce con el mini)"],
-          ["igual", "Mantener el mismo borde (mm del original)"],
-          ["sin", "Sin borde"],
-        ], undefined, "Qué hacer con el borde de cada mini al reducirlo")}</Av>
-        {/* la lista de tamaños deseados es ESENCIAL cuando se elige el modo
-            lista: se muestra también en modo básico (si no, no habría forma
-            de configurarla) */}
+        {/* la LISTA de tamaños deseados va aquí, junto al modo: es ESENCIAL
+            cuando se elige «Lista de tamaños» y se muestra en básico también */}
         {settings.mini_usar_lista && (
           <div className="ctl">
             <label>{t("Tamaños deseados")}</label>
@@ -592,6 +556,54 @@ export default function SettingsPanel({ settings, saveSettings,
           </div>
         )}
         </Grupo>
+        <Grupo titulo="Borde de los minis">
+        {sel("Borde de los minis", "mini_borde_modo", [
+          ["proporcional", "Proporcional (se reduce con el mini)"],
+          ["igual", "Mantener el mismo borde (mm del original)"],
+          ["sin", "Sin borde"],
+        ], undefined, "Qué hacer con el borde de cada mini al reducirlo")}
+        </Grupo>
+        <Grupo titulo="Modo rata">
+        <div className="ctl">
+          <label className="row">
+            <input type="checkbox" data-testid="set-rata-activo"
+              checked={settings.rata_activo === true}
+              onChange={(e) => set({ rata_activo: e.target.checked })} />
+            {t("Modo rata")}
+          </label>
+          <div className="hint">
+            {t("Coloca copias EXTRA de los elementos marcados con la rata: solo para IMPRIMIR (no se guardan en el PNG normal), en los márgenes de la hoja, separadas de las piezas y de las marcas. El tamaño máximo lo pone el hueco libre.")}
+          </div>
+        </div>
+        {settings.rata_activo && (
+          <>
+            {num("Separación de las piezas", "rata_margen_mm", 0, 30, 0.5, "mm", undefined,
+                 "Distancia mínima entre las ratas y las piezas colocadas.")}
+            {num("Distancia a las marcas", "rata_marcas_mm", 0, 30, 0.5, "mm", undefined,
+                 "Distancia mínima entre las ratas y las marcas (las negras de Cricut y los cuadrados guía): no se pone nada más cerca.")}
+            {num("Tamaño mínimo", "rata_min_mm", 2, 100, 0.5, "mm", undefined,
+                 "Tamaño mínimo de las ratas; los tamaños mayores los delimita el hueco.")}
+            {sel("Borde de las ratas", "rata_borde_modo", [
+              ["sin", "Sin borde"],
+              ["proporcional", "Proporcional (se reduce con la rata)"],
+              ["igual", "Mantener el mismo borde (mm del original)"],
+            ], undefined, "Borde de las copias del modo rata (independiente del de los minis)")}
+          </>
+        )}
+        </Grupo>
+        <Av>
+        <Grupo titulo="Avanzado">
+        {sel("Rotaciones admitidas", "mini_rotacion", [
+          ["no", "No girar"],
+          ["90", "Giros de 0º / 90º / 180º / 270º"],
+          ["libre", "Cualquier ángulo"],
+        ])}
+        {sel("Selección de tamaños", "mini_tamanos", [
+          ["iguales", "Priorizar que sean iguales"],
+          ["grandes", "Priorizar grandes"],
+        ])}
+        </Grupo>
+        </Av>
       </Section>
 
       {/* -------- Optimización -------- */}

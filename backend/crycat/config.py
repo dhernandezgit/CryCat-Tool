@@ -155,6 +155,8 @@ DEFAULTS: dict = {
     # MODO RATA: copias extra SOLO para imprimir, sin borde, en los márgenes
     "rata_activo": False,
     "rata_margen_mm": 5.0,       # separación mínima de las piezas
+    "rata_marcas_mm": 5.0,       # distancia mínima a las marcas (negras y guías)
+    "rata_borde_modo": "sin",    # sin | proporcional | igual (como los minis)
     "rata_min_mm": 8.0,          # tamaño mínimo (el máximo lo pone el hueco)
     "offset_mm": 2.0,
     "offset_modo": "blanco",     # blanco (por defecto) | extender | color

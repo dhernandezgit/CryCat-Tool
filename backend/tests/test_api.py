@@ -695,33 +695,38 @@ def test_modo_rata_fuera_de_limites_y_fuera_del_png(client, tmp_path):
     assert abs(im.height / px - (y1 - y0 + 1.0)) < 1.5, im.size
 
 
-def test_marcas_negras_delimitan_el_contenido(client):
-    """Las marcas negras de la vista se anclan a la CAJA DE LAS PIEZAS (donde
-    hay cosas), no a los límites del área recortable: los cuadrados guía y
-    las ratas no cuentan."""
+def test_marcas_negras_coinciden_con_la_tinta_de_las_piezas(client):
+    """Las marcas negras se anclan a la TINTA REAL de las piezas: el píxel
+    exterior de cada marca coincide con el de lo colocado (ni cajas
+    conservadoras de giros, ni cuadrados guía, ni ratas)."""
     import numpy as np
+    from tests.test_imaging import sticker_rgba
     c, st, _ = client
-    upload(c, "a.png")
+    d = upload(c, "grande.png", img=sticker_rgba((600, 400))).json()
+    c.patch(f"/api/assets/{d['id']}", json={"copies": 2})
+    c.put("/api/settings", json={"rotacion": "libre", "lienzo": "pagina",
+                                 "marcas_delimitar": False})
     res = _optimiza(c)
-    caja = _caja_reales(res)
+    px = 300.0 / 25.4
     a = Image.open(io.BytesIO(c.get("/api/pages/0.png?marcas=0").content))
     b = Image.open(io.BytesIO(c.get("/api/pages/0.png?marcas=1").content))
+    # tinta real de las piezas = alfa de la página sin marcas
+    bb = a.convert("RGBA").getchannel("A").getbbox()
+    assert bb
+    tinta = [v / px for v in bb]
+    # la caja que da la API para la vista es la misma
+    caja_api = res["cajas_marcas_mm"][0]
+    assert caja_api
+    for v_api, v_tinta in zip(caja_api, tinta):
+        assert abs(v_api - v_tinta) < 0.2, (caja_api, tinta)
+    # las marcas dibujadas coinciden con la tinta (todas las páginas/lados)
     dif = (np.abs(np.asarray(a.convert("RGBA"), int)
                   - np.asarray(b.convert("RGBA"), int)).sum(axis=2) > 30)
     ys, xs = np.nonzero(dif)
     assert len(ys), "las marcas deben pintarse al pedirlas"
-    px = 300.0 / 25.4
-    # las marcas abrazan la caja del contenido: su centro coincide con el de
-    # las piezas (los soportes de 25 mm pueden solaparse en cajas pequeñas y
-    # sobresalir unos mm; nunca ~100 mm como si se anclaran a los límites)
-    cx_m = (xs.min() + xs.max()) / 2 / px
-    cy_m = (ys.min() + ys.max()) / 2 / px
-    cx_c = (caja[0] + caja[2]) / 2
-    cy_c = (caja[1] + caja[3]) / 2
-    assert abs(cx_m - cx_c) < 3.0, (cx_m, cx_c)
-    assert abs(cy_m - cy_c) < 3.0, (cy_m, cy_c)
-    assert (xs.max() - xs.min()) / px < (caja[2] - caja[0]) + 12.0
-    assert (ys.max() - ys.min()) / px < (caja[3] - caja[1]) + 12.0
+    marcas = [xs.min() / px, ys.min() / px, xs.max() / px, ys.max() / px]
+    for obtenido, esperado in zip(marcas, tinta):
+        assert abs(obtenido - esperado) < 0.5, (marcas, tinta)
 
 
 def test_fs_list(client, tmp_path):

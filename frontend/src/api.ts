@@ -48,6 +48,8 @@ export interface Result {
   efficiency: number;
   densidad?: number;         // densidad media de las siluetas (complejidad)
   marcas?: Record<string, [number, number]>;   // tamaño real en mm
+  cajas_marcas_mm?: ([number, number, number, number] | null)[];
+  // caja de la TINTA real de cada página (mm absolutos) para las marcas
   bbox_mm: [number, number];
   bbox_offset_mm: [number, number];
   poly_mm: [number, number][];
@@ -101,7 +103,9 @@ export interface AppSettings {
   separacion_px?: number;       // separación artificial entre piezas (px del resultado)
   paginas_modo?: "una" | "varias";   // solo 1 página (defecto) | varias
   rata_activo?: boolean;        // MODO RATA (copias extra solo al imprimir)
-  rata_margen_mm?: number;
+  rata_margen_mm?: number;      // separación de las piezas
+  rata_marcas_mm?: number;      // distancia a las marcas (negras y guías)
+  rata_borde_modo?: "proporcional" | "igual" | "sin";   // borde de las ratas
   rata_min_mm?: number;
   offset_mm: number;
   offset_modo: "extender" | "blanco" | "color";

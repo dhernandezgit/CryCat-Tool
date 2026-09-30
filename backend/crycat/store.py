@@ -202,6 +202,67 @@ class Session:
         o 'igual'."""
         return {a.id: _recortada(a.img) for a in self.assets.values()}
 
+    def images_render(self) -> dict:
+        """Imágenes para RENDERIZAR: las normales + una variante por escala
+        para minis y ratas.
+
+        La clave de las variantes es `(asset_id, escala)` y `render_page` la
+        busca para las piezas mini/rata: así el modo «mantener el mismo borde
+        en mm» de verdad conserva los mm al reducir (antes se renderizaba con
+        la imagen del elemento y el borde encogía proporcionalmente, que es
+        justo lo que hace el modo «proporcional»).
+        """
+        out: dict = dict(self.images())
+        if not self.last:
+            return out
+        sin_borde = self.images_sin_borde()
+        for p in self.last.placements:
+            es_rata = bool(getattr(p, "rata", False))
+            if not (p.mini or es_rata):
+                continue
+            a = self.assets.get(p.asset_id)
+            if a is None:
+                continue
+            escala = max(1e-6, float(p.scale or 1.0))
+            clave = (p.asset_id, round(escala, 3))
+            if clave in out:
+                continue
+            modo = str(settings.get("rata_borde_modo" if es_rata
+                                    else "mini_borde_modo",
+                                    "proporcional") or "proporcional")
+            cache = getattr(a, "_cache_render", None)
+            if cache is None:
+                cache = {}
+                a._cache_render = cache  # type: ignore[attr-defined]
+            if (clave, modo) in cache:
+                out[clave] = cache[(clave, modo)]
+                continue
+            if modo == "proporcional":
+                img = out[p.asset_id]             # la del elemento (escalado)
+            else:
+                base = sin_borde.get(p.asset_id)
+                if base is None:
+                    continue
+                img = base
+                if modo != "sin":
+                    # "igual": mismo borde en mm que el original aunque la
+                    # pieza sea más pequeña (el radio se aplica sobre el
+                    # ORIGINAL y el render escala todo junto: el borde final
+                    # mide exactamente mm)
+                    off = _offset_de(a)
+                    if off is not None:
+                        mm, modo_b, color = off
+                        escala_total = max(0.01, escala * (a.scale_pct / 100.0))
+                        radio = (mm / escala_total) / 25.4 * a.dpi_origen
+                        tope = 0.45 * min(base.width, base.height)
+                        if radio > 0 and radio <= tope:
+                            from .imaging import aplicar_offset
+                            img = _recortada(
+                                aplicar_offset(base, radio, modo_b, color))
+            cache[(clave, modo)] = img
+            out[clave] = img
+        return out
+
     def images(self) -> dict[str, Image.Image]:
         """Imágenes de trabajo con el borde aplicado (por elemento o global)."""
         out: dict[str, Image.Image] = {}
@@ -245,8 +306,11 @@ class Session:
 
     def pinned(self) -> list[Placement]:
         with self._lock:
+            # los cuadrados guía NO se devuelven: se añaden frescos en cada
+            # optimización (si no, se duplicaban en el resultado)
             return [p for p in (self.last.placements if self.last else [])
-                    if p.pinned]
+                    if p.pinned
+                    and not str(p.asset_id).startswith("__delim")]
 
     # ------------------------------------------------------- persistencia --
     def save(self) -> None:
