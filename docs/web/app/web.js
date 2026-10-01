@@ -10664,10 +10664,7 @@ const jh = [
   "/pikmin/10_p3_red.png",
   "/pikmin/11_p3_blue.png",
   "/pikmin/12_p3_purple.png",
-  "/pikmin/13_white.png",
   "/pikmin/15_winged.png",
-  "/pikmin/16_red.png",
-  "/pikmin/17_blue.png",
   "/pikmin/18_rock.png",
   "/pikmin/alma.png"
 ], kh = "/pikmin_bloom/", _c = "/pikmin/alma.png", Ch = "/sonidos/pikmin.mp3", Sh = "/sonidos/pikmin_morir.mp3";
@@ -11569,7 +11566,7 @@ function Lh() {
     )
   ] }) }) : /* @__PURE__ */ o.jsx("div", { style: { padding: 30 }, children: Of("es", "Cargando CryCat…") });
 }
-const Rh = "1790791638732", Qd = document.getElementById("root"), si = [
+const Rh = "1790832798314", Qd = document.getElementById("root"), si = [
   "Cargando peluches de apoyo emocional…",
   "Afilando tijeras de pegatinas…",
   "Preparando boba teas…",

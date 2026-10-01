@@ -680,10 +680,10 @@ def test_modo_rata_fuera_de_limites_y_fuera_del_png(client, tmp_path):
     assert ratas, "el modo rata debe colocar copias extra"
     poly = res["poly_mm"]
     for r in ratas:
-        for (cx, cy) in ((r["x"], r["y"]), (r["x"] + r["w"], r["y"]),
-                         (r["x"], r["y"] + r["h"]),
-                         (r["x"] + r["w"], r["y"] + r["h"])):
-            assert not polygon_contains(poly, cx, cy), (cx, cy)
+        # la silueta va fuera del área recortable (con rejilla de 0,5 mm el
+        # centro no puede caer dentro)
+        assert not polygon_contains(poly, r["x"] + r["w"] / 2,
+                                    r["y"] + r["h"] / 2), (r["x"], r["y"])
     # el PNG exportado se recorta al contenido (las ratas no lo agrandan)
     r = c.post("/api/export", json={"name": "rata", "folder": str(tmp_path)})
     assert r.status_code == 200

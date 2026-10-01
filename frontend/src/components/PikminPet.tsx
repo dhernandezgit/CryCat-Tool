@@ -27,8 +27,7 @@ const BASE_IMGS = [
   "/pikmin/04_white_hd.png", "/pikmin/05_purple_hd.png", "/pikmin/06_winged_hd.png",
   "/pikmin/07_rock_hd.png", "/pikmin/08_ice.png", "/pikmin/09_glow.png",
   "/pikmin/10_p3_red.png", "/pikmin/11_p3_blue.png", "/pikmin/12_p3_purple.png",
-  "/pikmin/13_white.png", "/pikmin/15_winged.png", "/pikmin/16_red.png",
-  "/pikmin/17_blue.png", "/pikmin/18_rock.png",
+  "/pikmin/15_winged.png", "/pikmin/18_rock.png",
   "/pikmin/alma.png",
 ];
 const BLOOM_DIR = "/pikmin_bloom/";

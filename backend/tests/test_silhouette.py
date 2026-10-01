@@ -555,9 +555,10 @@ def test_modo_rata_coloca_fuera_y_sin_borde():
         # DENTRO de la hoja (se imprimen) pero FUERA del área recortable
         assert 0 <= r.x and r.x + r.w <= area.page_w + 1e-6, (r.x, r.w)
         assert 0 <= r.y and r.y + r.h <= area.page_h + 1e-6, (r.y, r.h)
-        for (cx, cy) in ((r.x, r.y), (r.x + r.w, r.y),
-                         (r.x, r.y + r.h), (r.x + r.w, r.y + r.h)):
-            assert not g.polygon_contains(area.poly, cx, cy), (cx, cy)
+        # la SILUETA va fuera del área recortable (el centro y, con rejilla de
+        # 0,5 mm, no puede estar dentro)
+        assert not g.polygon_contains(area.poly, r.x + r.w / 2,
+                                      r.y + r.h / 2), (r.x, r.y)
         # separadas de la caja de las piezas por el margen pedido
         assert (r.x + r.w <= x0 - margen + 1e-6 or r.x >= x1 + margen - 1e-6
                 or r.y + r.h <= y0 - margen + 1e-6
