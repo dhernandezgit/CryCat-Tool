@@ -58,6 +58,19 @@ def _abrir_explorador(path: Path) -> None:
 # dentro; extender/blanco/color añaden borde hacia fuera.
 _MODOS_BORDE = ("extender", "blanco", "color", "unir_recto", "unir_curvo")
 
+
+def _color_rgb(valor: object,
+               por_defecto: tuple[int, int, int] = (255, 255, 255)
+               ) -> tuple[int, int, int]:
+    """#RRGGBB (o RRGGBB) → (r, g, b); si no vale, el color por defecto."""
+    s = str(valor or "").lstrip("#")
+    if len(s) == 6:
+        try:
+            return (int(s[0:2], 16), int(s[2:4], 16), int(s[4:6], 16))
+        except Exception:
+            pass
+    return por_defecto
+
 # Historial de duraciones reales: [(n_piezas, segundos)] para estimar mejor
 _HIST: list[tuple[int, float]] = []
 
@@ -850,13 +863,14 @@ def create_app(store: Session = session) -> FastAPI:
             modo = "unir_curvo"          # compatibilidad con lo anterior
         mm = max(0.0, float(payload.get("union_mm",
                                         payload.get("unir", 0)) or 0))
+        color = _color_rgb(payload.get("union_color"))
         img = a.img
         if quitar:
             img = imaging.quitar_blobs(img, quitar)
         if modo in _MODOS_BORDE and mm > 0:
             escala = max(0.05, a.scale_pct / 100.0)
             radio = (mm / escala) / 25.4 * a.dpi_origen
-            img = imaging.aplicar_offset(img, radio, modo, (255, 255, 255))
+            img = imaging.aplicar_offset(img, radio, modo, color)
         datos = _png_bytes(imaging.thumbnail(img, 900))
         return {"png": "data:image/png;base64,"
                 + __import__("base64").b64encode(datos).decode("ascii")}
@@ -880,6 +894,9 @@ def create_app(store: Session = session) -> FastAPI:
         if modo in _MODOS_BORDE:
             a.offset_mm = max(0.0, float(payload.get("union_mm", 0) or 0))
             a.offset_modo = modo
+            color = str(payload.get("union_color") or "")[:9]
+            if color:
+                a.offset_color = color
         a._thumb_bytes = None
         a.rev += 1
         a._prev_cache = None

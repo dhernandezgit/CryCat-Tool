@@ -1044,8 +1044,19 @@ def test_contorno_preview_quitar_y_unir(client):
     r2 = c.post(f"/api/assets/{d['id']}/contorno-preview",
                 json={"unir": 2.0})
     assert r2.json()["png"].startswith("data:image/png;base64,")
+    # modo + ancho + color de relleno
+    r3 = c.post(f"/api/assets/{d['id']}/contorno-preview",
+                json={"union_modo": "unir_curvo", "union_mm": 1.0,
+                      "union_color": "#ff0000"})
+    assert r3.json()["png"].startswith("data:image/png;base64,")
     # el asset no se ha tocado
     assert c.get(f"/api/assets/{d['id']}/blobs").json()["blobs"] != []
+    # guardar aplica el modo Y el color de relleno
+    a = c.post(f"/api/assets/{d['id']}/limpiar-contorno",
+               json={"quitar": [], "union_modo": "unir_curvo",
+                     "union_mm": 1.0, "union_color": "#ff0000"}).json()
+    assert a["offset_modo"] == "unir_curvo"
+    assert a["offset_color"] == "#ff0000"
 
 
 def test_pagina_con_marcas_delimitar_y_cache(client):

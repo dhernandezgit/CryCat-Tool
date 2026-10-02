@@ -76,6 +76,14 @@ MARK_GAP = 0.5         # margen extra para que nada toque la tinta
 MARK_INK = 1.72
 MARKS_A4 = (13.63, 13.21, 196.09, 280.08)   # A4 vertical (referencia real)
 
+# --- escalones de la GUÍA DE CORTE oficial ------------------------------
+# Medidos sobre `assets/Cricut_A5_Limites_300ppp.png` (borde blanco sobre
+# negro, página A5 148x210): la esquina del área retrocede primero ~5.5 mm y
+# luego ~22.5 mm (en mm desde la esquina de la caja). Antes se derivaban del
+# tamaño de las marcas (25.32) y NO coincidían con la referencia.
+STEP1 = 5.5
+STEP2 = 22.5
+
 
 def marks_rect(page_w: float, page_h: float,
                bbox: tuple[float, float, float, float],
@@ -218,34 +226,23 @@ def rect_inside_polygon(poly: list[tuple[float, float]],
     return True
 
 
-def _bands_polygon(x0: float, y0: float, bw: float, bh: float,
-                   mk: tuple[float, float, float, float] | None = None
+def _bands_polygon(x0: float, y0: float, bw: float, bh: float
                    ) -> tuple[list[tuple[float, float]], list[tuple[float, float, float, float]]]:
     """Polígono escalonado de 5 bandas (2 escalones por esquina) y sus muescas
-    para una caja (x0, y0, bw, bh), DERIVADO de las marcas `mk`.
-
-    Las bandas cubren las marcas de registro con su margen: así el área nunca
-    toca la tinta. Sin `mk` las marcas se suponen en las esquinas de la caja.
-    """
+    para una caja (x0, y0, bw, bh), con los escalones OFICIALES medidos sobre
+    la referencia del usuario (`STEP1`/`STEP2`)."""
     x1 = x0 + bw
     y1 = y0 + bh
-    if mk is None:
-        mk = (x0, y0, x1, y1)
-    mkx0, mky0, mkx1, mky1 = mk
-    # banda central (centro): entre los extremos interiores de las barras
-    # HORIZONTALES de las marcas
-    cx0 = mkx0 + MARK_SIZE + MARK_GAP
-    cx1 = mkx1 - MARK_SIZE - MARK_GAP
-    # banda intermedia: entre las barras VERTICALES
-    wx0 = mkx0 + MARK_THICK + MARK_GAP
-    wx1 = mkx1 - MARK_THICK - MARK_GAP
-    # cortes horizontales: bajo la barra horizontal (t1) y bajo el soporte
-    # completo de la marca (t2), donde termina la barra vertical
-    t1 = mky0 + MARK_THICK + MARK_GAP
-    t2 = mky0 + MARK_SIZE + MARK_GAP
-    t3 = mky1 - MARK_SIZE - MARK_GAP
-    t4 = mky1 - MARK_THICK - MARK_GAP
-    # acotar a la caja y ordenar (por si la marca cae fuera)
+    # escalón 1 (el pequeño, ~5.5 mm) y escalón 2 (el grande, ~22.5 mm)
+    wx0 = x0 + STEP1
+    wx1 = x1 - STEP1
+    cx0 = x0 + STEP2
+    cx1 = x1 - STEP2
+    t1 = y0 + STEP1
+    t2 = y0 + STEP2
+    t3 = y1 - STEP2
+    t4 = y1 - STEP1
+    # acotar a la caja y ordenar (por cajas muy pequeñas)
     cx0, cx1 = sorted((min(max(cx0, x0), x1), min(max(cx1, x0), x1)))
     wx0, wx1 = sorted((min(max(wx0, x0), x1), min(max(wx1, x0), x1)))
     t1, t2 = sorted((min(max(t1, y0), y1), min(max(t2, y0), y1)))
@@ -284,7 +281,7 @@ def inset_area(area: CutArea, margin: float) -> CutArea:
     nbh = max(1.0, bh - 2 * margin)
     nx0 = x0 + (bw - nbw) / 2.0
     ny0 = y0 + (bh - nbh) / 2.0
-    poly, notches = _bands_polygon(nx0, ny0, nbw, nbh, marks_rect_for(area))
+    poly, notches = _bands_polygon(nx0, ny0, nbw, nbh)
     return CutArea(page_w=area.page_w, page_h=area.page_h, poly=poly,
                    bbox=(nx0, ny0, nbw, nbh), notches=notches,
                    machine=area.machine)
@@ -320,13 +317,11 @@ def cut_area(page_w: float, page_h: float, machine: str = "estandar",
     y0 = (page_h - bh) / 2.0
 
     # --- límites OFICIALES (calibrados sobre la referencia del usuario) ---
-    # El área útil es el máximo oficial (186×272.3 en A4, medido en
-    # `assets/Cricut_A5_Limites_300ppp.png`): NO se reduce a la caja de las
-    # marcas. Las muescas se derivan de las marcas para que el contenido no
-    # toque su tinta, pero el contenido SÍ puede llegar a los límites
-    # oficiales por las bandas centrales (como en Design Space).
-    mk = marks_rect(page_w, page_h, (x0, y0, bw, bh), paper_key)
-    poly, notches = _bands_polygon(x0, y0, bw, bh, mk)
+    # El área útil es el máximo oficial (186×272.3 en A4) y los ESCALONES son
+    # los de la guía real de Design Space medidos en
+    # `assets/Cricut_A5_Limites_300ppp.png` (STEP1/STEP2). El contenido puede
+    # llegar a esos límites; las marcas se colocan abrazándolo por fuera.
+    poly, notches = _bands_polygon(x0, y0, bw, bh)
     return CutArea(page_w=page_w, page_h=page_h, poly=poly, bbox=(x0, y0, bw, bh),
                    notches=notches, machine=machine)
 

@@ -76,6 +76,7 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
   const [quitados, setQuitados] = useState<Set<number>>(new Set());
   const [unionModo, setUnionModo] = useState("ninguna");
   const [unionMin, setUnionMin] = useState(2);
+  const [unionColor, setUnionColor] = useState("#ffffff");
   const [imgContorno, setImgContorno] = useState("");
   const [selBlobs, setSelBlobs] = useState<Set<number>>(new Set());
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -270,6 +271,7 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
           || editando.offset_modo === "unir_curvo"
           || editando.offset_modo === "blanco"
             ? editando.offset_modo : "ninguna");
+        setUnionColor(editando.offset_color || "#ffffff");
         setPreviewBlobs(r.preview_png);
         // por defecto se marcan para quitar los NO principales
         setSelBlobs(new Set(r.blobs.filter((b) => !b.principal).map((b) => b.id)));
@@ -293,11 +295,12 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
         quitar: Array.from(quitados),
         union_modo: unionModo,
         union_mm: unionMm,
+        union_color: unionColor,
       }).then((r) => { if (vivo) setImgContorno(r.png); })
         .catch(() => undefined);
     }, 160);
     return () => { vivo = false; window.clearTimeout(timer); };
-  }, [editando, quitados, unionModo, unionMm]);
+  }, [editando, quitados, unionModo, unionMm, unionColor]);
 
   const quitarSeleccionados = () => {
     if (!selBlobs.size) return;
@@ -315,7 +318,7 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
     if (!editando) return;
     const quitar = Array.from(quitados);
     const union = unionModo !== "ninguna"
-      ? { modo: unionModo, mm: unionMm } : undefined;
+      ? { modo: unionModo, mm: unionMm, color: unionColor } : undefined;
     try {
       if (quitar.length || union) {
         await api.limpiarContorno(editando.id, quitar, union);
@@ -831,28 +834,30 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
             </span>
           </div>
 
-          {/* UNIR: modos + ancho; la vista previa se actualiza en vivo */}
+          {/* UNIR: modos + ancho + color de relleno; vista previa en vivo */}
           <div className="editor-unir">
             <span className="hint">{t("Unir los trozos")}</span>
-            {([["ninguna", t("Ninguna")],
-               ["unir_curvo", t("Unir curvo")],
-               ["unir_recto", t("Unir recto")],
-               ["blanco", t("Borde fuera")]] as const).map(([modo, etiqueta]) => (
-              <button key={modo}
-                className={`seg ${unionModo === modo ? "on" : ""}`}
-                data-testid={`union-modo-${modo}`}
-                title={modo === "blanco"
-                  ? t("Añade borde hacia FUERA (blanco) además de unir")
-                  : modo === "ninguna"
-                    ? t("No unir nada")
-                    : t("Une los trozos SOLO hacia dentro (sin borde por fuera)")}
-                onClick={() => elegirUnion(modo)}>
-                {etiqueta}
-              </button>
-            ))}
+            <div className="union-modos">
+              {([["ninguna", t("Ninguna")],
+                 ["unir_curvo", t("Unir curvo")],
+                 ["unir_recto", t("Unir recto")],
+                 ["blanco", t("Borde fuera")]] as const).map(([modo, etiqueta]) => (
+                <button key={modo}
+                  className={`seg ${unionModo === modo ? "on" : ""}`}
+                  data-testid={`union-modo-${modo}`}
+                  title={modo === "blanco"
+                    ? t("Añade borde hacia FUERA además de unir")
+                    : modo === "ninguna"
+                      ? t("No unir nada")
+                      : t("Une los trozos SOLO hacia dentro (sin borde por fuera)")}
+                  onClick={() => elegirUnion(modo)}>
+                  {etiqueta}
+                </button>
+              ))}
+            </div>
             {unionModo !== "ninguna" && (
-              <>
-                <span className="hint" style={{ marginLeft: 6 }}>{t("Ancho")}</span>
+              <div className="union-opciones">
+                <span className="hint">{t("Ancho")}</span>
                 <button className="quota-btn" data-testid="union-menos"
                   onClick={() => setUnionMm((m) =>
                     Math.max(0.5, Math.round((m - 0.5) * 2) / 2))}>−</button>
@@ -862,7 +867,15 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
                 <button className="quota-btn" data-testid="union-mas"
                   onClick={() => setUnionMm((m) =>
                     Math.min(20, Math.round((m + 0.5) * 2) / 2))}>+</button>
-              </>
+                <span className="hint" style={{ marginLeft: 8 }}>
+                  {t("Relleno")}
+                </span>
+                <input type="color" className="color-pick"
+                       data-testid="union-color"
+                       title={t("Color de relleno de la unión o el borde")}
+                       value={unionColor}
+                       onChange={(e) => setUnionColor(e.target.value)} />
+              </div>
             )}
           </div>
 

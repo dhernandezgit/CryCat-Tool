@@ -654,8 +654,10 @@ export const EN: Record<string, string> = {
   "Unir los trozos": "Join the pieces",
   "Ninguna": "None",
   "Borde fuera": "Outer border",
-  "Añade borde hacia FUERA (blanco) además de unir":
-    "Adds an OUTER (white) border as well as joining",
+  "Añade borde hacia FUERA además de unir":
+    "Adds an OUTER border as well as joining",
+  "Relleno": "Fill",
+  "Color de relleno de la unión o el borde": "Fill colour of the join or border",
   "No unir nada": "Do not join anything",
   "Une los trozos SOLO hacia dentro (sin borde por fuera)":
     "Joins the pieces INWARD only (no outer border)",
