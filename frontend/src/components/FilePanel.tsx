@@ -20,6 +20,8 @@ interface Props {
   destacado?: string;
   seleccion?: string[];
   onSeleccion?: (id: string, modo: SelModo) => void;
+  onSeleccionarTodo?: () => void;
+  onInvertirSeleccion?: () => void;
   onLimpiarSeleccion?: () => void;
   onBulk?: (ids: string[],
             patch: Partial<Asset> | ((a: Asset) => Partial<Asset>)
@@ -119,12 +121,12 @@ function AssetCard({ a, result, onChange, onEditarContorno,
          className={`asset-card${destacado ? " destacada" : ""}${sel ? " sel" : ""}`}
          data-testid="asset-card"
          onClick={(e) => {
-           // clic = seleccionar; Shift = añadir a la selección y Ctrl/Cmd =
-           // quitarla
+           // como carpetas: clic = solo esa; Shift = de una en una;
+           // Ctrl/Cmd = por lista (del último tocado hasta esta)
            const t0 = e.target as HTMLElement;
            if (t0.closest("button, input, select, textarea, a")) return;
-           const modo: SelModo = e.shiftKey ? "sumar"
-             : (e.ctrlKey || e.metaKey) ? "quitar" : "solo";
+           const modo: SelModo = e.shiftKey ? "uno"
+             : (e.ctrlKey || e.metaKey) ? "lista" : "solo";
            onSel?.(a.id, modo);
          }}>
       <div className="preview">
@@ -388,6 +390,8 @@ export default function FilePanel({ assets, result, settings, onChange,
                                     destacado = "",
                                     seleccion = [],
                                     onSeleccion,
+                                    onSeleccionarTodo,
+                                    onInvertirSeleccion,
                                     onLimpiarSeleccion,
                                     onBulk }: Props) {
   const t = useT();
@@ -421,7 +425,7 @@ export default function FilePanel({ assets, result, settings, onChange,
       <div className="file-head">
         <h2>{t("Imágenes")}</h2>
         <span className="hint" style={{ fontSize: 10.5 }}
-              title={t("Clic en una tarjeta (o en una pieza del visor) para seleccionarla; Ctrl/Cmd o Shift + clic para seleccionar VARIAS y editarlas a la vez.")}>
+              title={t("Clic = seleccionar; Shift + clic = de una en una; Ctrl/Cmd + clic = por lista (del último tocado hasta este). Otra vez deselecciona.")}>
           {t("Ctrl/Shift+clic = varios")}
         </span>
         <span className="count-badge" data-testid="total-assets">{assets.length}</span>
@@ -458,8 +462,22 @@ export default function FilePanel({ assets, result, settings, onChange,
           }}
         />
       </div>
+      <div className="sel-tools">
+        <button data-testid="sel-todo" onClick={() => onSeleccionarTodo?.()}
+                title={t("Seleccionar todos los elementos")}>
+          {t("Seleccionar todos")}
+        </button>
+        <button data-testid="sel-invertir" onClick={() => onInvertirSeleccion?.()}
+                title={t("Invertir la selección")}>
+          {t("Invertir")}
+        </button>
+        <button data-testid="sel-quitar" onClick={() => onLimpiarSeleccion?.()}
+                title={t("Quitar la selección")}>
+          {t("Quitar selección")}
+        </button>
+      </div>
       <div className="hint" data-testid="hint-seleccion">
-        {t("Shift + clic en una tarjeta o pieza AÑADE a la selección; Ctrl/Cmd + clic la QUITA.")}
+        {t("Shift + clic = de una en una; Ctrl/Cmd + clic = por lista. Otra vez deselecciona.")}
       </div>
 
       {seleccion.length >= 2 && (() => {
@@ -496,7 +514,7 @@ export default function FilePanel({ assets, result, settings, onChange,
               <button className="chip" data-testid="bulk-quitar"
                       onClick={() => onLimpiarSeleccion
                         ? onLimpiarSeleccion()
-                        : onSeleccion?.(seleccion[0], "quitar")}>
+                        : onSeleccion?.(seleccion[0], "uno")}>
                 {t("Quitar selección")}
               </button>
             </div>

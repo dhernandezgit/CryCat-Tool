@@ -1076,7 +1076,8 @@ def create_app(store: Session = session) -> FastAPI:
                     "bbox_mm": [0, 0], "bbox_offset_mm": [0, 0], "poly_mm": [],
                     "marcas": {}, "marcas_cajas_mm": [],
                     "page_mm": [settings.get("pagina_w"), settings.get("pagina_h")],
-                    "warnings": [], "method": "", "minis": 0, "placed": 0}
+                    "warnings": [], "method": "", "minis": 0, "placed": 0,
+                    "unplaced": 0}
         r, area = store.last, store.area
         bx, by, bw, bh = area.bbox
         # caja de las marcas POR PÁGINA: abrazan el contenido de esa hoja (sin
@@ -1116,6 +1117,8 @@ def create_app(store: Session = session) -> FastAPI:
             "method": r.method,
             "minis": sum(1 for p in r.placements if p.mini),
             "placed": len(r.placements),
+            # copias que no caben (modo Solo 1 página): el visor avisa
+            "unplaced": len(r.unplaced),
         }
 
     @app.post("/api/result/restore")

@@ -218,18 +218,35 @@ describe("Panel de archivos", () => {
     expect(onBulk).toHaveBeenCalledWith(["a1", "a2"], { mini_enabled: true });
   });
 
-  it("Shift + clic añade a la selección y Ctrl/Cmd + clic la quita", () => {
+  it("selección como carpetas: Shift de una en una y Ctrl/Cmd por lista", () => {
     const onSel = vi.fn();
     render(<FilePanel assets={[asset()]} result={result} settings={settings}
                        onChange={onChange} saveSettings={saveSettings}
                        onSeleccion={onSel} />);
     const tarjeta = screen.getByTestId("asset-card");
     fireEvent.click(tarjeta, { shiftKey: true });
-    expect(onSel).toHaveBeenLastCalledWith("a1", "sumar");
+    expect(onSel).toHaveBeenLastCalledWith("a1", "uno");
     fireEvent.click(tarjeta, { ctrlKey: true });
-    expect(onSel).toHaveBeenLastCalledWith("a1", "quitar");
+    expect(onSel).toHaveBeenLastCalledWith("a1", "lista");
     fireEvent.click(tarjeta);
     expect(onSel).toHaveBeenLastCalledWith("a1", "solo");
+  });
+
+  it("los botones de selección llaman a todo / invertir / quitar", () => {
+    const todo = vi.fn();
+    const inv = vi.fn();
+    const quitar = vi.fn();
+    render(<FilePanel assets={[asset()]} result={result} settings={settings}
+                       onChange={onChange} saveSettings={saveSettings}
+                       onSeleccionarTodo={todo}
+                       onInvertirSeleccion={inv}
+                       onLimpiarSeleccion={quitar} />);
+    fireEvent.click(screen.getByTestId("sel-todo"));
+    fireEvent.click(screen.getByTestId("sel-invertir"));
+    fireEvent.click(screen.getByTestId("sel-quitar"));
+    expect(todo).toHaveBeenCalled();
+    expect(inv).toHaveBeenCalled();
+    expect(quitar).toHaveBeenCalled();
   });
 
   it("el borde ADICIONAL del elemento va aparte del global (desde 0)", async () => {

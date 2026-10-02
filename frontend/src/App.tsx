@@ -248,16 +248,59 @@ export default function App() {
 
   // ---- selección múltiple de elementos (edición en bloque) ----
   const [seleccion, setSeleccion] = useState<string[]>([]);
+  // ancla = última tarjeta/pieza tocada (para el rango de "lista") y base =
+  // selección que había antes del rango (el rango se suma a la base)
+  const anclaSel = useRef<string | null>(null);
+  const baseSel = useRef<string[] | null>(null);
   const alternarSeleccion = useCallback((id: string, modo: SelModo) => {
     setSeleccion((sel) => {
-      if (modo === "solo") {
+      if (modo === "solo") {          // clic normal
+        anclaSel.current = id;
+        baseSel.current = null;
         return sel.length === 1 && sel[0] === id ? [] : [id];
       }
-      if (modo === "sumar") {         // Shift: añade
-        return sel.includes(id) ? sel : [...sel, id];
+      if (modo === "uno") {           // Shift: uno a uno (otra vez lo quita)
+        anclaSel.current = id;
+        baseSel.current = null;
+        return sel.includes(id) ? sel.filter((x) => x !== id) : [...sel, id];
       }
-      return sel.filter((x) => x !== id);   // Ctrl/Cmd: quita
+      // Ctrl/Cmd: por lista (del ancla hasta este); otra vez deselecciona
+      const ids = assets.map((a) => a.id);
+      const ancla = anclaSel.current;
+      const i = ancla ? ids.indexOf(ancla) : -1;
+      const j = ids.indexOf(id);
+      if (i < 0 || j < 0 || ancla === id) {
+        anclaSel.current = id;
+        baseSel.current = null;
+        return sel.includes(id) ? sel.filter((x) => x !== id) : [...sel, id];
+      }
+      const [lo, hi] = i <= j ? [i, j] : [j, i];
+      const rango = ids.slice(lo, hi + 1);
+      const base = baseSel.current ?? sel;
+      baseSel.current = base;
+      const nueva = [...new Set([...base, ...rango])];
+      if (nueva.length === sel.length && nueva.every((x) => sel.includes(x))) {
+        baseSel.current = null;      // ya estaba toda la lista: se quita
+        return sel.filter((x) => !rango.includes(x));
+      }
+      return nueva;
     });
+  }, [assets]);
+  const seleccionarTodo = useCallback(() => {
+    anclaSel.current = null;
+    baseSel.current = null;
+    setSeleccion(assets.map((a) => a.id));
+  }, [assets]);
+  const invertirSeleccion = useCallback(() => {
+    anclaSel.current = null;
+    baseSel.current = null;
+    setSeleccion((sel) => assets.map((a) => a.id)
+      .filter((id) => !sel.includes(id)));
+  }, [assets]);
+  const limpiarSeleccion = useCallback(() => {
+    anclaSel.current = null;
+    baseSel.current = null;
+    setSeleccion([]);
   }, []);
   const bulkPatch = useCallback(async (
     ids: string[],
@@ -489,7 +532,9 @@ export default function App() {
             onAntesDeCambiar={recordar}
             seleccion={seleccion}
             onSeleccion={alternarSeleccion}
-            onLimpiarSeleccion={() => setSeleccion([])}
+            onSeleccionarTodo={seleccionarTodo}
+            onInvertirSeleccion={invertirSeleccion}
+            onLimpiarSeleccion={limpiarSeleccion}
             onBulk={bulkPatch}
             verBordes={ui.verBordes}
             contornoModo={ui.contornoModo ?? "final"}
@@ -515,6 +560,8 @@ export default function App() {
             onRehacer={rehacer}
             puedeDeshacer={hist.puedeDeshacer}
             puedeRehacer={hist.puedeRehacer}
+            seleccion={seleccion}
+            onSeleccion={alternarSeleccion}
           />
         </div>
         <div className="splitter" data-testid="splitter-center" onMouseDown={() => startDrag("center")} />

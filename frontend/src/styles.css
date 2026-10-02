@@ -88,6 +88,13 @@ input::placeholder { color: #cbbfc8; opacity: 1; font-style: italic; }
 .dropzone .plus { font-size: 26px; line-height: 1; color: var(--accent3); }
 .dropzone:hover .plus, .dropzone.over .plus { color: #fff; }
 
+/* botones de selección (todo / invertir / quitar), bajo la zona de añadir */
+.sel-tools { display: flex; flex-wrap: wrap; gap: 6px; flex: none; }
+.sel-tools button {
+  flex: 1 1 auto; min-width: 0; padding: 4px 8px; font-size: 12px;
+  border-radius: 8px;
+}
+
 .asset-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 2px; }
 
 .asset-card {

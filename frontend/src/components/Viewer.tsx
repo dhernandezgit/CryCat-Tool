@@ -604,9 +604,9 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
                 block: "center", inline: "center", behavior: "smooth" });
               window.dispatchEvent(new CustomEvent("crycat:seleccion",
                 { detail: p.asset_id }));
-              // Shift añade a la selección y Ctrl/Cmd la quita
-              onSeleccion?.(p.asset_id, ev.shiftKey ? "sumar"
-                            : (ev.ctrlKey || ev.metaKey) ? "quitar" : "solo");
+              // como carpetas: Shift de una en una; Ctrl/Cmd por lista
+              onSeleccion?.(p.asset_id, ev.shiftKey ? "uno"
+                            : (ev.ctrlKey || ev.metaKey) ? "lista" : "solo");
             }}
             >
               {p.pinned && <span className="pin"></span>}
@@ -622,9 +622,11 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
 
   return (
     <div className="viewer" data-testid="viewer">
-      {pages > 1 && (
+      {(pages > 1 || (result?.unplaced ?? 0) > 0) && (
         <div className="aviso-paginas-flotante" data-testid="aviso-paginas">
-          {t("No cabe en una página: {n} páginas", { n: pages })}
+          {pages > 1
+            ? t("No cabe en una página: {n} páginas", { n: pages })
+            : t("No caben todas las copias")}
         </div>
       )}
       <div className="viewer-top">

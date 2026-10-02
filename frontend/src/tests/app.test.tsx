@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import App from "../App";
@@ -301,6 +301,50 @@ describe("Nuevas funciones 2.8", () => {
     // la esquina superior derecha se ancla al borde derecho (70) menos su ancho
     expect(Number(sd!.getAttribute("x"))).toBeCloseTo(70 - 13.6 - 25, 2);
     expect(Number(sd!.getAttribute("y"))).toBeCloseTo(50 - 13.5, 2);
+  });
+
+  it("la selección funciona como carpetas (uno a uno y por lista)", async () => {
+    const tres = [
+      { ...asset, id: "a1", name: "uno.png" },
+      { ...asset, id: "a2", name: "dos.png" },
+      { ...asset, id: "a3", name: "tres.png" },
+    ];
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const u = String(input);
+      if (u === "/api/assets") return { ok: true, json: async () => tres };
+      return mockFetch(u);
+    }));
+    render(<App />);
+    const cards = await screen.findAllByTestId("asset-card");
+    expect(cards).toHaveLength(3);
+    // Ctrl/Cmd: por lista (de la primera a la tercera)
+    fireEvent.click(cards[0]);
+    fireEvent.click(cards[2], { ctrlKey: true });
+    expect(cards[0]).toHaveClass("sel");
+    expect(cards[1]).toHaveClass("sel");
+    expect(cards[2]).toHaveClass("sel");
+    // otra vez sobre el final de la lista: se deselecciona
+    fireEvent.click(cards[2], { ctrlKey: true });
+    expect(cards[0]).not.toHaveClass("sel");
+    expect(cards[2]).not.toHaveClass("sel");
+    // Shift: de una en una (y otra vez quita)
+    fireEvent.click(cards[1], { shiftKey: true });
+    expect(cards[1]).toHaveClass("sel");
+    fireEvent.click(cards[1], { shiftKey: true });
+    expect(cards[1]).not.toHaveClass("sel");
+  });
+
+  it("avisa cuando en Solo 1 página no caben todas las copias", async () => {
+    const resLleno = { ...result, pages: 1, unplaced: 3 };
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const u = String(input);
+      if (u.includes("/api/result"))
+        return { ok: true, json: async () => resLleno };
+      return mockFetch(u);
+    }));
+    render(<App />);
+    expect(await screen.findByTestId("aviso-paginas"))
+      .toHaveTextContent("No caben todas las copias");
   });
 
   it("el popup de guardado muestra la miniatura de lo guardado", async () => {

@@ -316,9 +316,12 @@ def cut_area(page_w: float, page_h: float, machine: str = "estandar",
     x0 = (page_w - bw) / 2.0
     y0 = (page_h - bh) / 2.0
 
-    # --- polígono de 5 bandas DERIVADO DE LAS MARCAS (20 vértices) ---
-    # Las bandas se calculan para que las muescas cubran las marcas de
-    # registro con su margen: el área recortable NUNCA toca la tinta.
+    # --- límites OFICIALES (calibrados sobre la referencia del usuario) ---
+    # El área útil es el máximo oficial (186×272.3 en A4, medido en
+    # `assets/Cricut_A5_Limites_300ppp.png`): NO se reduce a la caja de las
+    # marcas. Las muescas se derivan de las marcas para que el contenido no
+    # toque su tinta, pero el contenido SÍ puede llegar a los límites
+    # oficiales por las bandas centrales (como en Design Space).
     mk = marks_rect(page_w, page_h, (x0, y0, bw, bh), paper_key)
     poly, notches = _bands_polygon(x0, y0, bw, bh, mk)
     return CutArea(page_w=page_w, page_h=page_h, poly=poly, bbox=(x0, y0, bw, bh),

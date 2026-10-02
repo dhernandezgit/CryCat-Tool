@@ -94,16 +94,21 @@ export default function StatusBar({ job, backendOk, result, estimate,
   }, [actualizando]);
 
   const running = optimizando || !!(job && !job.done);
+
+  const mensajes = useMemo(() => (msgs.length ? msgs : [
+    t("Optimizando…"), "Rascando Pikachus…", "Contando Mausholds…",
+    "Tortilleando Exeggcutes…", "Ordenando los cubiertos de Sinistea…",
+  ]), [msgs, t]);
+
+  // las frases rotan MÁS DESPACIO (el doble que antes) y en función de su
+  // longitud: las cortas ~2 s y las largas ~3 s
   useEffect(() => {
     if (!running) return;
-    const t = setInterval(() => setIdx((i) => i + 1), 1200);
-    return () => clearInterval(t);
-  }, [running]);
-
-  const mensajes = msgs.length
-    ? msgs
-    : [t("Optimizando…"), "Rascando Pikachus…", "Contando Mausholds…",
-       "Tortilleando Exeggcutes…", "Ordenando los cubiertos de Sinistea…"];
+    const actual = mensajes[idx % mensajes.length] ?? "";
+    const ms = Math.max(2000, Math.min(3000, 1500 + actual.length * 30));
+    const timer = setTimeout(() => setIdx((i) => i + 1), ms);
+    return () => clearTimeout(timer);
+  }, [running, idx, mensajes]);
 
   const message = useMemo(() => {
     if (aviso) return aviso;

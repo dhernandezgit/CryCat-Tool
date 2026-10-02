@@ -89,7 +89,15 @@ export const EN: Record<string, string> = {
     "The initial size comes from each file's real DPI (if it has no data, 300 is assumed). Tick the ones you want to change and press Apply changes.",
   "Cómo quedan sobre la hoja": "How they fit on the sheet",
   "Seleccionar todos": "Select all",
+  "Seleccionar todos los elementos": "Select every element",
+  "Invertir": "Invert",
+  "Invertir la selección": "Invert selection",
   "Quitar selección": "Clear selection",
+  "Quitar la selección": "Clear the selection",
+  "Shift + clic = de una en una; Ctrl/Cmd + clic = por lista. Otra vez deselecciona.":
+    "Shift + click = one by one; Ctrl/Cmd + click = by list. Click again to deselect.",
+  "Clic = seleccionar; Shift + clic = de una en una; Ctrl/Cmd + clic = por lista (del último tocado hasta este). Otra vez deselecciona.":
+    "Click = select; Shift + click = one by one; Ctrl/Cmd + click = by list (from the last one touched to this one). Click again to deselect.",
   "Escala (%)": "Scale (%)",
   "Tamaño fijo (mm)": "Fixed size (mm)",
   "La previsualización usa la hoja y los ajustes actuales.":

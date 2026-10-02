@@ -1079,3 +1079,16 @@ def test_pagina_con_marcas_delimitar_y_cache(client):
     im3 = Image.open(io.BytesIO(r3.content)).convert("RGBA")
     p3 = im3.getpixel((int(xs[0]), int(ys[0])))
     assert p3[3] == 0
+
+
+def test_result_avisa_de_lo_que_no_cabe_en_solo_una_pagina(client):
+    """«Solo 1 página»: lo que no entra se queda sin colocar y el resultado
+    lo dice (el visor muestra «No caben todas las copias»)."""
+    c, st, _ = client
+    d = upload(c, "enorme.png", img=sticker_rgba((2000, 2000))).json()
+    c.patch(f"/api/assets/{d['id']}", json={"copies": 4})
+    c.put("/api/settings", json={"paginas_modo": "una"})
+    res = _optimiza(c)
+    assert res["pages"] == 1
+    assert res["unplaced"] > 0
+    assert any("caben" in w for w in res["warnings"])

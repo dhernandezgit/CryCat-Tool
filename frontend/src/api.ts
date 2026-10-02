@@ -59,6 +59,7 @@ export interface Result {
   method: string;
   minis: number;
   placed: number;
+  unplaced?: number;   // copias que no caben (modo Solo 1 página)
 }
 
 export interface AppSettings {
@@ -245,7 +246,10 @@ export function assetSizeMm(a: Asset, bordeMm = 0): { w: number; h: number } {
 
 /** Cómo afecta un clic a la selección múltiple:
  *  solo = reemplaza, sumar = añade (Shift), quitar = quita (Ctrl/Cmd). */
-export type SelModo = "solo" | "sumar" | "quitar";
+export type SelModo = "solo" | "uno" | "lista";
+// "solo"  = clic normal (solo ese; si ya era el único, se deselecciona)
+// "uno"   = Shift: añade/quita de uno en uno
+// "lista" = Ctrl/Cmd: selecciona la lista (del último tocado hasta este)
 
 /** Estado de interfaz del visor. */
 export interface UiState {
