@@ -200,8 +200,9 @@ def test_thumbnail_no_supera_max():
 
 
 def test_aplicar_offset_une_trozos():
-    """unir_curvo = unión MÍNIMA (crecen y se fusionan donde se tocan);
-    unir_recto = envolvente (rellena el hueco); extender no une."""
+    """unir_curvo/unir_recto UNEN SOLO hacia dentro (sin borde exterior):
+    con radio suficiente rellenan el hueco entre los trozos y el tamaño no
+    crece; con radio pequeño no lo rellenan; extender no une."""
     from PIL import ImageDraw
     from crycat.imaging import aplicar_offset
 
@@ -218,16 +219,19 @@ def test_aplicar_offset_une_trozos():
         my = int(80 / 160 * out.height)
         return alpha.getpixel((mx, my))
 
-    # con radio grande los trozos se tocan y el centro queda lleno
+    # unión hacia dentro: con radio grande el canal se rellena...
     out = aplicar_offset(im, 45, "unir_curvo", (90, 190, 120))
-    assert out.width > base.width and out.height > base.height
     assert centro(out) > 0
-    # unión MÍNIMA: con radio pequeño NO rellena el hueco entero
+    # ...y el tamaño NO crece (no se añade borde por fuera)
+    assert abs(out.width - base.width) <= 1
+    assert abs(out.height - base.height) <= 1
+    # con radio pequeño NO rellena el hueco entero
     out2 = aplicar_offset(im, 12, "unir_curvo", (90, 190, 120))
     assert centro(out2) == 0, "unir_curvo no debe rellenar el hueco entero"
-    # la envolvente (recto) sí lo rellena con cualquier radio
-    out3 = aplicar_offset(im, 12, "unir_recto", (90, 190, 120))
+    # el modo recto también une hacia dentro (y tampoco crece)
+    out3 = aplicar_offset(im, 45, "unir_recto", (90, 190, 120))
     assert centro(out3) > 0
+    assert abs(out3.width - base.width) <= 1
     # extender NO une: el hueco sigue vacío
     out4 = aplicar_offset(im, 12, "extender", (90, 190, 120))
     assert centro(out4) == 0

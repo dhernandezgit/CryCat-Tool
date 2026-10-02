@@ -249,7 +249,7 @@ describe("Panel de archivos", () => {
     expect(quitar).toHaveBeenCalled();
   });
 
-  it("el borde ADICIONAL del elemento va aparte del global (desde 0)", async () => {
+  it("el borde ADICIONAL va aparte del global y puede ser NEGATIVO", async () => {
     render(<FilePanel assets={[asset()]} result={result} settings={settings}
                        onChange={onChange} saveSettings={saveSettings} />);
     // el control es SOLO el borde ADICIONAL (empieza en 0, desacoplado)
@@ -259,14 +259,28 @@ describe("Panel de archivos", () => {
     expect(screen.getByTestId("offset-a1")).toHaveTextContent("0.5 mm");
     fireEvent.click(screen.getByTestId("offset-menos-a1"));
     expect(screen.getByTestId("offset-a1")).toHaveTextContent("0.0 mm");
-    // nunca baja de 0
+    // con borde GLOBAL activo (2 mm) puede bajar de 0: resta al global…
     fireEvent.click(screen.getByTestId("offset-menos-a1"));
-    expect(screen.getByTestId("offset-a1")).toHaveTextContent("0.0 mm");
+    expect(screen.getByTestId("offset-a1")).toHaveTextContent("-0.5 mm");
+    // …hasta dejar el total en 0 justo (no más abajo)
+    for (let i = 0; i < 4; i++) {
+      fireEvent.click(screen.getByTestId("offset-menos-a1"));
+    }
+    expect(screen.getByTestId("offset-a1")).toHaveTextContent("-2.0 mm");
     await waitFor(() =>
       expect(global.fetch).toHaveBeenCalledWith(
         "/api/assets/a1",
         expect.objectContaining({ method: "PATCH" })
       )
     );
+  });
+
+  it("sin borde global, el adicional no baja de 0", () => {
+    render(<FilePanel assets={[asset()]} result={result}
+                       settings={{ ...settings, offset_activo: false, offset_mm: 0 }}
+                       onChange={onChange} saveSettings={saveSettings} />);
+    fireEvent.click(screen.getByTestId("borde-a1"));
+    fireEvent.click(screen.getByTestId("offset-menos-a1"));
+    expect(screen.getByTestId("offset-a1")).toHaveTextContent("0.0 mm");
   });
 });

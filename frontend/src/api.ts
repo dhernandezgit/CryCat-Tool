@@ -333,7 +333,8 @@ export const api = {
                     final: number[][][]; original: number[][][] }[] }>(
       "/api/contornos"),
   contornoPreview: (id: string,
-                    opciones: { quitar?: number[]; unir?: number }) =>
+                    opciones: { quitar?: number[]; union_modo?: string;
+                                union_mm?: number }) =>
     req<{ png: string }>(`/api/assets/${id}/contorno-preview`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -343,11 +344,13 @@ export const api = {
     req<{ blobs: { id: number; area_px: number; bbox: number[]; principal: boolean }[];
           w: number; h: number; union_mm: number;
           preview_png: string }>(`/api/assets/${id}/blobs`),
-  limpiarContorno: (id: string, quitar: number[]) =>
+  limpiarContorno: (id: string, quitar: number[],
+                    union?: { modo: string; mm: number }) =>
     req<Asset>(`/api/assets/${id}/limpiar-contorno`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ quitar }),
+      body: JSON.stringify({ quitar, union_modo: union?.modo,
+                             union_mm: union?.mm }),
     }),
   /** Vista previa de la carta: con los contornos punteados (nunca va al PDF). */
   previewUrl: (id: string, bordes = true, fase = 0, cont = "final") =>

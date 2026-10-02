@@ -30,7 +30,8 @@ interface Props {
 
 function AssetCard({ a, result, onChange, onEditarContorno,
                      onAntesDeCambiar, bordeGlobal = false,
-                     bordeGlobalMm = 0, rataActivo = false,
+                     bordeGlobalMm = 0, bordeGlobalModo = "extender",
+                     rataActivo = false,
                      faseBordes = 0, verBordes = true,
                      contornoModo = "final",
                      destacado = false, sel = false,
@@ -40,6 +41,7 @@ function AssetCard({ a, result, onChange, onEditarContorno,
   onAntesDeCambiar?: () => void;
   bordeGlobal?: boolean;
   bordeGlobalMm?: number;
+  bordeGlobalModo?: string;
   rataActivo?: boolean;
   sel?: boolean;
   onSel?: (id: string, modo: SelModo) => void;
@@ -58,11 +60,20 @@ function AssetCard({ a, result, onChange, onEditarContorno,
   // El control del elemento es SOLO el borde ADICIONAL (empieza en 0 y va
   // desacoplado del global). El total (para el tamaño mostrado) es la suma.
   const bordeEf = Math.max(0, globalMm + local.offset_mm);
+  // el adicional puede ser NEGATIVO si hay borde global: resta al global
+  // (para tener MENOS borde en este elemento); el total nunca baja de 0
+  const adicionalMin = -globalMm;
+  // los modos de UNIR no agrandan la pieza (unen SOLO hacia dentro): el
+  // tamaño mostrado y las medidas exactas no cuentan ese borde
+  const modoEf = local.offset_modo
+    || (bordeGlobal ? (bordeGlobalModo || "") : "");
+  const bordeTam = (modoEf === "unir_recto" || modoEf === "unir_curvo")
+    ? 0 : bordeEf;
   const ponerAdicional = (v: number) => {
-    const x = Math.max(0, Math.min(20, Math.round(v * 2) / 2));
+    const x = Math.max(adicionalMin, Math.min(20, Math.round(v * 2) / 2));
     patch({ offset_mm: x });
   };
-  const size = assetSizeMm(local, bordeEf);
+  const size = assetSizeMm(local, bordeTam);
 
   // tamaño exacto en mm (se guarda como escala para mantener una sola fuente)
   const [mmTexto, setMmTexto] = useState("");
@@ -92,13 +103,13 @@ function AssetCard({ a, result, onChange, onEditarContorno,
     const v = Number(texto.replace(",", "."));
     if (!Number.isFinite(v) || v <= 0 || anchoBase <= 0) return;
     // el valor pedido es el tamaño FINAL: se descuenta el borde
-    patch({ scale_pct: Math.max(5, ((v - 2 * bordeEf) / anchoBase) * 100) });
+    patch({ scale_pct: Math.max(5, ((v - 2 * bordeTam) / anchoBase) * 100) });
   };
   const altoExacto = (texto: string) => {
     setAltoTexto(texto);
     const v = Number(texto.replace(",", "."));
     if (!Number.isFinite(v) || v <= 0 || altoBase <= 0) return;
-    patch({ scale_pct: Math.max(5, ((v - 2 * bordeEf) / altoBase) * 100) });
+    patch({ scale_pct: Math.max(5, ((v - 2 * bordeTam) / altoBase) * 100) });
   };
   const minisColocados =
     result?.placements.filter((p) => p.asset_id === a.id && p.mini).length ?? 0;
@@ -299,7 +310,7 @@ function AssetCard({ a, result, onChange, onEditarContorno,
               <div className="seg-row">
                 <button className="quota-btn" data-testid={`offset-menos-${a.id}`}
                   onClick={() => ponerAdicional(local.offset_mm - 0.5)}>−</button>
-                <input type="range" min={0} max={10} step={0.5}
+                <input type="range" min={adicionalMin} max={10} step={0.5}
                   data-testid={`offset-range-${a.id}`} value={local.offset_mm}
                   onChange={(e) => ponerAdicional(Number(e.target.value))} />
                 <button className="quota-btn" data-testid={`offset-mas-${a.id}`}
@@ -491,6 +502,9 @@ export default function FilePanel({ assets, result, settings, onChange,
         const bordeMm = Number(ref?.offset_mm ?? 0);
         const bordeModo = ref?.offset_modo || "extender";
         const bordeColor = ref?.offset_color || "#ffffff";
+        // el adicional puede ser NEGATIVO si el borde global está activo
+        const globalBulk = settings.offset_activo === true
+          ? Math.max(0, Number(settings.offset_mm) || 0) : 0;
         // al editar una medida se aplica ESA (el ancho o el alto): la escala
         // se calcula por elemento para que mida lo pedido, manteniendo la
         // proporción de cada uno
@@ -617,8 +631,9 @@ export default function FilePanel({ assets, result, settings, onChange,
                   <div className="seg-row">
                     <button className="quota-btn" data-testid="bulk-offset-menos"
                       onClick={() => onBulk?.(seleccion,
-                        { offset_mm: Math.max(0, bordeMm - 0.5) })}>−</button>
-                    <input type="range" min={0} max={10} step={0.5}
+                        { offset_mm: Math.max(-globalBulk,
+                                              bordeMm - 0.5) })}>−</button>
+                    <input type="range" min={-globalBulk} max={10} step={0.5}
                       data-testid="bulk-offset-range" value={bordeMm}
                       onChange={(e) => onBulk?.(seleccion,
                                                 { offset_mm: Number(e.target.value) })} />
@@ -706,6 +721,7 @@ export default function FilePanel({ assets, result, settings, onChange,
                      destacado={destacado === a.id}
                      bordeGlobal={settings.offset_activo === true}
                      bordeGlobalMm={Number(settings.offset_mm) || 0}
+                     bordeGlobalModo={settings.offset_modo}
                      rataActivo={settings.rata_activo === true} />
         ))}
       </div>

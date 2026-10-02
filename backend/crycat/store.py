@@ -191,9 +191,11 @@ class Session:
             a = self.assets.get(d["id"])
             off = _offset_de(a) if a is not None else None
             if off is not None:
-                mm = off[0]
-                d["w_mm"] = round(d["w_mm"] + 2 * mm, 2)
-                d["h_mm"] = round(d["h_mm"] + 2 * mm, 2)
+                mm, modo = off[0], off[1]
+                # los modos de UNIR no agrandan la pieza (unen hacia dentro)
+                if modo not in ("unir_recto", "unir_curvo"):
+                    d["w_mm"] = round(d["w_mm"] + 2 * mm, 2)
+                    d["h_mm"] = round(d["h_mm"] + 2 * mm, 2)
                 d["offset_mm"] = mm
         return out
 

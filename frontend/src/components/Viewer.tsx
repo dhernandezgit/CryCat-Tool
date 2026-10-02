@@ -71,9 +71,11 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
     { id: number; area_px: number; bbox: number[]; principal: boolean }[]
   >([]);
   const [previewBlobs, setPreviewBlobs] = useState("");
-  // vista previa de cómo quedará al quitar/unir (solo revisar, no aplica)
-  const [vistaContorno, setVistaContorno] =
-    useState<"normal" | "quitar" | "unir">("normal");
+  // cambios PENDIENTES del editor (no se aplican hasta Guardar): trozos ya
+  // quitados, modo de unión y ancho; la vista previa se actualiza en vivo
+  const [quitados, setQuitados] = useState<Set<number>>(new Set());
+  const [unionModo, setUnionModo] = useState("ninguna");
+  const [unionMin, setUnionMin] = useState(2);
   const [imgContorno, setImgContorno] = useState("");
   const [selBlobs, setSelBlobs] = useState<Set<number>>(new Set());
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -246,8 +248,9 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
 
   // --- editor de contorno (blobs) ---------------------------------
   useEffect(() => {
-    setVistaContorno("normal");
     setImgContorno("");
+    setQuitados(new Set());
+    setUnionModo("ninguna");
     if (!editando) {
       setBlobs([]);
       setPreviewBlobs("");
@@ -259,8 +262,14 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
         setBlobs(r.blobs);
         // el control de la tarjeta (BORDE ADICIONAL) manda si está puesto;
         // si no, el MÍNIMO exacto que une todos los trozos
+        setUnionMin(r.union_mm ?? 2);
         setUnionMm(editando.offset_mm > 0 ? editando.offset_mm
                                           : (r.union_mm ?? 2));
+        setUnionModo(
+          editando.offset_modo === "unir_recto"
+          || editando.offset_modo === "unir_curvo"
+          || editando.offset_modo === "blanco"
+            ? editando.offset_modo : "ninguna");
         setPreviewBlobs(r.preview_png);
         // por defecto se marcan para quitar los NO principales
         setSelBlobs(new Set(r.blobs.filter((b) => !b.principal).map((b) => b.id)));
@@ -271,10 +280,46 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
       });
   }, [editando]);
 
+  // vista previa EN VIVO: cada cambio (trozos, modo o ancho) se refleja ya
+  useEffect(() => {
+    if (!editando) return;
+    if (quitados.size === 0 && unionModo === "ninguna") {
+      setImgContorno("");       // sin cambios: se ve la vista coloreada
+      return;
+    }
+    let vivo = true;
+    const timer = window.setTimeout(() => {
+      api.contornoPreview(editando.id, {
+        quitar: Array.from(quitados),
+        union_modo: unionModo,
+        union_mm: unionMm,
+      }).then((r) => { if (vivo) setImgContorno(r.png); })
+        .catch(() => undefined);
+    }, 160);
+    return () => { vivo = false; window.clearTimeout(timer); };
+  }, [editando, quitados, unionModo, unionMm]);
+
+  const quitarSeleccionados = () => {
+    if (!selBlobs.size) return;
+    setQuitados((q) => new Set([...q, ...selBlobs]));
+    setSelBlobs(new Set());
+  };
+
+  const elegirUnion = (modo: string) => {
+    // al pasar a un modo de unión, el ancho por defecto deja TODO unido
+    if (modo !== unionModo && modo !== "ninguna") setUnionMm(unionMin);
+    setUnionModo(modo);
+  };
+
   const guardarContorno = async () => {
     if (!editando) return;
+    const quitar = Array.from(quitados);
+    const union = unionModo !== "ninguna"
+      ? { modo: unionModo, mm: unionMm } : undefined;
     try {
-      await api.limpiarContorno(editando.id, Array.from(selBlobs));
+      if (quitar.length || union) {
+        await api.limpiarContorno(editando.id, quitar, union);
+      }
     } finally {
       await onFinEdicion?.();
     }
@@ -710,7 +755,10 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
         </button>
       </div>
 
-      {/* flotantes: deshacer/rehacer abajo-izquierda; zoom en columna abajo-derecha */}
+      {/* flotantes: deshacer/rehacer abajo-izquierda; zoom en columna
+          abajo-derecha. En el editor de contorno NO salen (todo se hace
+          con los botones del editor) */}
+      {!editando && (
       <div className="viewer-flotantes">
         <div className="vf-izq">
           <button
@@ -763,43 +811,48 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
           </span>
         </div>
       </div>
+      )}
 
       {editando ? (
         <div className="editor-blobs" data-testid="editor-blobs">
-          <div className="editor-lienzo">
-            <img src={imgContorno || previewBlobs || api.previewUrlSinBordes(
-                   editando.id, editando.rev ?? 0)}
-                 alt={editando.name} draggable={false} />
-            <div className="editor-overlay">
-              {editando && blobs.filter((b) => !b.principal).map((b, i) => {
-                const [x0, y0, x1, y1] = b.bbox;
-                const W = editando.w_px || 1;
-                const H = editando.h_px || 1;
-                return (
-                  <button
-                    key={b.id}
-                    className={`blob${selBlobs.has(b.id) ? " sel" : ""}`}
-                    data-testid={`blob-${i}`}
-                    title={t("Trozo de {px} px — clic para {accion}", {
-                      px: b.area_px,
-                      accion: selBlobs.has(b.id) ? t("conservar") : t("quitar"),
-                    })}
-                    style={{
-                      left: `${(x0 / W) * 100}%`,
-                      top: `${(y0 / H) * 100}%`,
-                      width: `${((x1 - x0) / W) * 100}%`,
-                      height: `${((y1 - y0) / H) * 100}%`,
-                    }}
-                    onClick={() => toggleBlob(b.id)}
-                  />
-                );
-              })}
-            </div>
+          {/* ARRIBA: solo quitar los trozos marcados (no se aplica hasta
+              Guardar; nada de salir automático) */}
+          <div className="editor-top">
+            <button
+              className="danger"
+              data-testid="btn-quitar-marcados"
+              disabled={selBlobs.size === 0}
+              onClick={quitarSeleccionados}
+            >
+              {t("Quitar seleccionados ({n})", { n: selBlobs.size })}
+            </button>
+            <span className="hint">
+              {t("Toca un trozo de la imagen para marcarlo. El principal nunca se borra.")}
+            </span>
           </div>
-          <div className="editor-pie">
-            <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
-              <span className="row" style={{ gap: 6, alignItems: "center" }}>
-                <span className="hint">{t("Borde para unir")}</span>
+
+          {/* UNIR: modos + ancho; la vista previa se actualiza en vivo */}
+          <div className="editor-unir">
+            <span className="hint">{t("Unir los trozos")}</span>
+            {([["ninguna", t("Ninguna")],
+               ["unir_curvo", t("Unir curvo")],
+               ["unir_recto", t("Unir recto")],
+               ["blanco", t("Borde fuera")]] as const).map(([modo, etiqueta]) => (
+              <button key={modo}
+                className={`seg ${unionModo === modo ? "on" : ""}`}
+                data-testid={`union-modo-${modo}`}
+                title={modo === "blanco"
+                  ? t("Añade borde hacia FUERA (blanco) además de unir")
+                  : modo === "ninguna"
+                    ? t("No unir nada")
+                    : t("Une los trozos SOLO hacia dentro (sin borde por fuera)")}
+                onClick={() => elegirUnion(modo)}>
+                {etiqueta}
+              </button>
+            ))}
+            {unionModo !== "ninguna" && (
+              <>
+                <span className="hint" style={{ marginLeft: 6 }}>{t("Ancho")}</span>
                 <button className="quota-btn" data-testid="union-menos"
                   onClick={() => setUnionMm((m) =>
                     Math.max(0.5, Math.round((m - 0.5) * 2) / 2))}>−</button>
@@ -809,73 +862,69 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
                 <button className="quota-btn" data-testid="union-mas"
                   onClick={() => setUnionMm((m) =>
                     Math.min(20, Math.round((m + 0.5) * 2) / 2))}>+</button>
-              </span>
-              <button
-                data-testid="btn-ver-quitados"
-                title={t("Ver cómo queda SIN los trozos marcados (solo vista previa)")}
-                className={vistaContorno === "quitar" ? "primary" : ""}
-                onClick={async () => {
-                  if (!editando) return;
-                  if (vistaContorno === "quitar") {
-                    setVistaContorno("normal");
-                    setImgContorno("");
-                    return;
-                  }
-                  try {
-                    const r = await api.contornoPreview(editando.id,
-                      { quitar: Array.from(selBlobs) });
-                    setImgContorno(r.png);
-                    setVistaContorno("quitar");
-                  } catch { /* sin vista previa */ }
-                }}
-              >
-                {t("Ver sin marcados")}
+              </>
+            )}
+          </div>
+
+          {/* IMAGEN + botones verticales de selección a la derecha */}
+          <div className="editor-cuerpo">
+            <div className="editor-lienzo">
+              <img src={imgContorno || previewBlobs || api.previewUrlSinBordes(
+                     editando.id, editando.rev ?? 0)}
+                   alt={editando.name} draggable={false} />
+              <div className="editor-overlay">
+                {blobs.filter((b) => !b.principal && !quitados.has(b.id))
+                      .map((b, i) => {
+                  const [x0, y0, x1, y1] = b.bbox;
+                  const W = editando.w_px || 1;
+                  const H = editando.h_px || 1;
+                  return (
+                    <button
+                      key={b.id}
+                      className={`blob${selBlobs.has(b.id) ? " sel" : ""}`}
+                      data-testid={`blob-${i}`}
+                      title={t("Trozo de {px} px — clic para {accion}", {
+                        px: b.area_px,
+                        accion: selBlobs.has(b.id) ? t("conservar") : t("quitar"),
+                      })}
+                      style={{
+                        left: `${(x0 / W) * 100}%`,
+                        top: `${(y0 / H) * 100}%`,
+                        width: `${((x1 - x0) / W) * 100}%`,
+                        height: `${((y1 - y0) / H) * 100}%`,
+                      }}
+                      onClick={() => toggleBlob(b.id)}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+            <div className="editor-lado">
+              <button data-testid="btn-sel-todo"
+                onClick={() => setSelBlobs(new Set(blobs
+                  .filter((b) => !b.principal && !quitados.has(b.id))
+                  .map((b) => b.id)))}>
+                {t("Seleccionar todo")}
               </button>
-              <button
-                data-testid="btn-ver-unido"
-                title={t("Ver cómo queda al UNIR todo con el borde actual (solo vista previa)")}
-                className={vistaContorno === "unir" ? "primary" : ""}
-                onClick={async () => {
-                  if (!editando) return;
-                  if (vistaContorno === "unir") {
-                    setVistaContorno("normal");
-                    setImgContorno("");
-                    return;
-                  }
-                  try {
-                    const r = await api.contornoPreview(editando.id,
-                      { unir: unionMm });
-                    setImgContorno(r.png);
-                    setVistaContorno("unir");
-                  } catch { /* sin vista previa */ }
-                }}
-              >
-                {t("Ver unido")}
-              </button>
-              <button
-                className="primary"
-                data-testid="btn-unir-contorno"
-                title={t("Une todos los trozos en una sola forma con un borde de {mm} mm (curvo)", { mm: unionMm })}
-                onClick={async () => {
-                  if (!editando) return;
-                  await api.patchAsset(editando.id, {
-                    offset_mm: unionMm,
-                    offset_modo: "unir_curvo",
-                  });
-                  await onFinEdicion?.();
-                }}
-              >
-                {t("Unir todo en una pieza")}
-              </button>
-              <button data-testid="btn-quitar-marcados"
-                      onClick={guardarContorno}>
-                {t("Quitar marcados ({n})",
-                   { n: selBlobs.size })}
+              <button data-testid="btn-sel-nada"
+                onClick={() => setSelBlobs(new Set())}>
+                {t("Quitar selección")}
               </button>
             </div>
-            <div className="hint">
-              {t("Toca un trozo para marcarlo. El principal nunca se borra.")}
-            </div>
+          </div>
+
+          {/* ABAJO DEL TODO: guardar o descartar los cambios */}
+          <div className="editor-pie">
+            <button className="primary" data-testid="btn-guardar-contorno"
+                    title={t("Aplica los trozos quitados y la unión elegida")}
+                    onClick={guardarContorno}>
+              {t("Guardar")}
+            </button>
+            <button data-testid="btn-descartar-contorno"
+                    title={t("Sale sin aplicar nada")}
+                    onClick={() => onFinEdicion?.()}>
+              {t("Descartar")}
+            </button>
           </div>
         </div>
       ) : (
@@ -907,20 +956,9 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
       </div>
       )}
 
-      {editando ? (
-        <div className="viewer-bottom">
-          <div className="btn-row">
-            <button className="primary" data-testid="btn-guardar-contorno"
-                    onClick={guardarContorno}>
-              {t("Guardar limpieza")}
-            </button>
-            <button data-testid="btn-descartar-contorno"
-                    onClick={() => onFinEdicion?.()}>
-              {t("Descartar")}
-            </button>
-          </div>
-        </div>
-      ) : (
+      {/* en el editor, la barra de guardar/imprimir no sale: se usa la del
+          propio editor (abajo del todo) */}
+      {!editando && (
       <div className="viewer-bottom">
         <input
           type="text"

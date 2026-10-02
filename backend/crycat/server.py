@@ -54,6 +54,10 @@ def _abrir_explorador(path: Path) -> None:
         raise RuntimeError(tr("no hay explorador de archivos disponible"))
 
 
+# Modos de borde/unión válidos: los de UNIR (recto/curvo) unen solo hacia
+# dentro; extender/blanco/color añaden borde hacia fuera.
+_MODOS_BORDE = ("extender", "blanco", "color", "unir_recto", "unir_curvo")
+
 # Historial de duraciones reales: [(n_piezas, segundos)] para estimar mejor
 _HIST: list[tuple[int, float]] = []
 
@@ -653,12 +657,10 @@ def create_app(store: Session = session) -> FastAPI:
                 del a._cache_offset
         if "offset_modo" in payload:
             valor = str(payload["offset_modo"] or "")
-            # los modos de UNIR (recto/curvo) también son válidos: antes se
-            # descartaban en silencio y «Unir todo» acababa en un borde
-            # normal gigante en vez de unir los trozos (bug real)
-            a.offset_modo = valor if valor in (
-                "extender", "blanco", "color", "unir_recto",
-                "unir_curvo") else ""
+            # todos los modos de borde/unión son válidos (antes los de unir
+            # se descartaban en silencio y «Unir todo» acababa en un borde
+            # normal gigante en vez de unir los trozos: bug real)
+            a.offset_modo = valor if valor in _MODOS_BORDE else ""
             if hasattr(a, "_cache_offset"):
                 del a._cache_offset
             # al UNIR los trozos, el aviso de «trozos sueltos» deja de
@@ -811,11 +813,15 @@ def create_app(store: Session = session) -> FastAPI:
             px_mm = max(1e-6, a.dpi_origen / 25.4 * esc)
             if ndimage.label(m)[1] > 1:
                 def conectado(r: float) -> bool:
-                    return ndimage.label(
-                        ndimage.distance_transform_edt(~m) <= r)[1] == 1
+                    # el mismo CIERRE que aplica «unir»: así el ancho
+                    # sugerido une de verdad (la dilatación sola unía antes
+                    # las esquinas que el cierre)
+                    u = imaging._union_mask(m, max(1, int(math.ceil(r))),
+                                            primero_hull=False)
+                    return ndimage.label(u)[1] == 1
                 lo, hi = 0.0, 20.0 * px_mm
                 if conectado(hi):
-                    for _ in range(14):
+                    for _ in range(12):
                         medio = (lo + hi) / 2.0
                         if conectado(medio):
                             hi = medio
@@ -831,32 +837,35 @@ def create_app(store: Session = session) -> FastAPI:
 
     @app.post("/api/assets/{aid}/contorno-preview")
     def contorno_preview(aid: str, payload: dict | None = None):
-        """Vista previa de cómo quedará al QUITAR trozos y/o UNIR todo.
-
-        Devuelve una imagen para revisar antes de aplicar (no toca el asset).
-        """
+        """Vista previa de cómo queda al QUITAR trozos y/o UNIRLOS hacia
+        dentro (modo + ancho). Devuelve una imagen para revisar antes de
+        aplicar (no toca el asset)."""
         a = store.get(aid)
         if not a:
             raise HTTPException(404, tr("asset no encontrado"))
         payload = payload or {}
         quitar = [int(x) for x in (payload.get("quitar") or [])]
-        unir = max(0.0, float(payload.get("unir", 0) or 0))
+        modo = str(payload.get("union_modo") or "")
+        if not modo and payload.get("unir"):
+            modo = "unir_curvo"          # compatibilidad con lo anterior
+        mm = max(0.0, float(payload.get("union_mm",
+                                        payload.get("unir", 0)) or 0))
         img = a.img
         if quitar:
             img = imaging.quitar_blobs(img, quitar)
-        if unir > 0:
+        if modo in _MODOS_BORDE and mm > 0:
             escala = max(0.05, a.scale_pct / 100.0)
-            radio = (unir / escala) / 25.4 * a.dpi_origen
-            img = imaging.aplicar_offset(img, radio, "unir_curvo",
-                                         (255, 255, 255))
+            radio = (mm / escala) / 25.4 * a.dpi_origen
+            img = imaging.aplicar_offset(img, radio, modo, (255, 255, 255))
         datos = _png_bytes(imaging.thumbnail(img, 900))
         return {"png": "data:image/png;base64,"
                 + __import__("base64").b64encode(datos).decode("ascii")}
 
     @app.post("/api/assets/{aid}/limpiar-contorno")
     def limpiar_contorno(aid: str, payload: dict | None = None):
-        """Elimina de la copia de trabajo los blobs indicados (nunca el
-        original). Si no se indica `quitar`, elimina todos los no principales."""
+        """Aplica los cambios del editor de contorno: elimina los blobs
+        indicados (nunca el original) y, si se pide, deja puesto el borde de
+        UNIÓN (modo + ancho) elegido. Con unión «ninguna» no toca el borde."""
         a = store.get(aid)
         if not a:
             raise HTTPException(404, tr("asset no encontrado"))
@@ -867,6 +876,10 @@ def create_app(store: Session = session) -> FastAPI:
             quitar = [b["id"] for b in imaging.detectar_blobs(a.img)
                       if not b["principal"]]
         a.img = imaging.quitar_blobs(a.img, quitar)
+        modo = str(payload.get("union_modo") or "")
+        if modo in _MODOS_BORDE:
+            a.offset_mm = max(0.0, float(payload.get("union_mm", 0) or 0))
+            a.offset_modo = modo
         a._thumb_bytes = None
         a.rev += 1
         a._prev_cache = None

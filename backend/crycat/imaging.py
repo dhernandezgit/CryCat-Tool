@@ -335,35 +335,34 @@ def detect_anomalous_lines(img: Image.Image, min_span: float = 0.8,
 
 def _union_mask(dentro: np.ndarray, r: int,
                 primero_hull: bool) -> np.ndarray:
-    """Máscara que UNE todos los trozos.
+    """Máscara que UNE los trozos SOLO HACIA DENTRO (sin borde exterior).
 
-    * `primero_hull=True`  → envolvente convexa (borde RECTO): llena todo el
-      hueco entre los trozos.
-    * `primero_hull=False` → unión MÍNIMA (borde CURVO): los trozos crecen
-      `r` píxeles y se fusionan solo donde se tocan. Es lo que usa «Unir
-      todo en una pieza»: el borde MÍNIMO que deja todo unido, sin rellenar
-      el hueco entero (antes usaba la envolvente y salía un borde gigante).
+    Es un CIERRE morfológico de radio `r`: rellena los huecos y canales más
+    estrechos que `2·r` entre los trozos, pero NO agranda la silueta exterior
+    (antes se dilataba o se usaba la envolvente, y salía un borde por fuera).
+
+    * `primero_hull=True`  → elemento CUADRADO (uniones rectas).
+    * `primero_hull=False` → elemento REDONDO (uniones curvas).
     """
     from scipy import ndimage
 
-    m = dentro.astype(np.uint8)
-    if not primero_hull:
-        return ndimage.distance_transform_edt(~(m > 0)) <= max(0, r)
-    try:
-        import cv2
-        gordo = ndimage.binary_dilation(m, iterations=max(0, r)) \
-            if r > 0 else m
-        cs, _ = cv2.findContours(gordo.astype(np.uint8),
-                                 cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-        if not cs:
-            return gordo > 0
-        pts = np.vstack([c.reshape(-1, 2) for c in cs])
-        hull = cv2.convexHull(pts)
-        salida = np.zeros_like(m)
-        cv2.fillPoly(salida, [hull], 1)
-        return salida > 0
-    except Exception:
-        return ndimage.binary_dilation(m, iterations=max(1, r)) > 0
+    m = dentro.astype(bool)
+    r = max(0, int(r))
+    if r <= 0:
+        return m
+    # margen extra para que la DILATACIÓN quede con fondo alrededor y la
+    # erosión pueda medir bien (si no, el borde del lienzo se queda pegado)
+    mp = np.pad(m, r, constant_values=False)
+    if primero_hull:
+        # cierre con cuadrado = máximo y luego mínimo (rápidos y separables)
+        k = 2 * r + 1
+        res = ndimage.minimum_filter(
+            ndimage.maximum_filter(mp, size=k), size=k) > 0
+    else:
+        # cierre con disco (dilatar y erosionar) con dos transformadas
+        dil = ndimage.distance_transform_edt(~mp) <= r
+        res = ndimage.distance_transform_edt(dil) > r
+    return res[r:-r, r:-r]
 
 
 def aplicar_offset(img: Image.Image, radio_px: float,
@@ -377,9 +376,10 @@ def aplicar_offset(img: Image.Image, radio_px: float,
         (se propaga el color más cercano del borde hacia fuera).
       * 'blanco'  : borde blanco.
       * 'color'   : borde de un color concreto.
-      * 'unir_recto' / 'unir_curvo': UNEN todos los trozos en una sola forma
-        (envolvente convexa del contenido, con el ancho pedido): recta o
-        redondeada. Sirve para fusionar blobs flotantes en una pegatina.
+      * 'unir_recto' / 'unir_curvo': UNEN los trozos SOLO hacia dentro
+        (cierre morfológico: rellena los huecos más estrechos que 2·radio,
+        con uniones rectas o redondeadas). NO añaden borde por fuera: la
+        silueta exterior se mantiene. Sirve para fusionar blobs flotantes.
 
     `radio_px` es el grosor del borde en píxeles de ESTA imagen.
     Devuelve una copia nueva (nunca modifica la original).

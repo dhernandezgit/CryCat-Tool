@@ -140,7 +140,10 @@ describe("App completa", () => {
     expect(await screen.findByTestId("editor-blobs")).toBeInTheDocument();
     // muestra el blob no principal como clicable (marcado por defecto)
     expect(screen.getByTestId("blob-0")).toHaveClass("sel");
-    // guardar llama a la API de limpieza
+    // quitar los marcados NO sale del editor: quedan pendientes
+    await u.click(screen.getByTestId("btn-quitar-marcados"));
+    expect(screen.getByTestId("editor-blobs")).toBeInTheDocument();
+    // guardar aplica los cambios y vuelve a la vista normal
     await u.click(screen.getByTestId("btn-guardar-contorno"));
     await waitFor(() =>
       expect(vi.mocked(global.fetch as never)).toHaveBeenCalledWith(
@@ -148,7 +151,12 @@ describe("App completa", () => {
         expect.objectContaining({ method: "POST" })
       )
     );
-    // y vuelve a la vista normal
+    await waitFor(() =>
+      expect(screen.queryByTestId("editor-blobs")).toBeNull()
+    );
+    // descartar sale sin aplicar nada
+    await u.click(await screen.findByTestId("limpiar-a1"));
+    await u.click(await screen.findByTestId("btn-descartar-contorno"));
     await waitFor(() =>
       expect(screen.queryByTestId("editor-blobs")).toBeNull()
     );
@@ -169,7 +177,7 @@ describe("App completa", () => {
     expect(sheet2.style.transform).toBe("");
   });
 
-  it("el editor de contorno tiene vista previa de quitar y de unir", async () => {
+  it("el editor de contorno tiene vista previa EN VIVO (quitar y unir)", async () => {
     const u = userEvent.setup();
     render(<App />);
     await waitFor(() =>
@@ -178,7 +186,8 @@ describe("App completa", () => {
     const img = document.querySelector(".editor-lienzo img") as HTMLImageElement;
     // el fondo es la vista coloreada de los trozos (misma escala que las cajas)
     expect(img.src.startsWith("data:image/png;base64,")).toBe(true);
-    await u.click(screen.getByTestId("btn-ver-quitados"));
+    // quitar los marcados actualiza la vista previa (sin salir del editor)
+    await u.click(screen.getByTestId("btn-quitar-marcados"));
     await waitFor(() =>
       expect(vi.mocked(global.fetch as never)).toHaveBeenCalledWith(
         "/api/assets/a1/contorno-preview",
@@ -187,13 +196,17 @@ describe("App completa", () => {
     );
     await waitFor(() =>
       expect(img.src).toBe("data:image/png;base64,QUJD"));
-    await u.click(screen.getByTestId("btn-ver-unido"));
+    // elegir un modo de unión también la actualiza (en vivo)
+    await u.click(screen.getByTestId("union-modo-unir_curvo"));
+    expect(screen.getByTestId("union-mm")).toBeInTheDocument();
     await waitFor(() =>
       expect(vi.mocked(global.fetch as never)).toHaveBeenCalledWith(
         "/api/assets/a1/contorno-preview",
         expect.objectContaining({ method: "POST" })
       )
     );
+    // y el borde hacia fuera también es una opción
+    expect(screen.getByTestId("union-modo-blanco")).toBeInTheDocument();
   });
 
   it("los 3 botones del visor existen y el nombre empieza vacío con sugerencia", async () => {

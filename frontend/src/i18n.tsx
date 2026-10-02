@@ -648,6 +648,20 @@ export const EN: Record<string, string> = {
     "See how it looks WITHOUT the marked pieces (preview only)",
   "Ver cómo queda al UNIR todo con el borde actual (solo vista previa)":
     "See how it looks when joining everything with the current border (preview only)",
+  "Quitar seleccionados ({n})": "Remove selected ({n})",
+  "Toca un trozo de la imagen para marcarlo. El principal nunca se borra.":
+    "Tap a piece in the image to mark it. The main one is never deleted.",
+  "Unir los trozos": "Join the pieces",
+  "Ninguna": "None",
+  "Borde fuera": "Outer border",
+  "Añade borde hacia FUERA (blanco) además de unir":
+    "Adds an OUTER (white) border as well as joining",
+  "No unir nada": "Do not join anything",
+  "Une los trozos SOLO hacia dentro (sin borde por fuera)":
+    "Joins the pieces INWARD only (no outer border)",
+  "Aplica los trozos quitados y la unión elegida":
+    "Applies the removed pieces and the chosen join",
+  "Sale sin aplicar nada": "Exits without applying anything",
   "Aplicar a los seleccionados": "Apply to selected",
   "Conservar cambios": "Keep changes",
   "Importar con tamaño original": "Import at original size",
