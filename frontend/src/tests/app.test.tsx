@@ -260,14 +260,14 @@ describe("Nuevas funciones 2.8", () => {
       expect(screen.getByTestId("sect-general")).toHaveClass("open"));
   });
 
-  it("las marcas se anclan a la TINTA real de las piezas (ni guías ni ratas)", async () => {
-    // pieza en (40,50)-(70,70) + cuadrado guía en (13.6,100) y rata fuera:
-    // las marcas usan la caja de TINTA que da el backend (solo la pieza)
+  it("las marcas se dibujan en la caja adaptada que da el backend", async () => {
+    // pieza en (40,50)-(70,70): el backend da la caja de las marcas que
+    // abrazan el contenido (sin taparlo)
     const resMarcas = {
       ...result,
       marcas: { esquina_flecha: [25, 25], esquina_sd: [25, 25],
                 esquina_ii: [25, 25], esquina_id: [25, 25] },
-      cajas_marcas_mm: [[40, 50, 70, 70]],
+      marcas_cajas_mm: [[40, 50, 70, 70]],
       placements: [
         { ...result.placements[0], x: 40, y: 50, w: 30, h: 20 },
         { uid: "__delim0#0", asset_id: "__delim0", page: 0, x: 13.6,

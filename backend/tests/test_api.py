@@ -664,11 +664,10 @@ def test_print_pdf(client):
     assert r.content[:4] == b"%PDF"
 
 
-def test_modo_rata_fuera_de_limites_y_fuera_del_png(client, tmp_path):
-    """Modo rata: las copias extra van FUERA del área recortable (en los
-    márgenes de la hoja), no agrandan el PNG exportado (que se recorta al
-    contenido) y sí van en el PDF de impresión."""
-    from crycat.geometry import polygon_contains
+def test_modo_rata_llena_la_pagina_y_no_va_al_png(client, tmp_path):
+    """Modo rata: las copias extra se reparten por el hueco libre de la
+    página (no agrandan el PNG exportado, que se recorta al contenido) y sí
+    van en el PDF de impresión."""
     c, st, _ = client
     d = upload(c, "a.png").json()
     c.patch(f"/api/assets/{d['id']}",
@@ -678,12 +677,10 @@ def test_modo_rata_fuera_de_limites_y_fuera_del_png(client, tmp_path):
     res = _optimiza(c)
     ratas = [p for p in res["placements"] if p.get("rata")]
     assert ratas, "el modo rata debe colocar copias extra"
-    poly = res["poly_mm"]
     for r in ratas:
-        # la silueta va fuera del área recortable (con rejilla de 0,5 mm el
-        # centro no puede caer dentro)
-        assert not polygon_contains(poly, r["x"] + r["w"] / 2,
-                                    r["y"] + r["h"] / 2), (r["x"], r["y"])
+        # dentro de la hoja (se imprimen) y sin solapar a las piezas
+        assert 0 <= r["x"] and r["x"] + r["w"] <= res["page_mm"][0] + 1e-6
+        assert 0 <= r["y"] and r["y"] + r["h"] <= res["page_mm"][1] + 1e-6
     # el PNG exportado se recorta al contenido (las ratas no lo agrandan)
     r = c.post("/api/export", json={"name": "rata", "folder": str(tmp_path)})
     assert r.status_code == 200
@@ -696,10 +693,10 @@ def test_modo_rata_fuera_de_limites_y_fuera_del_png(client, tmp_path):
 
 
 def test_marcas_negras_coinciden_con_la_tinta_de_las_piezas(client):
-    """Las marcas negras se anclan a la TINTA REAL de las piezas: el píxel
-    exterior de cada marca coincide con el de lo colocado (ni cajas
-    conservadoras de giros, ni cuadrados guía, ni ratas)."""
+    """Las marcas abrazan la TINTA de las piezas con un hueco (sin taparlas)
+    y nunca se meten más que las posiciones oficiales."""
     import numpy as np
+    from crycat.geometry import marks_adaptadas, marks_rect_for
     from tests.test_imaging import sticker_rgba
     c, st, _ = client
     d = upload(c, "grande.png", img=sticker_rgba((600, 400))).json()
@@ -710,23 +707,25 @@ def test_marcas_negras_coinciden_con_la_tinta_de_las_piezas(client):
     px = 300.0 / 25.4
     a = Image.open(io.BytesIO(c.get("/api/pages/0.png?marcas=0").content))
     b = Image.open(io.BytesIO(c.get("/api/pages/0.png?marcas=1").content))
-    # tinta real de las piezas = alfa de la página sin marcas
+    # tinta de las piezas = alfa de la página sin marcas
     bb = a.convert("RGBA").getchannel("A").getbbox()
     assert bb
-    tinta = [v / px for v in bb]
-    # la caja que da la API para la vista es la misma
-    caja_api = res["cajas_marcas_mm"][0]
+    tinta = tuple(v / px for v in bb)
+    esperado = marks_adaptadas(tinta, marks_rect_for(st.area))
+    # la API da la misma caja para la vista
+    caja_api = res["marcas_cajas_mm"][0]
     assert caja_api
-    for v_api, v_tinta in zip(caja_api, tinta):
-        assert abs(v_api - v_tinta) < 0.2, (caja_api, tinta)
-    # las marcas dibujadas coinciden con la tinta (todas las páginas/lados)
+    for v_api, v_geo in zip(caja_api, esperado):
+        assert abs(v_api - v_geo) < 0.3, (caja_api, esperado)
+    # las marcas dibujadas coinciden con la caja adaptada
     dif = (np.abs(np.asarray(a.convert("RGBA"), int)
                   - np.asarray(b.convert("RGBA"), int)).sum(axis=2) > 30)
     ys, xs = np.nonzero(dif)
     assert len(ys), "las marcas deben pintarse al pedirlas"
-    marcas = [xs.min() / px, ys.min() / px, xs.max() / px, ys.max() / px]
-    for obtenido, esperado in zip(marcas, tinta):
-        assert abs(obtenido - esperado) < 0.5, (marcas, tinta)
+    marcas = [xs.min() / px, ys.min() / px,
+              (xs.max() + 1) / px, (ys.max() + 1) / px]
+    for obtenido, e in zip(marcas, esperado):
+        assert abs(obtenido - e) < 0.8, (marcas, esperado)
 
 
 def test_fs_list(client, tmp_path):

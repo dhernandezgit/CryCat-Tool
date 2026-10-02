@@ -10,7 +10,7 @@ from pathlib import Path
 
 from PIL import Image
 
-from .geometry import CutArea, mm_to_px
+from .geometry import CutArea, marks_adaptadas, marks_rect_for, mm_to_px
 from .imaging import trim
 from .packer import Placement
 
@@ -327,10 +327,10 @@ def render_page(area: CutArea, placements: list[Placement], images: dict[str, Im
         x = round(p.x * px_per_mm - off_x * px_per_mm)
         y = round(p.y * px_per_mm - off_y * px_per_mm)
         canvas.alpha_composite(img, (max(0, x), max(0, y)))
-        # la caja de las marcas es la TINTA REAL de las piezas (ni las cajas
-        # conservadoras de los giros ni los cuadrados guía ni las ratas): así
-        # el píxel exterior de cada marca coincide con el de lo colocado
-        if marcas_cricut and not getattr(p, "rata", False):
+        # caja de la TINTA de las PIEZAS (sin ratas ni cuadrados guía): las
+        # marcas abrazan el contenido sin taparlo
+        if marcas_cricut and not getattr(p, "rata", False) \
+                and not str(p.asset_id).startswith("__delim"):
             try:
                 bb = img.convert("RGBA").getchannel("A").getbbox()
             except Exception:
@@ -345,11 +345,12 @@ def render_page(area: CutArea, placements: list[Placement], images: dict[str, Im
         canvas = marcas_delimitar(canvas, area, dpi, float(delimitar_mm),
                                   off_x, off_y, float(delimitar_margen_mm))
     if marcas_cricut:
-        # las marcas negras se colocan según la CAJA DE LA TINTA de las
-        # piezas (el borde superior coincide con su píxel más alto, etc.)
-        caja_real = (tuple(v / px_per_mm for v in tinta)
-                     if tinta is not None else None)
-        canvas = con_marcas_cricut(canvas, area, dpi, caja_real)
+        # las marcas abrazan el contenido (hueco garantizado) sin meterse más
+        # que las posiciones oficiales; sin contenido, las oficiales
+        caja = None
+        if tinta is not None:
+            caja = tuple(v / px_per_mm for v in tinta)   # mm del lienzo
+        canvas = con_marcas_cricut(canvas, area, dpi, caja, off_x, off_y)
     if color == "rgb":
         white = Image.new("RGBA", canvas.size, (255, 255, 255, 255))
         white.alpha_composite(canvas)
@@ -631,23 +632,26 @@ def caja_tinta_piezas(placements: list[Placement],
 
 
 def con_marcas_cricut(img: Image.Image, area: CutArea,
-                      dpi: float, caja: tuple | None = None) -> Image.Image:
+                      dpi: float, caja: tuple | None = None,
+                      off_x: float = 0.0, off_y: float = 0.0) -> Image.Image:
     """Superpone SOLO las marcas negras de Cricut (4 esquinas + flecha).
 
-    Las marcas salen de la hoja oficial (recortadas en negro puro, con alfa).
-    `caja` (x0, y0, x1, y1 en mm) es el CONTENIDO de la hoja: las marcas se
-    colocan en función de lo que hay (el borde superior de las marcas de
-    arriba coincide con el píxel más alto y los bordes izquierdos con el más
-    izquierdo). Sin `caja` se anclan al área recortable.
+    Las marcas ABRAZAN el contenido (`caja`, en mm absolutos de la página)
+    dejando un hueco, pero NUNCA se meten más hacia dentro que sus posiciones
+    oficiales (las oficiales son el límite exterior): con contenido grande se
+    quedan en las oficiales, y el área recortable (derivada de ellas)
+    garantiza que no haya piezas en su tinta. Sin `caja`, las oficiales.
     """
     px = dpi / 25.4
-    if caja is not None:
-        bx, by, bx1, by1 = caja
-        bw, bh = max(0.0, bx1 - bx), max(0.0, by1 - by)
-    else:
-        bx, by, bw, bh = area.bbox
+    # `caja` viene en mm del LIENZO (ya restado su origen): las oficiales se
+    # pasan también a coordenadas del lienzo para que todo cuadre
+    oficial = marks_rect_for(area)
+    oficial = (oficial[0] - off_x, oficial[1] - off_y,
+               oficial[2] - off_x, oficial[3] - off_y)
+    bx, by, bx1, by1 = marks_adaptadas(caja, oficial)
+    bw, bh = max(0.0, bx1 - bx), max(0.0, by1 - by)
     esc = px / MARCAS_PPP
-    # cada soporte se ancla a su esquina del área recortable
+    # cada soporte se ancla a su esquina EXTERIOR de la marca
     esquinas = [
         ("esquina_flecha", False, False),   # superior izquierda (con flecha)
         ("esquina_sd", True, False),        # superior derecha

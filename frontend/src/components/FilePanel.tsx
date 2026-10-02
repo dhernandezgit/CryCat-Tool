@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { api, assetSizeMm, normalizeAsset, prepareFile, type AppSettings, type Asset, type Result } from "../api";
+import { api, assetSizeMm, normalizeAsset, prepareFile, type AppSettings, type Asset, type Result, type SelModo } from "../api";
 import { useT } from "../i18n";
 import { IconoCarpeta, IconoReemplazar, IconoLimpiar, IconoFondo,
          IconoDeshacerFondo, IconoBorrar, IconoMini, IconoAviso,
@@ -19,7 +19,8 @@ interface Props {
   contornoModo?: "final" | "orig" | "ambos" | "ninguno";
   destacado?: string;
   seleccion?: string[];
-  onSeleccion?: (id: string, multi: boolean) => void;
+  onSeleccion?: (id: string, modo: SelModo) => void;
+  onLimpiarSeleccion?: () => void;
   onBulk?: (ids: string[],
             patch: Partial<Asset> | ((a: Asset) => Partial<Asset>)
            ) => Promise<void>;
@@ -39,7 +40,7 @@ function AssetCard({ a, result, onChange, onEditarContorno,
   bordeGlobalMm?: number;
   rataActivo?: boolean;
   sel?: boolean;
-  onSel?: (id: string, multi: boolean) => void;
+  onSel?: (id: string, modo: SelModo) => void;
   faseBordes?: number;
   verBordes?: boolean;
   contornoModo?: "final" | "orig" | "ambos" | "ninguno";
@@ -118,10 +119,13 @@ function AssetCard({ a, result, onChange, onEditarContorno,
          className={`asset-card${destacado ? " destacada" : ""}${sel ? " sel" : ""}`}
          data-testid="asset-card"
          onClick={(e) => {
-           // clic en la tarjeta = seleccionar (Ctrl/Cmd/Shift para varios)
+           // clic = seleccionar; Shift = añadir a la selección y Ctrl/Cmd =
+           // quitarla
            const t0 = e.target as HTMLElement;
            if (t0.closest("button, input, select, textarea, a")) return;
-           onSel?.(a.id, e.ctrlKey || e.metaKey || e.shiftKey);
+           const modo: SelModo = e.shiftKey ? "sumar"
+             : (e.ctrlKey || e.metaKey) ? "quitar" : "solo";
+           onSel?.(a.id, modo);
          }}>
       <div className="preview">
         {/* la miniatura de la tarjeta va SIN contornos (rápida); los
@@ -384,6 +388,7 @@ export default function FilePanel({ assets, result, settings, onChange,
                                     destacado = "",
                                     seleccion = [],
                                     onSeleccion,
+                                    onLimpiarSeleccion,
                                     onBulk }: Props) {
   const t = useT();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -453,6 +458,9 @@ export default function FilePanel({ assets, result, settings, onChange,
           }}
         />
       </div>
+      <div className="hint" data-testid="hint-seleccion">
+        {t("Shift + clic en una tarjeta o pieza AÑADE a la selección; Ctrl/Cmd + clic la QUITA.")}
+      </div>
 
       {seleccion.length >= 2 && (() => {
         // valores de referencia (los del primer elemento seleccionado)
@@ -465,10 +473,14 @@ export default function FilePanel({ assets, result, settings, onChange,
         const bordeMm = Number(ref?.offset_mm ?? 0);
         const bordeModo = ref?.offset_modo || "extender";
         const bordeColor = ref?.offset_color || "#ffffff";
-        const ponerAncho = (mm: number) => {
+        // al editar una medida se aplica ESA (el ancho o el alto): la escala
+        // se calcula por elemento para que mida lo pedido, manteniendo la
+        // proporción de cada uno
+        const ponerMedida = (dim: "w" | "h", mm: number) => {
           if (!(mm > 0)) return;
           onBulk?.(seleccion, (a) => {
-            const base = Number(a.w_mm_base || a.w_mm || 0);
+            const base = Number(dim === "w" ? (a.w_mm_base || a.w_mm)
+                                            : (a.h_mm_base || a.h_mm)) || 0;
             if (!(base > 0)) return {};
             return { scale_pct: Math.max(10, Math.min(400,
               Math.round((mm / base) * 100))) };
@@ -482,7 +494,9 @@ export default function FilePanel({ assets, result, settings, onChange,
                 {t("{n} elementos seleccionados", { n: seleccion.length })}
               </span>
               <button className="chip" data-testid="bulk-quitar"
-                      onClick={() => onSeleccion?.(seleccion[0], false)}>
+                      onClick={() => onLimpiarSeleccion
+                        ? onLimpiarSeleccion()
+                        : onSeleccion?.(seleccion[0], "quitar")}>
                 {t("Quitar selección")}
               </button>
             </div>
@@ -524,7 +538,8 @@ export default function FilePanel({ assets, result, settings, onChange,
                 <span className="fold-val">{escala} %</span>
               </button>
               {bulkAbierto.tamano && (
-                <div className="fold-body">
+                <div className="fold-body bulk-tamano-body">
+                  <div className="bulk-tamano-controles">
                   <div className="scale-row">
                     <span title={t("Escala de los elementos (100% = tamaño natural)")}>{t("Escala")}</span>
                     <input type="range" min={10} max={400} step={5}
@@ -534,13 +549,38 @@ export default function FilePanel({ assets, result, settings, onChange,
                     <span className="scale-val">{escala}%</span>
                   </div>
                   <div className="exact-row">
-                    <span title={t("Ancho exacto en milímetros (mantiene la proporción)")}>{t("Ancho")}</span>
+                    <span title={t("Ancho exacto en milímetros (el que edites es el que se aplica)")}>{t("Ancho")}</span>
                     <input type="number" min={0.5} max={2000} step={0.5}
-                      key={seleccion.join(",")}
+                      key={`w${seleccion.join(",")}`}
                       data-testid="bulk-ancho-mm"
                       defaultValue={ref ? ref.w_mm.toFixed(1) : ""}
-                      onBlur={(e) => ponerAncho(Number(e.target.value))} />
+                      onBlur={(e) => ponerMedida("w", Number(e.target.value))} />
                     <span>mm</span>
+                    <span className="por">×</span>
+                    <span title={t("Alto exacto en milímetros (el que edites es el que se aplica)")}>{t("Alto")}</span>
+                    <input type="number" min={0.5} max={2000} step={0.5}
+                      key={`h${seleccion.join(",")}`}
+                      data-testid="bulk-alto-mm"
+                      defaultValue={ref ? ref.h_mm.toFixed(1) : ""}
+                      onBlur={(e) => ponerMedida("h", Number(e.target.value))} />
+                    <span>mm</span>
+                  </div>
+                  </div>
+                  {/* a la derecha: el tamaño REAL de cada elemento elegido */}
+                  <div className="bulk-tamano-lista" data-testid="bulk-tamanos">
+                    {seleccion.map((id) => {
+                      const a = assets.find((x) => x.id === id);
+                      if (!a) return null;
+                      const s = assetSizeMm(a);
+                      return (
+                        <div key={id} className="bulk-tamano-fila">
+                          <span className="bulk-tamano-nombre" title={a.name}>{a.name}</span>
+                          <span className="bulk-tamano-medida">
+                            {s.w.toFixed(1)}×{s.h.toFixed(1)} mm
+                          </span>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -624,7 +664,19 @@ export default function FilePanel({ assets, result, settings, onChange,
         </div>
         );
       })()}
-      <div className="asset-list" data-testid="asset-list">
+      {/* también se pueden soltar imágenes SOBRE LA LISTA (aunque ya haya
+          elementos): se añaden igual que en la zona de arriba */}
+      <div className="asset-list" data-testid="asset-list"
+           onDragOver={(e) => {
+             e.preventDefault();
+             setOver(true);
+           }}
+           onDragLeave={() => setOver(false)}
+           onDrop={(e) => {
+             e.preventDefault();
+             setOver(false);
+             if (e.dataTransfer.files.length) uploadFiles(e.dataTransfer.files);
+           }}>
         {assets.map((a) => (
           <AssetCard key={a.id} a={a} result={result} onChange={onChange}
                      sel={seleccion.includes(a.id)} onSel={onSeleccion}

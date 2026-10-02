@@ -48,8 +48,9 @@ export interface Result {
   efficiency: number;
   densidad?: number;         // densidad media de las siluetas (complejidad)
   marcas?: Record<string, [number, number]>;   // tamaño real en mm
-  cajas_marcas_mm?: ([number, number, number, number] | null)[];
-  // caja de la TINTA real de cada página (mm absolutos) para las marcas
+  marcas_cajas_mm?: ([number, number, number, number] | null)[];
+  // caja EXTERIOR de las 4 marcas por página (mm absolutos): abrazan el
+  // contenido sin taparlo, sin meterse más que las posiciones oficiales
   bbox_mm: [number, number];
   bbox_offset_mm: [number, number];
   poly_mm: [number, number][];
@@ -241,6 +242,10 @@ export function assetSizeMm(a: Asset, bordeMm = 0): { w: number; h: number } {
   const h = (Number.isFinite(hb) ? hb : 0) * s + b;
   return { w: Number.isFinite(w) ? w : 0, h: Number.isFinite(h) ? h : 0 };
 }
+
+/** Cómo afecta un clic a la selección múltiple:
+ *  solo = reemplaza, sumar = añade (Shift), quitar = quita (Ctrl/Cmd). */
+export type SelModo = "solo" | "sumar" | "quitar";
 
 /** Estado de interfaz del visor. */
 export interface UiState {

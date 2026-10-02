@@ -59,17 +59,66 @@ PAPER_SIZES: dict[str, tuple[float, float]] = {
     "A5": (148.0, 210.0),
 }
 
-# Fracciones del polígono escalonado de 5 bandas, medidas píxel a píxel
-# sobre la referencia del usuario `assets/Cricut_A5_Limites_300ppp.png`
-# (la imagen completa = la hoja; el negro NO es recortable):
-#   * ancho de la banda superior/inferior (centro):       0.653 del bbox
-#   * ancho de la banda intermedia:                       0.912 del bbox
-#   * alto de cada escalón exterior/interior:             0.028 / 0.088 del alto
-# (valores ligeramente conservadores para no invadir nunca el margen negro)
-STEP_W_INNER = 0.653   # banda central (centro) respecto al ancho del bbox
-STEP_W_OUTER = 0.912   # banda intermedia respecto al ancho del bbox
-STEP_H_INNER = 0.028   # primer escalón (arriba/abajo) respecto al alto
-STEP_H_OUTER = 0.088   # segundo escalón respecto al alto
+# --- marcas de registro (sensor) de Cricut ------------------------------
+# Las marcas son las MISMAS para todos los tamaños de papel (fiduciales del
+# sensor). Medidas sobre la referencia del usuario `assets/CricutMarcas.png`
+# (un A4 a 300 ppp impreso por Design Space):
+#   * soporte de cada marca (cuadrado que ocupa):  25.32 mm
+#   * grosor de las barras en L:                    1.44 mm
+#   * esquina exterior de las marcas (A4 vertical): (13.63, 13.21) arriba
+#     izquierda y (196.09, 280.08) abajo derecha
+MARK_SIZE = 25.32      # lado del soporte de cada marca (mm)
+MARK_THICK = 1.44      # grosor de las barras (mm)
+MARK_GAP = 0.5         # margen extra para que nada toque la tinta
+MARKS_A4 = (13.63, 13.21, 196.09, 280.08)   # A4 vertical (referencia real)
+
+
+def marks_rect(page_w: float, page_h: float,
+               bbox: tuple[float, float, float, float],
+               paper_key: str | None = None
+               ) -> tuple[float, float, float, float]:
+    """Rectángulo EXTERIOR de las 4 marcas de registro (mm).
+
+    Para A4 vertical se usan las posiciones OFICIALES medidas sobre la
+    referencia (como las imprime Design Space); en el resto de tamaños y en
+    apaisado se anclan a las esquinas del área máxima (mismo tamaño de
+    marca). El área recortable se deriva de aquí, así las piezas NUNCA tocan
+    las marcas.
+    """
+    if (paper_key == "A4" and page_w < page_h
+            and abs(page_w - 210.0) < 0.5 and abs(page_h - 297.0) < 0.5):
+        return MARKS_A4
+    x0, y0, bw, bh = bbox
+    return (x0, y0, x0 + bw, y0 + bh)
+
+
+def marks_rect_for(area: "CutArea") -> tuple[float, float, float, float]:
+    """Marcas de una `CutArea` ya calculada (posiciones oficiales)."""
+    return marks_rect(area.page_w, area.page_h, area.bbox,
+                      _match_paper(area.page_w, area.page_h))
+
+
+def marks_adaptadas(caja_contenido: tuple[float, float, float, float] | None,
+                    oficial: tuple[float, float, float, float],
+                    gap: float = 1.0
+                    ) -> tuple[float, float, float, float]:
+    """Marcas que ABRAZAN el contenido sin taparlo.
+
+    Cada marca se acerca a la caja del contenido dejando `gap` mm de hueco,
+    pero NUNCA se mete más hacia dentro que su posición oficial (las
+    oficiales son el límite exterior): con contenido grande se quedan en las
+    oficiales (y el área recortable ya garantiza que no haya piezas en su
+    tinta). Sin caja, devuelve las oficiales.
+    """
+    ox0, oy0, ox1, oy1 = oficial
+    if caja_contenido is None:
+        return oficial
+    cx0, cy0, cx1, cy1 = caja_contenido
+    mx0 = max(ox0, cx0 - gap - MARK_SIZE)
+    my0 = max(oy0, cy0 - gap - MARK_SIZE)
+    mx1 = min(ox1, cx1 + gap + MARK_SIZE)
+    my1 = min(oy1, cy1 + gap + MARK_SIZE)
+    return (mx0, my0, mx1, my1)
 
 # Perfiles de máquina (máximos de A4 en mm); None = usa los estándar.
 # Toda la serie Maker (Maker, Maker 3, Maker 5) comparte el mismo patrón de
@@ -166,22 +215,38 @@ def rect_inside_polygon(poly: list[tuple[float, float]],
     return True
 
 
-def _bands_polygon(x0: float, y0: float, bw: float, bh: float
+def _bands_polygon(x0: float, y0: float, bw: float, bh: float,
+                   mk: tuple[float, float, float, float] | None = None
                    ) -> tuple[list[tuple[float, float]], list[tuple[float, float, float, float]]]:
     """Polígono escalonado de 5 bandas (2 escalones por esquina) y sus muescas
-    para una caja (x0, y0, bw, bh)."""
-    inner_w = bw * STEP_W_INNER
-    outer_w = bw * STEP_W_OUTER
-    cx0 = x0 + (bw - inner_w) / 2.0
-    cx1 = cx0 + inner_w
-    wx0 = x0 + (bw - outer_w) / 2.0
-    wx1 = wx0 + outer_w
+    para una caja (x0, y0, bw, bh), DERIVADO de las marcas `mk`.
+
+    Las bandas cubren las marcas de registro con su margen: así el área nunca
+    toca la tinta. Sin `mk` las marcas se suponen en las esquinas de la caja.
+    """
     x1 = x0 + bw
     y1 = y0 + bh
-    t1 = y0 + bh * STEP_H_INNER
-    t2 = y0 + bh * (STEP_H_INNER + STEP_H_OUTER)
-    t3 = y1 - bh * (STEP_H_INNER + STEP_H_OUTER)
-    t4 = y1 - bh * STEP_H_INNER
+    if mk is None:
+        mk = (x0, y0, x1, y1)
+    mkx0, mky0, mkx1, mky1 = mk
+    # banda central (centro): entre los extremos interiores de las barras
+    # HORIZONTALES de las marcas
+    cx0 = mkx0 + MARK_SIZE + MARK_GAP
+    cx1 = mkx1 - MARK_SIZE - MARK_GAP
+    # banda intermedia: entre las barras VERTICALES
+    wx0 = mkx0 + MARK_THICK + MARK_GAP
+    wx1 = mkx1 - MARK_THICK - MARK_GAP
+    # cortes horizontales: bajo la barra horizontal (t1) y bajo el soporte
+    # completo de la marca (t2), donde termina la barra vertical
+    t1 = mky0 + MARK_THICK + MARK_GAP
+    t2 = mky0 + MARK_SIZE + MARK_GAP
+    t3 = mky1 - MARK_SIZE - MARK_GAP
+    t4 = mky1 - MARK_THICK - MARK_GAP
+    # acotar a la caja y ordenar (por si la marca cae fuera)
+    cx0, cx1 = sorted((min(max(cx0, x0), x1), min(max(cx1, x0), x1)))
+    wx0, wx1 = sorted((min(max(wx0, x0), x1), min(max(wx1, x0), x1)))
+    t1, t2 = sorted((min(max(t1, y0), y1), min(max(t2, y0), y1)))
+    t3, t4 = sorted((min(max(t3, y0), y1), min(max(t4, y0), y1)))
     poly = [
         (cx0, y0), (cx1, y0),
         (cx1, t1), (wx1, t1),
@@ -216,7 +281,7 @@ def inset_area(area: CutArea, margin: float) -> CutArea:
     nbh = max(1.0, bh - 2 * margin)
     nx0 = x0 + (bw - nbw) / 2.0
     ny0 = y0 + (bh - nbh) / 2.0
-    poly, notches = _bands_polygon(nx0, ny0, nbw, nbh)
+    poly, notches = _bands_polygon(nx0, ny0, nbw, nbh, marks_rect_for(area))
     return CutArea(page_w=area.page_w, page_h=area.page_h, poly=poly,
                    bbox=(nx0, ny0, nbw, nbh), notches=notches,
                    machine=area.machine)
@@ -251,52 +316,11 @@ def cut_area(page_w: float, page_h: float, machine: str = "estandar",
     x0 = (page_w - bw) / 2.0
     y0 = (page_h - bh) / 2.0
 
-    x1 = x0 + bw
-    y1 = y0 + bh
-
-    # --- polígono de 5 bandas (2 escalones por esquina, 20 vértices) ---
-    # Anchos de banda centrados en el bbox:
-    inner_w = bw * STEP_W_INNER          # banda central (centro)
-    outer_w = bw * STEP_W_OUTER          # banda intermedia
-    cx0 = x0 + (bw - inner_w) / 2.0
-    cx1 = cx0 + inner_w
-    wx0 = x0 + (bw - outer_w) / 2.0
-    wx1 = wx0 + outer_w
-    # Cortes horizontales (arriba y abajo, simétricos):
-    t1 = y0 + bh * STEP_H_INNER          # fin de la banda central superior
-    t2 = y0 + bh * (STEP_H_INNER + STEP_H_OUTER)  # fin de la intermedia sup.
-    t3 = y1 - bh * (STEP_H_INNER + STEP_H_OUTER)  # inicio de la intermedia inf.
-    t4 = y1 - bh * STEP_H_INNER          # inicio de la banda central inferior
-
-    # Sentido horario desde la esquina sup-izquierda de la banda central
-    poly = [
-        (cx0, y0), (cx1, y0),           # borde superior de la banda central
-        (cx1, t1), (wx1, t1),           # primer escalón (hacia fuera)
-        (wx1, t2), (x1, t2),            # segundo escalón (hasta el borde)
-        (x1, t3), (wx1, t3),            # lado derecho completo
-        (wx1, t4), (cx1, t4),           # escalones inferiores (derecha)
-        (cx1, y1), (cx0, y1),           # borde inferior de la banda central
-        (cx0, t4), (wx0, t4),           # escalones inferiores (izquierda)
-        (wx0, t3), (x0, t3),
-        (x0, t2), (wx0, t2),            # lado izquierdo completo
-        (wx0, t1), (cx0, t1),           # escalones superiores (izquierda)
-    ]
-
-    # Muescas prohibidas: 2 rectángulos por esquina (fuera del polígono)
-    notches = [
-        # superiores (izquierda)
-        (x0, y0, cx0 - x0, t1 - y0),
-        (x0, t1, wx0 - x0, t2 - t1),
-        # superiores (derecha)
-        (cx1, y0, x1 - cx1, t1 - y0),
-        (wx1, t1, x1 - wx1, t2 - t1),
-        # inferiores (izquierda)
-        (x0, t3, wx0 - x0, t4 - t3),
-        (x0, t4, cx0 - x0, y1 - t4),
-        # inferiores (derecha)
-        (wx1, t3, x1 - wx1, t4 - t3),
-        (cx1, t4, x1 - cx1, y1 - t4),
-    ]
+    # --- polígono de 5 bandas DERIVADO DE LAS MARCAS (20 vértices) ---
+    # Las bandas se calculan para que las muescas cubran las marcas de
+    # registro con su margen: el área recortable NUNCA toca la tinta.
+    mk = marks_rect(page_w, page_h, (x0, y0, bw, bh), paper_key)
+    poly, notches = _bands_polygon(x0, y0, bw, bh, mk)
     return CutArea(page_w=page_w, page_h=page_h, poly=poly, bbox=(x0, y0, bw, bh),
                    notches=notches, machine=machine)
 

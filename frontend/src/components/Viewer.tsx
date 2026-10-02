@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { assetUrl } from "../recursos";
-import { api, NAME_SUGGESTIONS, NAME_SUGGESTIONS_EN, type AppSettings, type Asset, type Job, type Placement, type Result, type UiState } from "../api";
+import { api, NAME_SUGGESTIONS, NAME_SUGGESTIONS_EN, type AppSettings, type Asset, type Job, type Placement, type Result, type SelModo, type UiState } from "../api";
 import FolderPicker from "./FolderPicker";
 import SaveDialog from "./SaveDialog";
 import { IconoGuias, IconoBordes, IconoRecalcular, IconoOjo,
@@ -22,7 +22,7 @@ interface Props {
   onJob: (j: Job) => void;
   onRecalc: (modo: "rapido" | "optimo") => void;
   seleccion?: string[];
-  onSeleccion?: (id: string, multi: boolean) => void;
+  onSeleccion?: (id: string, modo: SelModo) => void;
   editando?: Asset | null;
   onFinEdicion?: () => Promise<void>;
   onDeshacer: () => void;
@@ -476,19 +476,10 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
 
   const pageEl = (i: number) => {
     const pls = result?.placements.filter((p) => p.page === i) ?? [];
-    // CAJA de las marcas: la TINTA real de las piezas que da el backend
-    // (píxel exterior exacto, sin cuadrados guía ni ratas); si aún no llega,
-    // se aproxima con las cajas de las piezas
-    const reales = pls.filter((p) => !p.rata
-      && !p.asset_id.startsWith("__delim"));
+    // CAJA de las marcas: abrazan el contenido de esta página sin taparlo
+    // (la calcula el backend); si aún no llega, las oficiales del área
     const cajaMarcas: [number, number, number, number] =
-      result?.cajas_marcas_mm?.[i]
-      ?? (reales.length
-        ? [Math.min(...reales.map((p) => p.x)),
-           Math.min(...reales.map((p) => p.y)),
-           Math.max(...reales.map((p) => p.x + p.w)),
-           Math.max(...reales.map((p) => p.y + p.h))]
-        : [bx, by, bx + bw, by + bh]);
+      result?.marcas_cajas_mm?.[i] ?? [bx, by, bx + bw, by + bh];
     return (
       <div
         key={i}
@@ -613,9 +604,9 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
                 block: "center", inline: "center", behavior: "smooth" });
               window.dispatchEvent(new CustomEvent("crycat:seleccion",
                 { detail: p.asset_id }));
-              // Ctrl/Cmd/Shift para seleccionar VARIOS (edición en bloque)
-              onSeleccion?.(p.asset_id,
-                            ev.ctrlKey || ev.metaKey || ev.shiftKey);
+              // Shift añade a la selección y Ctrl/Cmd la quita
+              onSeleccion?.(p.asset_id, ev.shiftKey ? "sumar"
+                            : (ev.ctrlKey || ev.metaKey) ? "quitar" : "solo");
             }}
             >
               {p.pinned && <span className="pin"></span>}

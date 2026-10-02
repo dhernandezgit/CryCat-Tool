@@ -191,11 +191,23 @@ describe("Panel de archivos", () => {
     // tamaño (plegable): escala + ancho exacto por elemento
     fireEvent.click(screen.getByTestId("bulk-fold-tamano"));
     expect(screen.getByTestId("bulk-escala")).toBeInTheDocument();
+    // ancho Y alto: el que se edite es el que se aplica (por elemento)
     const ancho = screen.getByTestId("bulk-ancho-mm") as HTMLInputElement;
+    const alto = screen.getByTestId("bulk-alto-mm") as HTMLInputElement;
+    expect(ancho.value).toBe("8.5");
+    expect(alto.value).toBe("6.8");
     fireEvent.blur(ancho, { target: { value: "20" } });
     const llamada = onBulk.mock.calls[onBulk.mock.calls.length - 1];
     expect(typeof llamada[1]).toBe("function");
     expect(llamada[1](a1)).toEqual({ scale_pct: 236 });   // 20 / 8.47
+    fireEvent.blur(alto, { target: { value: "13.5" } });
+    const llamada2 = onBulk.mock.calls[onBulk.mock.calls.length - 1];
+    expect(llamada2[1](a1)).toEqual({ scale_pct: 199 });  // 13.5 / 6.77
+    // a la derecha, el tamaño REAL de todos los elegidos
+    const lista = screen.getByTestId("bulk-tamanos");
+    expect(lista).toHaveTextContent("uno.png");
+    expect(lista).toHaveTextContent("dos.png");
+    expect(lista).toHaveTextContent("8.5×6.8 mm");
     // borde (plegable) con modos y color
     fireEvent.click(screen.getByTestId("bulk-fold-borde"));
     expect(screen.getByTestId("bulk-offset-range")).toBeInTheDocument();
@@ -204,6 +216,20 @@ describe("Panel de archivos", () => {
     // cuota de mini (plegable, con el mini activo)
     fireEvent.click(screen.getByTestId("bulk-mini"));
     expect(onBulk).toHaveBeenCalledWith(["a1", "a2"], { mini_enabled: true });
+  });
+
+  it("Shift + clic añade a la selección y Ctrl/Cmd + clic la quita", () => {
+    const onSel = vi.fn();
+    render(<FilePanel assets={[asset()]} result={result} settings={settings}
+                       onChange={onChange} saveSettings={saveSettings}
+                       onSeleccion={onSel} />);
+    const tarjeta = screen.getByTestId("asset-card");
+    fireEvent.click(tarjeta, { shiftKey: true });
+    expect(onSel).toHaveBeenLastCalledWith("a1", "sumar");
+    fireEvent.click(tarjeta, { ctrlKey: true });
+    expect(onSel).toHaveBeenLastCalledWith("a1", "quitar");
+    fireEvent.click(tarjeta);
+    expect(onSel).toHaveBeenLastCalledWith("a1", "solo");
   });
 
   it("el borde ADICIONAL del elemento va aparte del global (desde 0)", async () => {

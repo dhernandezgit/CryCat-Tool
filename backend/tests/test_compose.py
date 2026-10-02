@@ -268,35 +268,41 @@ def test_marcas_delimitar_en_los_limites_y_dentro():
     assert not ((a2[:, :, 0] > 250) & (a2[:, :, 3] > 200)).any()
 
 
-def test_marcas_negras_adaptan_a_la_caja_del_contenido():
-    """Las 4 marcas se colocan según la caja FINAL de todos los elementos:
-    el borde superior coincide con el píxel más alto, el izquierdo con el más
-    a la izquierda, y simétricamente abajo y derecha."""
+def test_marcas_abrazan_el_contenido_sin_taparlo():
+    """Las 4 marcas se acercan al contenido dejando un hueco, pero NUNCA se
+    meten más hacia dentro que sus posiciones oficiales."""
     import numpy as np
+    from crycat.geometry import marks_adaptadas, marks_rect_for
     area = cut_area(210.0, 297.0, "maker3")
-    caja = (40.0, 50.0, 160.0, 240.0)
     dpi = 100.0
     img = Image.new("RGBA", (int(210 / 25.4 * dpi), int(297 / 25.4 * dpi)),
                     (0, 0, 0, 0))
+    px = dpi / 25.4
+    # contenido pequeño: las marcas lo abrazan (hueco de 1 mm)
+    caja = (40.0, 50.0, 70.0, 70.0)
     out = compose.con_marcas_cricut(img, area, dpi, caja)
     a = np.asarray(out.convert("RGBA").split()[3]) > 128
     ys, xs = np.nonzero(a)
-    px = dpi / 25.4
-    assert abs(ys.min() / px - caja[1]) < 0.6, ys.min() / px
-    assert abs(xs.min() / px - caja[0]) < 0.6, xs.min() / px
-    assert abs(ys.max() / px - caja[3]) < 0.6, ys.max() / px
-    assert abs(xs.max() / px - caja[2]) < 0.6, xs.max() / px
+    esperado = marks_adaptadas(caja, marks_rect_for(area))
+    for v, e in zip((xs.min() / px, ys.min() / px,
+                     (xs.max() + 1) / px, (ys.max() + 1) / px), esperado):
+        assert abs(v - e) < 0.6, (v, e, esperado)
+    # el contenido grande se queda en las OFICIALES (nunca más adentro)
+    grande = area.bbox
+    out2 = compose.con_marcas_cricut(img, area, dpi, grande)
+    a2 = np.asarray(out2.convert("RGBA").split()[3]) > 128
+    ys2, xs2 = np.nonzero(a2)
+    oficial = marks_rect_for(area)
+    for v, e in zip((xs2.min() / px, ys2.min() / px,
+                     (xs2.max() + 1) / px, (ys2.max() + 1) / px), oficial):
+        assert abs(v - e) < 0.6, (v, e, oficial)
 
 
-def test_marcas_pdf_usan_la_tinta_real():
-    """En el PDF las marcas se ajustan al rectángulo REAL de la tinta de la
-    imagen final (no a las cajas conservadoras del optimizador)."""
-    import numpy as np
+def test_marcas_pdf_abrazan_el_contenido():
+    """En el PDF las marcas también abrazan el contenido."""
     area = cut_area(210.0, 297.0, "maker3")
     img = Image.new("RGBA", (200, 200), (0, 0, 0, 0))
-    # contenido en una zona concreta de la página
     img.paste((200, 60, 90, 255), (100, 120, 180, 220))
-    # una pieza colocada en otro sitio: la caja del optimizador es MÁS grande
     pl = Placement(uid="a#0", asset_id="a", page=0, x=60, y=70, w=120, h=120,
                    angle=45.0, scale=1.0, w0=60, h0=60)
     data = compose.export_pdf(area, [pl], {"a": img}, 100.0, full_page=False,
@@ -304,29 +310,33 @@ def test_marcas_pdf_usan_la_tinta_real():
     assert data[:4] == b"%PDF"
 
 
-def test_render_marcas_se_anclan_a_la_tinta_real():
-    """Al renderizar, las marcas se anclan a la TINTA real de las piezas (no
-    a sus cajas conservadoras) y respetan el recorte del lienzo (recortable)."""
+def test_render_marcas_abrazan_la_pieza():
+    """Al renderizar, las marcas abrazan la TINTA de la pieza (hueco de 1 mm)
+    y respetan el recorte del lienzo (recortable)."""
     import numpy as np
+    from crycat.geometry import marks_adaptadas, marks_rect_for
     area = cut_area(210.0, 297.0, "maker3")
-    img = sticker_rgba((900, 600))     # grande: las marcas no se solapan
+    img = Image.new("RGBA", (900, 600), (200, 60, 90, 255))  # tinta = caja
     pl = Placement(uid="a#0", asset_id="a", page=0, x=30, y=40, w=76.2,
                    h=50.8, angle=0.0, scale=1.0, w0=76.2, h0=50.8)
+    caja_pieza = (30.0, 40.0, 30.0 + 76.2, 40.0 + 50.8)
+    esperado = marks_adaptadas(caja_pieza, marks_rect_for(area))
     for full in (True, False):
         sin = compose.render_page(area, [pl], {"a": img}, 100.0, full,
                                   "rgba").convert("RGBA")
         con = compose.render_page(area, [pl], {"a": img}, 100.0, full,
                                   "rgba", 0.0, 0.0, 0, True, False
                                   ).convert("RGBA")
-        bb = sin.getchannel("A").getbbox()
-        assert bb, "la pieza debe tener tinta"
         dif = (np.abs(np.asarray(sin, int) - np.asarray(con, int)
                       ).sum(axis=2) > 30)
         ys, xs = np.nonzero(dif)
         assert len(ys), "deben pintarse las marcas"
-        marcas = (xs.min(), ys.min(), xs.max() + 1, ys.max() + 1)
-        for a_, b_ in zip(marcas, bb):
-            assert abs(a_ - b_) <= 2, (full, marcas, bb)   # ±1 px de redondeo
+        px = 100.0 / 25.4
+        bx, by = (0.0, 0.0) if full else (area.bbox[0], area.bbox[1])
+        marcas = (xs.min() / px + bx, ys.min() / px + by,
+                  (xs.max() + 1) / px + bx, (ys.max() + 1) / px + by)
+        for v, e in zip(marcas, esperado):
+            assert abs(v - e) < 1.0, (full, marcas, esperado)
 
 
 def test_mini_borde_igual_conserva_los_mm(tmp_path, monkeypatch):

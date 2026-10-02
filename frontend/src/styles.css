@@ -274,6 +274,22 @@ input::placeholder { color: #cbbfc8; opacity: 1; font-style: italic; }
 }
 .bulk-card .name { color: var(--accent); }
 .bulk-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+/* Tamaño de la tarjeta de multiselección: controles a la izquierda y la
+   lista con el tamaño REAL de cada elemento a la derecha */
+.bulk-tamano-body { display: flex; gap: 10px; align-items: flex-start; }
+.bulk-tamano-controles {
+  flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px;
+}
+.bulk-tamano-lista {
+  flex: 1; min-width: 0; max-height: 120px; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 2px; font-size: 11.5px;
+}
+.bulk-tamano-fila { display: flex; justify-content: space-between; gap: 8px; }
+.bulk-tamano-nombre {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: var(--textSoft);
+}
+.bulk-tamano-medida { font-weight: 700; color: var(--accent2); white-space: nowrap; }
 
 .page-box.fondo-blanco { background: #ffffff; }
 .page-box.fondo-transparente { background-image: linear-gradient(45deg, #e8e8e8 25%, transparent 25%), linear-gradient(-45deg, #e8e8e8 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #e8e8e8 75%), linear-gradient(-45deg, transparent 75%, #e8e8e8 75%); background-size: 18px 18px; background-position: 0 0, 0 9px, 9px -9px, -9px 0; }

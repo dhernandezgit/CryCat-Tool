@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { api, normalizeAsset, type AppSettings, type Asset, type Job, type Result, type UiState } from "./api";
+import { api, normalizeAsset, type AppSettings, type Asset, type Job, type Result, type SelModo, type UiState } from "./api";
 import { applyTheme } from "./themes";
 import { IdiomaProvider, t } from "./i18n";
 import FilePanel from "./components/FilePanel";
@@ -248,10 +248,15 @@ export default function App() {
 
   // ---- selección múltiple de elementos (edición en bloque) ----
   const [seleccion, setSeleccion] = useState<string[]>([]);
-  const alternarSeleccion = useCallback((id: string, multi: boolean) => {
+  const alternarSeleccion = useCallback((id: string, modo: SelModo) => {
     setSeleccion((sel) => {
-      if (!multi) return sel.length === 1 && sel[0] === id ? [] : [id];
-      return sel.includes(id) ? sel.filter((x) => x !== id) : [...sel, id];
+      if (modo === "solo") {
+        return sel.length === 1 && sel[0] === id ? [] : [id];
+      }
+      if (modo === "sumar") {         // Shift: añade
+        return sel.includes(id) ? sel : [...sel, id];
+      }
+      return sel.filter((x) => x !== id);   // Ctrl/Cmd: quita
     });
   }, []);
   const bulkPatch = useCallback(async (
@@ -484,6 +489,7 @@ export default function App() {
             onAntesDeCambiar={recordar}
             seleccion={seleccion}
             onSeleccion={alternarSeleccion}
+            onLimpiarSeleccion={() => setSeleccion([])}
             onBulk={bulkPatch}
             verBordes={ui.verBordes}
             contornoModo={ui.contornoModo ?? "final"}

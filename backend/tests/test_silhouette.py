@@ -529,58 +529,76 @@ def test_minis_un_tamano_llena_todo_lo_que_cabe():
         assert abs(equiv - 12.0) < 0.3, (equiv, m.w, m.h)
 
 
-def test_modo_rata_coloca_fuera_y_sin_borde():
-    """Modo rata: copias extra SOLO para imprimir, FUERA de los límites (el
-    área recortable) y del contenido, con el margen pedido y dentro de la
-    hoja; nunca cambian las copias normales."""
+def test_modo_rata_llena_el_hueco_y_respeta_marcas():
+    """Modo rata: copias extra SOLO para imprimir repartidas por el hueco
+    libre de la página (no solo los márgenes), separadas de las piezas por
+    «Separación de las piezas» y de las marcas por «Distancia a las marcas»;
+    nunca cambian las copias normales."""
+    import math
+    from crycat.packer import Placement
     circle = _circle(40)
     area = area_a4()
     assets = [{"id": "c", "name": "c", "w_mm": 40, "h_mm": 40, "copies": 3,
                "mini_enabled": False, "mini_quota": 1.0,
                "rata_enabled": True}]
     st = dict(SET, usar_minis=False, rata_activo=True, rata_margen_mm=5.0,
-              rata_min_mm=8.0, rotacion="90")
+              rata_marcas_mm=5.0, rata_min_mm=8.0, rotacion="90")
     res = sil_pack(assets, {"c": circle}, area, st)
     normales = [p for p in res.placements if not getattr(p, "rata", False)]
     ratas = [p for p in res.placements if getattr(p, "rata", False)]
     assert len(normales) == 3
     assert ratas, "el modo rata debe colocar copias extra"
-    x0 = min(p.x for p in normales)
-    y0 = min(p.y for p in normales)
-    x1 = max(p.x + p.w for p in normales)
-    y1 = max(p.y + p.h for p in normales)
     margen = float(st["rata_margen_mm"])
     for r in ratas:
         assert r.mini and r.rata
-        # DENTRO de la hoja (se imprimen) pero FUERA del área recortable
+        # DENTRO de la hoja (se imprimen)
         assert 0 <= r.x and r.x + r.w <= area.page_w + 1e-6, (r.x, r.w)
         assert 0 <= r.y and r.y + r.h <= area.page_h + 1e-6, (r.y, r.h)
-        # la SILUETA va fuera del área recortable (el centro y, con rejilla de
-        # 0,5 mm, no puede estar dentro)
-        assert not g.polygon_contains(area.poly, r.x + r.w / 2,
-                                      r.y + r.h / 2), (r.x, r.y)
-        # separadas de la caja de las piezas por el margen pedido
-        assert (r.x + r.w <= x0 - margen + 1e-6 or r.x >= x1 + margen - 1e-6
-                or r.y + r.h <= y0 - margen + 1e-6
-                or r.y >= y1 + margen - 1e-6), (r.x, r.y)
+        # separación REAL a las piezas (círculos: distancia entre centros).
+        # `_circle` pinta radio 0,48 del lado: el radio de la TINTA es 0,48·w
+        for p in normales:
+            d = math.hypot((r.x + r.w / 2) - (p.x + p.w / 2),
+                           (r.y + r.h / 2) - (p.y + p.h / 2))
+            assert d >= 0.48 * (40.0 + r.w) + margen - 0.8, (d, r.w)
     # las ratas no cambian NADA de las copias normales
     res_off = sil_pack(assets, {"c": circle}, area, dict(st, rata_activo=False))
     firma = lambda rr: sorted((round(p.x, 3), round(p.y, 3), round(p.angle, 3))
                               for p in rr.placements
                               if not getattr(p, "rata", False))
     assert firma(res) == firma(res_off)
-    # sin modo rata no hay nada
     assert not [p for p in res_off.placements if getattr(p, "rata", False)]
-    # DISTANCIA A LAS MARCAS: con 12 mm, nada se acerca a la caja del
-    # contenido (donde van las marcas negras) menos de esa distancia
-    st2 = dict(st, rata_margen_mm=2.0, rata_marcas_mm=12.0)
-    res3 = sil_pack(assets, {"c": circle}, area, st2)
+    # DISTANCIA A LAS MARCAS: con los cuadrados guía puestos (como en la app),
+    # ninguna rata se acerca menos de lo pedido
+    cuadro = Image.new("RGBA", (12, 12), (255, 255, 255, 255))
+    masks2 = {"c": circle, "__delim0": cuadro, "__delim1": cuadro}
+    assets2 = assets + [
+        {"id": "__delim0", "name": "", "w_mm": 1, "h_mm": 1, "copies": 0,
+         "mini_enabled": False, "mini_quota": 1.0},
+        {"id": "__delim1", "name": "", "w_mm": 1, "h_mm": 1, "copies": 0,
+         "mini_enabled": False, "mini_quota": 1.0},
+    ]
+    bx, by, bw, bh = area.bbox
+    pinned = [
+        Placement(uid="__delim0#0", asset_id="__delim0", page=0, x=bx + 0.1,
+                  y=by + bh / 2 - 0.5, w=1, h=1, pinned=True, w0=1, h0=1),
+        Placement(uid="__delim1#0", asset_id="__delim1", page=0,
+                  x=bx + bw - 1.1, y=by + bh / 2 - 0.5, w=1, h=1,
+                  pinned=True, w0=1, h0=1),
+    ]
+    st2 = dict(st, rata_margen_mm=2.0, rata_marcas_mm=10.0)
+    res3 = sil_pack(assets2, masks2, area, st2, pinned=pinned)
     ratas3 = [p for p in res3.placements if getattr(p, "rata", False)]
     assert ratas3, "debe haber ratas también con la distancia a las marcas"
     for r in ratas3:
-        assert (r.x + r.w <= x0 - 12.0 + 0.6 or r.x >= x1 + 12.0 - 0.6
-                or r.y + r.h <= y0 - 12.0 + 0.6
-                or r.y >= y1 + 12.0 - 0.6), (r.x, r.y)
+        cx, cy = r.x + r.w / 2, r.y + r.h / 2
+        radio = 0.48 * r.w      # radio de la TINTA (el helper pinta 0,48·w)
+        for (gx, gy) in ((bx + 0.1, by + bh / 2 - 0.5),
+                         (bx + bw - 1.1, by + bh / 2 - 0.5)):
+            # distancia del centro del círculo al cuadrado guía (1x1 mm)
+            dx = max(gx - cx, 0.0, cx - (gx + 1.0))
+            dy = max(gy - cy, 0.0, cy - (gy + 1.0))
+            d = math.hypot(dx, dy) - radio
+            assert d >= 10.0 - 1.2, (d, r.x, r.y)
 
 
 def test_modo_solo_una_pagina_no_crea_segunda():

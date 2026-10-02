@@ -1156,15 +1156,17 @@ def _rellenar_minis(ctx: _Ctx, assets: list[dict], masks: dict,
 
 def _rellenar_ratas(res: PackResult, assets: list[dict], masks: dict,
                     settings: dict, area: CutArea) -> list:
-    """MODO RATA: copias extra SOLO para imprimir en los MÁRGENES de la
-    página, FUERA del área recortable y separadas de las piezas y de las
-    marcas.
+    """MODO RATA: copias extra SOLO para imprimir, repartidas por TODO el
+    hueco libre de la página (no solo los márgenes), separadas de las piezas
+    por `rata_margen_mm` y de las marcas por `rata_marcas_mm`.
 
-    Se colocan por SILUETA REAL (como los minis): así los círculos y las
-    formas redondeadas se anidan y caben MUCHAS más que con una rejilla por
-    caja (la capacidad se mide por el área del CONTORNO, no por el
-    rectángulo). De cada tamaño se generan tantas como quepan, hasta que
-    ninguna más entra. Devuelve colocaciones `rata=True`.
+    Se colocan por SILUETA REAL (como los minis): los círculos y las formas
+    redondeadas se anidan y caben MUCHAS más que con una rejilla por caja
+    (la capacidad se mide por el área del CONTORNO). De cada tamaño se
+    generan tantas como quepan hasta que ninguna más entra. Las MARCAS
+    (negras, ancladas a las esquinas de la caja del contenido, y los
+    cuadrados guía) reservan su zona con la distancia pedida. Devuelve
+    colocaciones `rata=True`.
     """
     if not settings.get("rata_activo"):
         return []
@@ -1174,31 +1176,69 @@ def _rellenar_ratas(res: PackResult, assets: list[dict], masks: dict,
     ratas = [a for a in assets if a.get("rata_enabled") and a["id"] in masks]
     if not ratas or not res.placements:
         return []
-    # caja de las PIEZAS (sin contar ratas ya puestas)
-    piezas = [p for p in res.placements if not getattr(p, "rata", False)]
+    piezas = [p for p in res.placements
+              if not getattr(p, "rata", False)
+              and not str(p.asset_id).startswith("__delim")]
     if not piezas:
         return []
-    x0 = min(p.x for p in piezas)
-    y0 = min(p.y for p in piezas)
-    x1 = max(p.x + p.w for p in piezas)
-    y1 = max(p.y + p.h for p in piezas)
+    por_id = {a["id"]: a for a in assets}
     pw, ph = area.page_w, area.page_h
-    # REJILLA de la PÁGINA: permitido = dentro de la hoja, FUERA del área
-    # recortable y fuera de las zonas de exclusión (piezas + margen y marcas
-    # + distancia). Sobre ella se colocan las ratas con su SILUETA REAL.
     cell = 0.5
     W = max(1, int(math.ceil(pw / cell)))
     H = max(1, int(math.ceil(ph / cell)))
     xs = (np.arange(W) + 0.5) * cell
     ys = (np.arange(H) + 0.5) * cell
     X, Y = np.meshgrid(xs, ys)
+    # Permitido: TODA la PÁGINA. Solo se reservan las MARCAS:
+    #  · las 4 marcas negras se anclan a las esquinas de la caja del CONTORNO
+    #    del contenido: se reserva su soporte cuadrado ± la distancia pedida
+    #  · los cuadrados guía (si están) con su distancia
     allowed = (X > 0.0) & (Y > 0.0) & (X < pw) & (Y < ph)
-    allowed &= ~_dentro_poly(area.poly, X, Y)
-    excl: list[tuple[float, float, float, float]] = [
-        (x0 - margen, y0 - margen, x1 + margen, y1 + margen),
-        (x0 - dist_marcas, y0 - dist_marcas,
-         x1 + dist_marcas, y1 + dist_marcas),
-    ]
+    # caja del contenido por CONTORNO real (no las cajas conservadoras de los
+    # giros libres, que inflaban la reserva y dejaban solo el borde de abajo)
+    ink = None
+    for p in piezas:
+        img = masks.get(p.asset_id)
+        a = por_id.get(p.asset_id)
+        if img is None or a is None:
+            continue
+        esc = float(p.scale or 1.0)
+        try:
+            base = _asset_mask(img, a["w_mm"] * esc, a["h_mm"] * esc,
+                               cell, pad=2)
+            rm = _rotate_mask(base, p.angle)
+            yy, xx = np.where(rm)
+            if len(yy) == 0:
+                continue
+            w_mm = (xx.max() - xx.min() + 1) * cell
+            h_mm = (yy.max() - yy.min() + 1) * cell
+        except Exception:
+            w_mm, h_mm = p.w, p.h
+        rect = (p.x, p.y, p.x + w_mm, p.y + h_mm)
+        ink = rect if ink is None else (
+            min(ink[0], rect[0]), min(ink[1], rect[1]),
+            max(ink[2], rect[2]), max(ink[3], rect[3]))
+    if ink is None:
+        return []
+    ix0, iy0, ix1, iy1 = ink
+    # Las MARCAS son las que se imprimen de verdad: adaptadas al contenido
+    # (abrazándolo sin taparlo) y nunca más adentro que las oficiales. Sus 4
+    # soportes reservan su zona con la distancia pedida.
+    try:
+        from .geometry import MARK_SIZE, marks_adaptadas, marks_rect_for
+        mk = marks_adaptadas(ink, marks_rect_for(area))
+        lado_m = MARK_SIZE
+    except Exception:
+        mk = (ix0, iy0, ix1, iy1)
+        lado_m = 25.0
+    excl: list[tuple[float, float, float, float]] = []
+    for (ex, ey, sx, sy) in ((mk[0], mk[1], 1, 1), (mk[2], mk[1], -1, 1),
+                             (mk[0], mk[3], 1, -1), (mk[2], mk[3], -1, -1)):
+        mx0 = ex if sx > 0 else ex - lado_m
+        my0 = ey if sy > 0 else ey - lado_m
+        excl.append((mx0 - dist_marcas, my0 - dist_marcas,
+                     mx0 + lado_m + dist_marcas,
+                     my0 + lado_m + dist_marcas))
     for p in res.placements:
         if str(p.asset_id).startswith("__delim"):
             excl.append((p.x - dist_marcas, p.y - dist_marcas,
@@ -1211,9 +1251,38 @@ def _rellenar_ratas(res: PackResult, assets: list[dict], masks: dict,
     ctx.allowed = allowed
     ctx.W, ctx.H = W, H
     ctx.x0, ctx.y0 = 0.0, 0.0
+    # la separación a las PIEZAS es la del modo rata: se colocan dentro del
+    # contexto con su silueta real (dilatada `margen/2`) y las ratas las
+    # esquivan igual que los minis
+    ctx.r = (max(0, int(math.ceil((margen / 2.0) / cell)))
+             if margen > 0 else 0)
     ctx.pages = []
     ctx.pages_sil = []
     ctx.new_page()
+    for p in piezas:
+        a = por_id.get(p.asset_id)
+        img = masks.get(p.asset_id)
+        if a is None or img is None:
+            continue
+        esc = float(p.scale or 1.0)
+        try:
+            rm, dm = ctx.rotated(p.asset_id, a["w_mm"] * esc,
+                                 a["h_mm"] * esc, p.angle, img)
+        except Exception:
+            continue
+        yy, xx = np.where(rm)
+        if len(yy) == 0:
+            continue
+        ty = int(round((p.y - ctx.y0) / cell)) - int(yy.min())
+        tx = int(round((p.x - ctx.x0) / cell)) - int(xx.min())
+        h, w = dm.shape
+        if 0 <= ty and 0 <= tx and ty + h <= ctx.H and tx + w <= ctx.W:
+            occ = ctx.pages[0]
+            occ[ty:ty + h, tx:tx + w] = np.maximum(
+                occ[ty:ty + h, tx:tx + w], dm.astype(np.float32))
+            occ_sil = ctx.pages_sil[0]
+            occ_sil[ty:ty + h, tx:tx + w] = np.maximum(
+                occ_sil[ty:ty + h, tx:tx + w], rm.astype(np.float32))
     # tamaños: del mayor al mínimo; de CADA tamaño se generan todas las que
     # caben (solo el hueco libre las limita). El tamaño pedido se mide sobre
     # el CONTENIDO y luego se añade el borde de las ratas según su modo
@@ -1591,10 +1660,11 @@ def _sin_solapes(res: PackResult, assets: list[dict],
     # puede desplazar a una copia (los minis solo rellenan lo que sobra)
     for p in sorted(res.placements,
                     key=lambda q: (bool(q.mini), q.page, q.y, q.x)):
-        if getattr(p, "rata", False):
-            # las ratas viven FUERA del área recortable por diseño: no se
-            # validan contra la rejilla ni se recolocan (si no, se movían
-            # dentro de los límites y el modo rata dejaba de existir)
+        if getattr(p, "rata", False) or p.pinned:
+            # las ratas viven fuera del área por diseño y los FIJADOS (y los
+            # cuadrados guía) están donde el usuario los puso: no se validan
+            # ni se recolocan (antes las guías se movían al primer hueco y
+            # las ratas ya no respetaban la distancia a las marcas)
             conservadas.append(p)
             continue
         a = por_id.get(p.asset_id)
@@ -1756,14 +1826,9 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
         """
         if res.unplaced or not res.placements:
             return res
-        # MODO RATA: independiente de los minis normales
-        if settings.get("rata_activo"):
-            try:
-                ratas = _rellenar_ratas(res, assets, masks, settings, area)
-                if ratas:
-                    res.placements.extend(ratas)
-            except Exception:
-                pass
+        # (el MODO RATA va DESPUÉS de la red de seguridad final: así las
+        # ratas se colocan contra las posiciones DEFINITIVAS de las piezas;
+        # antes la red recolocaba piezas y las ratas quedaban demasiado cerca)
         if not settings.get("usar_minis"):
             return res
         try:
@@ -1789,6 +1854,21 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
             if nuevos:
                 res.placements.extend(nuevos)
                 _recalcular_eficiencia(res, masks_reales, area, assets)
+        except Exception:
+            pass
+        return res
+
+    def _ratas_finales(res: PackResult) -> PackResult:
+        """MODO RATA al FINAL: copias extra para imprimir colocadas contra las
+        posiciones DEFINITIVAS de las piezas (después de la red de seguridad,
+        que puede recolocarlas). Así respetan la separación y las marcas."""
+        if (not settings.get("rata_activo") or res.unplaced
+                or not res.placements):
+            return res
+        try:
+            ratas = _rellenar_ratas(res, assets, masks, settings, area)
+            if ratas:
+                res.placements.extend(ratas)
         except Exception:
             pass
         return res
@@ -1996,6 +2076,7 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
                                 settings, extra)
         except Exception:
             pass
+        best = _ratas_finales(best)
         if progress:
             progress(0.99, best.pages)
         best.method = metodo
@@ -2140,6 +2221,7 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
                             extra)
     except Exception:
         pass
+    best = _ratas_finales(best)
     if progress:
         progress(0.99, best.pages)
     best.method = metodo

@@ -1074,23 +1074,26 @@ def create_app(store: Session = session) -> FastAPI:
         if not store.last or not store.area:
             return {"pages": 0, "placements": [], "efficiency": 0.0,
                     "bbox_mm": [0, 0], "bbox_offset_mm": [0, 0], "poly_mm": [],
-                    "marcas": {}, "cajas_marcas_mm": [],
+                    "marcas": {}, "marcas_cajas_mm": [],
                     "page_mm": [settings.get("pagina_w"), settings.get("pagina_h")],
                     "warnings": [], "method": "", "minis": 0, "placed": 0}
         r, area = store.last, store.area
         bx, by, bw, bh = area.bbox
-        # caja de la TINTA de cada página (para las marcas de la vista): se
-        # calcula una vez por resultado y se cachea en él
+        # caja de las marcas POR PÁGINA: abrazan el contenido de esa hoja (sin
+        # taparlo) sin meterse más que las posiciones oficiales. Se calculan
+        # una vez por resultado y se cachean en él.
         cajas = getattr(r, "_cajas_marcas", None)
         if cajas is None:
             try:
                 dpi_caja = float(settings.get("dpi_salida", 300))
+                oficial = geometry.marks_rect_for(area)
                 cajas = []
                 for i in range(max(1, int(r.pages))):
                     caja = compose.caja_tinta_piezas(
                         [p for p in r.placements if p.page == i],
                         store.images(), dpi_caja, _separacion_px())
-                    cajas.append([round(v, 3) for v in caja] if caja else None)
+                    mk = geometry.marks_adaptadas(caja, oficial)
+                    cajas.append([round(v, 3) for v in mk])
             except Exception:
                 cajas = []
             try:
@@ -1104,7 +1107,7 @@ def create_app(store: Session = session) -> FastAPI:
             "densidad": getattr(r, "densidad", 0.75),
             "marcas": {k: [round(w, 2), round(h, 2)]
                        for k, (w, h) in compose.marcas_mm().items()},
-            "cajas_marcas_mm": cajas,
+            "marcas_cajas_mm": cajas,
             "bbox_mm": [bw, bh],
             "bbox_offset_mm": [bx, by],
             "poly_mm": [[round(x, 3), round(y, 3)] for x, y in area.poly],
