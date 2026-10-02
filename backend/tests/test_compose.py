@@ -269,8 +269,8 @@ def test_marcas_delimitar_en_los_limites_y_dentro():
 
 
 def test_marcas_abrazan_el_contenido_sin_taparlo():
-    """Las 4 marcas se acercan al contenido dejando un hueco, pero NUNCA se
-    meten más hacia dentro que sus posiciones oficiales."""
+    """La TINTA de las 4 marcas abraza el contenido (hueco de 1 mm) y queda
+    SIEMPRE dentro de la hoja, aunque el contenido ocupe toda el área."""
     import numpy as np
     from crycat.geometry import marks_adaptadas, marks_rect_for
     area = cut_area(210.0, 297.0, "maker3")
@@ -287,15 +287,18 @@ def test_marcas_abrazan_el_contenido_sin_taparlo():
     for v, e in zip((xs.min() / px, ys.min() / px,
                      (xs.max() + 1) / px, (ys.max() + 1) / px), esperado):
         assert abs(v - e) < 0.6, (v, e, esperado)
-    # el contenido grande se queda en las OFICIALES (nunca más adentro)
+    # contenido grande (toda el área): también lo abrazan y su tinta queda
+    # DENTRO de la hoja (los soportes transparentes pueden salirse)
     grande = area.bbox
     out2 = compose.con_marcas_cricut(img, area, dpi, grande)
     a2 = np.asarray(out2.convert("RGBA").split()[3]) > 128
     ys2, xs2 = np.nonzero(a2)
-    oficial = marks_rect_for(area)
+    esperado2 = marks_adaptadas(grande, marks_rect_for(area))
     for v, e in zip((xs2.min() / px, ys2.min() / px,
-                     (xs2.max() + 1) / px, (ys2.max() + 1) / px), oficial):
-        assert abs(v - e) < 0.6, (v, e, oficial)
+                     (xs2.max() + 1) / px, (ys2.max() + 1) / px), esperado2):
+        assert abs(v - e) < 0.6, (v, e, esperado2)
+    assert xs2.min() >= 0 and ys2.min() >= 0
+    assert (xs2.max() + 1) / px <= 210.0 and (ys2.max() + 1) / px <= 297.0
 
 
 def test_marcas_pdf_abrazan_el_contenido():

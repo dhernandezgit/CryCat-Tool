@@ -27,8 +27,8 @@ COLORES: list[tuple[str, tuple[int, int, int]]] = [
     ("mostaza", (228, 196, 106)),
 ]
 
-FORMA_MIN_MM = 16.0
-FORMA_MAX_MM = 52.0
+FORMA_MIN_MM = 12.0
+FORMA_MAX_MM = 56.0
 DPI = 300.0
 
 
@@ -113,12 +113,13 @@ FORMAS = ["circulo", "cuadrado", "triangulo", "hexagono", "estrella",
           "anillo", "corazon", "anillo_punto", "casa", "flor"]
 
 
-def figuras(n: int = 16, semilla: int | None = 20260928
+def figuras(n: int = 24, semilla: int | None = None
             ) -> list[tuple[str, Image.Image]]:
     """`n` figuras aleatorias: (nombre, imagen RGBA a 300 ppp).
 
-    Con semilla fija por defecto: la muestra es siempre la misma (estable
-    para los tests y reproducible para quien la ve).
+    Sin semilla por defecto: la muestra es DISTINTA cada vez (se pasa una
+    semilla solo para los tests). Los tamaños van de pequeños a grandes para
+    que el optimizador llene bien los huecos.
     """
     rnd = random.Random(semilla)
     salida: list[tuple[str, Image.Image]] = []

@@ -168,7 +168,7 @@ jobs:
             comprobar versiones y ⬇ para descargar, instalar y reiniciar sin
             perder nada (tus ajustes, perfiles e imágenes se conservan).
 
-            Hecha por **Daniel Hernández Ferrándiz**.
+            Hecha por **Daniel Hernández Ferrándiz** y **Wivi.eve**.
           fail_on_unmatched_files: false
           # adjunta todo lo que traen los artefactos (exe, instalador,
           # archivo único de Linux y paquete .tar.gz)

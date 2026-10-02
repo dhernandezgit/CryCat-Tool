@@ -455,7 +455,10 @@ def test_demo_inicial(client):
     assert d["ok"] is True and d["demo"] is True
     assert len(d["assets"]) == 6
     assert all(a.get("demo") for a in d["assets"])
-    assert all(a["w_mm"] > 10 for a in d["assets"])
+    assert all(a["w_mm"] > 4 for a in d["assets"])
+    # tamaños MUY variados (pequeñas y grandes) para llenar los huecos
+    anchos = [a["w_mm"] for a in d["assets"]]
+    assert max(anchos) - min(anchos) > 5
     # una imagen real barre la muestra
     upload(c, "a.png")
     lista = c.get("/api/assets").json()

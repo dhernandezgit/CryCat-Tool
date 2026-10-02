@@ -18,7 +18,7 @@ import webbrowser
 
 import uvicorn
 
-from . import APP_NAME, __version__
+from . import APP_NAME, AUTOR, __version__
 from .i18n import tb
 from .server import create_app
 
@@ -72,7 +72,7 @@ def _banner(port: int, url: str, carpeta: str) -> None:
         (tb("Aplicación:"), url, ROSA_O),
         (tb("Datos:"), carpeta, GRIS),
         (tb("Puerto:"), str(port), GRIS),
-        (tb("Autor:"), "Daniel Hernández Ferrándiz", CREMA),
+        (tb("Autor:"), AUTOR, CREMA),
     ]
     for et, val, col in filas:
         print(f"  {CREMA_O}♡  {et:<30}{R} {col}{val}{R}")

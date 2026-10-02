@@ -20,7 +20,7 @@ from PIL import Image
 
 import random
 
-from . import __version__, compose, cuttime, demo, geometry, imaging, version
+from . import AUTOR, __version__, compose, cuttime, demo, geometry, imaging, version
 from . import config as cfg
 from .config import settings
 from .funmsgs import mensajes as mensajes_funny
@@ -401,6 +401,7 @@ def create_app(store: Session = session) -> FastAPI:
     @app.get("/api/health")
     def health():
         return {"ok": True, "app": "CryCat", "version": __version__,
+                "autor": AUTOR,
                 "progreso_n": progreso_n,
                 "time": dt.datetime.now().isoformat(timespec="seconds")}
 
@@ -555,30 +556,51 @@ def create_app(store: Session = session) -> FastAPI:
         return a.to_dict()
 
     @app.post("/api/demo")
-    def crear_demo(n: int = 16):
+    def crear_demo(n: int = 24):
         """Rellena la sesión con figuras de ejemplo (se van al subir imágenes).
 
         Se generan al azar (círculos, cuadrados, estrellas, anillos, flores…)
-        en colores pastel para ver el optimizador funcionando desde el primer
-        segundo. Cualquier imagen de verdad las borra automáticamente.
+        en colores pastel, de tamaños MUY variados y SIN semilla fija (cada
+        inicio es distinto), para ver el optimizador llenando la hoja desde el
+        primer segundo. Cualquier imagen de verdad las borra automáticamente.
         """
         if any(not getattr(a, "demo", False) for a in store.assets.values()):
             return {"ok": False, "motivo": "ya hay imágenes"}
         store._quitar_demo()
         import random as _rnd
-        _rnd.seed(20260928)          # muestra reproducible (tests estables)
-        figuras = demo.figuras(max(3, min(60, n)))
+        figuras = demo.figuras(max(3, min(80, n)))
         for k, (nombre, img) in enumerate(figuras):
             a = Asset(new_id(), nombre, img, b"", demo.DPI, [], "RGBA")
             a.demo = True
-            # copias y tamaños variados para que se vea de todo, SIN minis
-            # (salvo UN ejemplo: 0 normales y todos los minis que quepan)
-            a.copies = _rnd.choice([1, 1, 2, 2, 3, 4])
+            a.copies = 1
             a.mini_enabled = False
-            if k == 1:
-                a.scale_pct = 55.0           # un ejemplo bien pequeño
+            if k < 3:
+                a.scale_pct = _rnd.choice([45.0, 55.0, 65.0])   # pequeñas
             _avisar_blobs(a)
             store.add(a)
+        # copias repartidas para LLENAR la hoja: se añaden copias a las piezas
+        # pequeñas (las que mejor aprovechan los huecos) hasta acercarse al
+        # área útil, sin pasarse para que no quede nada sin colocar
+        try:
+            _, _, bw, bh = store.current_area().bbox
+            objetivo = bw * bh * 0.90
+
+            def _area(a) -> float:
+                s = max(0.2, float(a.scale_pct or 100) / 100.0)
+                return float(a.w_mm) * float(a.h_mm) * s * s
+
+            piezas = sorted((a for a in store.assets.values() if a.demo),
+                            key=_area)
+            suma = sum(_area(a) for a in piezas)
+            k = 0
+            while piezas and suma < objetivo and k < 600:
+                a = piezas[k % len(piezas)]
+                if a.copies < 6:
+                    a.copies += 1
+                    suma += _area(a)
+                k += 1
+        except Exception:
+            pass
         # se deja YA optimizada (con los ajustes actuales): al abrir no se
         # espera. En la web el motor corre en un WORKER (sin hilos reales),
         # así que también puede usar las siluetas reales como el escritorio.
@@ -590,6 +612,16 @@ def create_app(store: Session = session) -> FastAPI:
             st_demo["_offset_global"] = _offset_de_global()
             res = optimize(assets, area, st_demo,
                            pinned=store.pinned(), masks=store.images())
+            if res.unplaced:
+                # raro: si algo no cupo, se quitan copias y se recalcula UNA
+                # vez para que la muestra se vea SIEMPRE llena y sin avisos
+                for uid in set(res.unplaced):
+                    a = store.assets.get(str(uid).split("#", 1)[0])
+                    if a is not None:
+                        a.copies = max(1, a.copies - 1)
+                assets = store.asset_dicts()
+                res = optimize(assets, area, st_demo,
+                               pinned=store.pinned(), masks=store.images())
             store.set_result(res)
         except Exception:
             pass
@@ -1080,9 +1112,9 @@ def create_app(store: Session = session) -> FastAPI:
                     "unplaced": 0}
         r, area = store.last, store.area
         bx, by, bw, bh = area.bbox
-        # caja de las marcas POR PÁGINA: abrazan el contenido de esa hoja (sin
-        # taparlo) sin meterse más que las posiciones oficiales. Se calculan
-        # una vez por resultado y se cachean en él.
+        # caja de las marcas POR PÁGINA: su TINTA abraza el contenido de esa
+        # hoja (sin taparlo) por los cuatro lados. Se calculan una vez por
+        # resultado y se cachean en él.
         cajas = getattr(r, "_cajas_marcas", None)
         if cajas is None:
             try:

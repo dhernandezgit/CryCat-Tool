@@ -310,7 +310,7 @@ export const api = {
       body: JSON.stringify(patch),
     }),
   deleteAsset: (id: string) => req<{ ok: boolean }>(`/api/assets/${id}`, { method: "DELETE" }),
-  crearDemo: (n = 16) =>
+  crearDemo: (n = 24) =>
     req<{ ok: boolean; assets: Asset[]; motivo?: string }>(
       `/api/demo?n=${n}`, { method: "POST" }),
   clearAssets: () => req<{ ok: boolean }>("/api/assets", { method: "DELETE" }),

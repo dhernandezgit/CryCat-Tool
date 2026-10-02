@@ -8,7 +8,7 @@
 
 #define NombreAplicacion "CryCat"
 #define Version "1.0.0"
-#define Autor "doctor Daniel Hernández Ferrándiz"
+#define Autor "Daniel Hernández Ferrándiz y Wivi.eve"
 #define ExeOrigen "..\dist\CryCat.exe"
 #define IconoOrigen "crycat.ico"
 
@@ -18,7 +18,7 @@ AppName={#NombreAplicacion}
 AppVersion={#Version}
 AppVerName={#NombreAplicacion} {#Version}
 AppPublisher={#Autor}
-AppComments=Creada por el {#Autor}. Todo local, sin conexión a Internet.
+AppComments=Hecha por {#Autor}. Todo local, sin conexión a Internet.
 DefaultDirName={autopf}\CryCat
 DefaultGroupName=CryCat
 DisableProgramGroupPage=yes

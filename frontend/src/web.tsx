@@ -144,6 +144,9 @@ function pintarCarga(texto: string, error = false) {
         El motor se descarga una vez y se queda en caché del navegador.
         Tus imágenes no salen de tu equipo.
       </div>
+      <div style="font-size:11px;color:${c.textSoft};margin-top:10px;opacity:.85">
+        CryCat · hecha por Daniel Hernández Ferrándiz y Wivi.eve
+      </div>
     </div>`;
   if (error) {
     const fun = document.getElementById("carga-fun");
@@ -389,7 +392,7 @@ async function main() {
     try {
       const previos = await fetch(apiBase() + "api/assets").then((r) => r.json());
       if (Array.isArray(previos) && previos.length === 0) {
-        await fetch(apiBase() + "api/demo?n=16", { method: "POST" });
+        await fetch(apiBase() + "api/demo?n=24", { method: "POST" });
       }
     } catch (e) {
       /* si algo falla, la app arranca igual y lo genera luego */

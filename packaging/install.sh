@@ -23,7 +23,7 @@ fi
 cat > "$APPS/crycat.desktop" <<EOF
 [Desktop Entry]
 Name=CryCat
-Comment=Pegatinas óptimas para Cricut
+Comment=Pegatinas óptimas para Cricut · hecha por Daniel Hernández Ferrándiz y Wivi.eve
 Exec=$DIR_INST/crycat
 Icon=$ICONOS/crycat.png
 Type=Application
@@ -34,5 +34,6 @@ EOF
 update_desktop_db() { command -v update-desktop-database >/dev/null && update-desktop-database "$APPS" || true; }
 update_desktop_db
 
-echo "✔ CryCat instalado. Búscalo en el menú de aplicaciones o ejecuta:"
+echo "✔ CryCat instalado (hecha por Daniel Hernández Ferrándiz y Wivi.eve)."
+echo "  Búscalo en el menú de aplicaciones o ejecuta:"
 echo "    $DIR_INST/crycat"

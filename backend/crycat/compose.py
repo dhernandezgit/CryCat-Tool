@@ -636,11 +636,11 @@ def con_marcas_cricut(img: Image.Image, area: CutArea,
                       off_x: float = 0.0, off_y: float = 0.0) -> Image.Image:
     """Superpone SOLO las marcas negras de Cricut (4 esquinas + flecha).
 
-    Las marcas ABRAZAN el contenido (`caja`, en mm absolutos de la página)
-    dejando un hueco, pero NUNCA se meten más hacia dentro que sus posiciones
-    oficiales (las oficiales son el límite exterior): con contenido grande se
-    quedan en las oficiales, y el área recortable (derivada de ellas)
-    garantiza que no haya piezas en su tinta. Sin `caja`, las oficiales.
+    La TINTA de las marcas abraza el contenido (`caja`, en mm absolutos de la
+    página) dejando un hueco: la L de cada esquina queda pegada a su borde
+    (izquierda/derecha/arriba/abajo), sin taparlo nunca. Los soportes son
+    transparentes y pueden salirse de la hoja; la tinta no. Sin `caja`, las
+    posiciones oficiales.
     """
     px = dpi / 25.4
     # `caja` viene en mm del LIENZO (ya restado su origen): las oficiales se

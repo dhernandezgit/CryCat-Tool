@@ -5785,7 +5785,7 @@ const G = {
     body: JSON.stringify(t)
   }),
   deleteAsset: (e) => K(`/api/assets/${e}`, { method: "DELETE" }),
-  crearDemo: (e = 16) => K(
+  crearDemo: (e = 24) => K(
     `/api/demo?n=${e}`,
     { method: "POST" }
   ),
@@ -11668,7 +11668,7 @@ function Th() {
     )
   ] }) }) : /* @__PURE__ */ o.jsx("div", { style: { padding: 30 }, children: Df("es", "Cargando CryCat…") });
 }
-const Lh = "1790936958949", Zd = document.getElementById("root"), pi = [
+const Lh = "1790953256540", Zd = document.getElementById("root"), pi = [
   "Cargando peluches de apoyo emocional…",
   "Afilando tijeras de pegatinas…",
   "Preparando boba teas…",
@@ -11783,6 +11783,9 @@ function mi(e, t = !1) {
       <div style="max-width:520px;font-size:12px;color:${n.textSoft};margin-top:6px">
         El motor se descarga una vez y se queda en caché del navegador.
         Tus imágenes no salen de tu equipo.
+      </div>
+      <div style="font-size:11px;color:${n.textSoft};margin-top:10px;opacity:.85">
+        CryCat · hecha por Daniel Hernández Ferrándiz y Wivi.eve
       </div>
     </div>`, t) {
     const s = document.getElementById("carga-fun");
@@ -11963,7 +11966,7 @@ async function Oh() {
     fi("Optimizando la muestra inicial…", 7);
     try {
       const t = await fetch(Sn() + "api/assets").then((n) => n.json());
-      Array.isArray(t) && t.length === 0 && await fetch(Sn() + "api/demo?n=16", { method: "POST" });
+      Array.isArray(t) && t.length === 0 && await fetch(Sn() + "api/demo?n=24", { method: "POST" });
     } catch {
     }
     fi("Abriendo la aplicación…", 8), window.clearTimeout(ms), Vd(Zd).render(/* @__PURE__ */ o.jsx(Th, {}));

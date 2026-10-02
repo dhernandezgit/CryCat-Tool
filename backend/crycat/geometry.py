@@ -70,6 +70,10 @@ PAPER_SIZES: dict[str, tuple[float, float]] = {
 MARK_SIZE = 25.32      # lado del soporte de cada marca (mm)
 MARK_THICK = 1.44      # grosor de las barras (mm)
 MARK_GAP = 0.5         # margen extra para que nada toque la tinta
+# distancia de la esquina EXTERIOR del soporte al FILO INTERIOR de la L
+# (medida sobre las marcas reales que se imprimen): es lo que se usa para
+# abrazar el contenido con la TINTA, no con el soporte (transparente)
+MARK_INK = 1.72
 MARKS_A4 = (13.63, 13.21, 196.09, 280.08)   # A4 vertical (referencia real)
 
 
@@ -102,23 +106,22 @@ def marks_adaptadas(caja_contenido: tuple[float, float, float, float] | None,
                     oficial: tuple[float, float, float, float],
                     gap: float = 1.0
                     ) -> tuple[float, float, float, float]:
-    """Marcas que ABRAZAN el contenido sin taparlo.
+    """Marcas cuyo FILO INTERIOR abraza el contenido (sin taparlo).
 
-    Cada marca se acerca a la caja del contenido dejando `gap` mm de hueco,
-    pero NUNCA se mete más hacia dentro que su posición oficial (las
-    oficiales son el límite exterior): con contenido grande se quedan en las
-    oficiales (y el área recortable ya garantiza que no haya piezas en su
-    tinta). Sin caja, devuelve las oficiales.
+    La L de cada marca queda a `gap` mm del píxel más externo del contenido:
+    la barra vertical izquierda delimita el borde izquierdo, la horizontal
+    superior el borde superior, etc. Las 4 a la vez, así los CUATRO lados
+    quedan delimitados por la tinta (como en una impresión de Design Space).
+
+    Los soportes son transparentes y pueden salirse de la hoja; la TINTA (la
+    L) siempre queda dentro porque el área recortable deja más de
+    `gap + MARK_INK` mm a cada lado. Sin contenido, devuelve las oficiales.
     """
-    ox0, oy0, ox1, oy1 = oficial
     if caja_contenido is None:
         return oficial
     cx0, cy0, cx1, cy1 = caja_contenido
-    mx0 = max(ox0, cx0 - gap - MARK_SIZE)
-    my0 = max(oy0, cy0 - gap - MARK_SIZE)
-    mx1 = min(ox1, cx1 + gap + MARK_SIZE)
-    my1 = min(oy1, cy1 + gap + MARK_SIZE)
-    return (mx0, my0, mx1, my1)
+    t = MARK_INK
+    return (cx0 - gap - t, cy0 - gap - t, cx1 + gap + t, cy1 + gap + t)
 
 # Perfiles de máquina (máximos de A4 en mm); None = usa los estándar.
 # Toda la serie Maker (Maker, Maker 3, Maker 5) comparte el mismo patrón de
