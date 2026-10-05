@@ -425,11 +425,11 @@ def test_area_oficial_de_ptc(client):
     """El área útil es la forma escalonada oficial de Print Then Cut (se
     aprovecha entera) con cualquier opción de PPP del PNG."""
     c, st, _ = client
-    assert abs(st.current_area().bbox[2] - 181.02) < 0.01
-    assert abs(st.current_area().bbox[3] - 267.89) < 0.01
+    assert abs(st.current_area().bbox[2] - 182.88) < 0.01
+    assert abs(st.current_area().bbox[3] - 269.75) < 0.01
     c.put("/api/settings", json={"export_ppp": 144})
-    assert abs(st.current_area().bbox[2] - 181.02) < 0.01
-    assert abs(st.current_area().bbox[3] - 267.89) < 0.01
+    assert abs(st.current_area().bbox[2] - 182.88) < 0.01
+    assert abs(st.current_area().bbox[3] - 269.75) < 0.01
 
 
 def test_export_ppp_300_por_defecto_y_144_opcional(client, tmp_path):
@@ -456,8 +456,8 @@ def test_export_ppp_300_por_defecto_y_144_opcional(client, tmp_path):
     with Image.open(fp2) as im2:
         dpi2 = im2.info.get("dpi")
         assert dpi2 and abs(dpi2[0] - 144) < 1.0, dpi2
-        assert im2.width / dpi2[0] * 25.4 <= 181.02 + 0.5
-        assert im2.height / dpi2[1] * 25.4 <= 267.89 + 0.5
+        assert im2.width / dpi2[0] * 25.4 <= 182.88 + 0.5
+        assert im2.height / dpi2[1] * 25.4 <= 269.75 + 0.5
 
 
 def test_defaults_extras_pikmin(client):

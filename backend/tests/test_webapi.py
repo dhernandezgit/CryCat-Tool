@@ -25,7 +25,7 @@ def test_saludo_y_area():
         {"page_w": 210, "page_h": 297, "machine": "maker5"})))
     x0, y0, bw, bh = a["bbox"]
     # máximo oficial de PTC: 7.2 x 10.62 in
-    assert round(bw) == 181 and round(bh) == 268
+    assert round(bw) == 183 and round(bh) == 270
     assert len(a["poly"]) == 20
 
 
@@ -48,8 +48,8 @@ def test_optimizar_devuelve_png_y_metricas():
     raw = base64.b64decode(r["pngs"][0].split(",", 1)[1])
     img = Image.open(io.BytesIO(raw))
     # por defecto se exporta SOLO el área recortable menos el margen (1 mm
-    # por lado); área oficial de PTC A4: 181.02 - 2 = 180.88 mm de ancho
-    assert img.width == round((181.02 - 2) / 25.4 * 300)
+    # por lado); área oficial de PTC A4: 182.88 - 2 = 180.88 mm de ancho
+    assert img.width == round((182.88 - 2) / 25.4 * 300)
 
 
 def test_optimizar_respeta_el_giro_desactivado():

@@ -98,11 +98,12 @@ STEP1_A4 = 9.85
 STEP2_A4 = 36.1
 
 # --- margen de borde de Design Space ------------------------------------
-# En las imágenes oficiales de la guía («Maximum horizontal»), el diseño de
-# máximo ancho queda DENTRO de la línea roja ~0,9 mm por lado: DS
-# auto-redimensiona si el contenido llega justo al borde. Con este margen el
-# diseño se importa tal cual (sin redimensionar) y con los tamaños exactos.
-DS_EDGE_MM = 0.93
+# DS deja ~0,9 mm entre el diseño y el borde de su guía y auto-redimensiona
+# si el contenido llega justo al límite. Se deja a 0: el diseño ocupa TODO
+# el máximo oficial (ancho y alto) y, si DS lo encaja (su regla para diseños
+# altos), lo hace conservando la proporción. Poniéndolo a ~0.93 el diseño se
+# importa tal cual pero mide 18.09 en vez de 18.28.
+DS_EDGE_MM = 0.0
 
 # Referencia (por si hace falta): el mayor RECTÁNGULO interior del área de
 # PTC de DS (lo que DS usa para auto-redimensionar un bloque macizo), en mm.
