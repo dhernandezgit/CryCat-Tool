@@ -421,24 +421,36 @@ def test_export_no_sobrescribe_nada(client, tmp_path):
     assert importante.read_text("utf-8") == "importante"
 
 
+def test_area_ds_segura_por_defecto(client):
+    """Con «PNG para Cricut Design» (por defecto) la optimización usa el
+    rectángulo seguro de Design Space; desactivado, el área escalonada."""
+    c, st, _ = client
+    # máximo rectangular real de DS en A4: 167.31 x 254.10 (-0.3 de margen)
+    assert abs(st.current_area().bbox[2] - 167.01) < 0.1
+    assert abs(st.current_area().bbox[3] - 253.80) < 0.1
+    c.put("/api/settings", json={"ds_144": False})
+    assert abs(st.current_area().bbox[2] - 186.0) < 0.1
+    assert abs(st.current_area().bbox[3] - 272.3) < 0.1
+
+
 def test_export_ds_144_para_cricut(client, tmp_path):
-    """«PNG para Cricut Design» (por defecto): el PNG se guarda a 144 ppp
-    conservando el tamaño físico en mm, que es como Design Space interpreta
-    las imágenes (así se importan al tamaño exacto, sin redimensionar)."""
+    """«PNG para Cricut Design» (por defecto): el PNG se guarda a 144 ppp y
+    la colocación usa el máximo RECTANGULAR real de DS en A4 (167.31 x
+    254.10 mm): se importa al tamaño exacto, sin redimensionar."""
     c, st, _ = client
     upload(c, "gato.png")
     _optimiza(c)
     salida = tmp_path / "ds"
     salida.mkdir(exist_ok=True)
-    # por defecto (ds_144 = True) → 144 ppp
+    # por defecto (ds_144 = True) → 144 ppp y dentro del máximo rectangular
     r = c.post("/api/export", json={"name": "ds", "folder": str(salida)}).json()
     fp = [f for f in r["files"] if f.endswith(".png")][0]
     with Image.open(fp) as im:
         dpi = im.info.get("dpi")
         assert dpi and abs(dpi[0] - 144) < 1.0, dpi
-        w_mm = im.width / dpi[0] * 25.4
-        h_mm = im.height / dpi[1] * 25.4
-    # desactivado → la resolución de salida (300) y el MISMO tamaño físico
+        assert im.width / dpi[0] * 25.4 <= 167.31
+        assert im.height / dpi[1] * 25.4 <= 254.10
+    # desactivado → la resolución de salida (300) y el área escalonada
     c.put("/api/settings", json={"ds_144": False})
     r2 = c.post("/api/export", json={"name": "ds300",
                                      "folder": str(salida)}).json()
@@ -446,10 +458,6 @@ def test_export_ds_144_para_cricut(client, tmp_path):
     with Image.open(fp2) as im2:
         dpi2 = im2.info.get("dpi")
         assert dpi2 and abs(dpi2[0] - 300) < 1.0, dpi2
-        assert abs(im2.width / dpi2[0] * 25.4 - w_mm) < 0.2
-        assert abs(im2.height / dpi2[1] * 25.4 - h_mm) < 0.2
-        # y a 144 ppp cabe de sobra en un A4 (lo que importa para DS)
-        assert w_mm <= 210.0 and h_mm <= 297.0
 
 
 def test_defaults_extras_pikmin(client):
@@ -664,8 +672,8 @@ def test_export_guarda_archivos(client, tmp_path):
     assert Path(pngs[0]).parent == tmp_path
     img = Image.open(pngs[0])
     assert img.mode == "RGBA"
-    # sin guías: esquina transparente (lienzo recortable por defecto)
-    assert img.getpixel((0, 0))[3] == 0
+    # sin fondo ni guías: hay zonas transparentes (no es un bloque opaco)
+    assert img.getchannel("A").getextrema()[0] == 0
     # la carpeta queda guardada como predeterminada
     assert c.get("/api/settings").json()["settings"]["carpeta_export"] == str(tmp_path)
 

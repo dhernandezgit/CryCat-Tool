@@ -359,8 +359,8 @@ export const EN: Record<string, string> = {
     "With “PNG for Cricut Design” on (default) it imports at the EXACT size: no resizing needed.",
   "Design Space interpreta las imágenes a 144 ppp: guardando los PNG a esa resolución se importan al tamaño EXACTO, sin que pida redimensionar.":
     "Design Space reads images at 144 dpi: saving PNGs at that resolution makes them import at the EXACT size, with no resize prompt.",
-  "Recomendado: los PNG se guardan a 144 ppp (la resolución que usa Design Space) conservando el tamaño real, para importarlos sin redimensionar. Desactívalo solo si vas a imprimir los PNG fuera de Design Space.":
-    "Recommended: PNGs are saved at 144 dpi (the resolution Design Space uses) keeping the real size, so they import with no resizing. Turn it off only if you'll print the PNGs outside Design Space.",
+  "Recomendado: los PNG se guardan a 144 ppp (la resolución de Design Space) y la colocación se ajusta a su área segura de Print Then Cut (≈2,15 cm de margen por lado en A4), para importarlos al tamaño exacto sin que DS pida redimensionar. Desactívalo si vas a imprimir los PNG fuera de Design Space.":
+    "Recommended: PNGs are saved at 144 dpi (Design Space's resolution) and the layout fits its Print Then Cut safe area (≈2.15 cm margin per side on A4), so they import at the exact size with no resize prompt. Turn it off if you'll print the PNGs outside Design Space.",
   "Tamaño de salida (vertical)": "Output size (portrait)",
   "Ancho × alto (mm)": "Width × height (mm)",
   "Máquina Cricut": "Cricut machine",

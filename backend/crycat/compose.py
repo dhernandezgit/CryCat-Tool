@@ -550,8 +550,11 @@ def export_pages(area: CutArea, placements: list[Placement],
         img = render_page(area, pls_pag, images,
                           dpi, full_page, color, delimitar_mm,
                           delimitar_margen_mm, separacion_px)
-        # al guardar se recorta a la zona con elementos (la impresión no)
-        img = _recorte_contenido(img, area, pls_pag, dpi, full_page)
+        # al guardar se recorta a la zona con elementos (la impresión no).
+        # Para Design Space el recorte va SIN margen extra: el PNG debe
+        # caber EXACTO en el máximo rectangular (167.31 x 254.10 en A4).
+        img = _recorte_contenido(img, area, pls_pag, dpi, full_page,
+                                 0.0 if export_dpi else 0.5)
         if bleed_mm > 0:
             img = con_bleed(img, int(round(bleed_mm / 25.4 * dpi)))
         img = _resample_export(img, dpi, export_dpi)
@@ -572,8 +575,10 @@ def export_single(area: CutArea, placements: list[Placement],
     """Guarda UNA página directamente en un PNG concreto (sin carpeta)."""
     img = render_page(area, placements, images, dpi, full_page, color,
                       delimitar_mm, delimitar_margen_mm, separacion_px)
-    # al guardar se recorta a la zona con elementos (la impresión no)
-    img = _recorte_contenido(img, area, placements, dpi, full_page)
+    # al guardar se recorta a la zona con elementos (la impresión no).
+    # Para Design Space el recorte va SIN margen extra (caber EXACTO).
+    img = _recorte_contenido(img, area, placements, dpi, full_page,
+                             0.0 if export_dpi else 0.5)
     if bleed_mm > 0:
         img = con_bleed(img, int(round(bleed_mm / 25.4 * dpi)))
     img = _resample_export(img, dpi, export_dpi)

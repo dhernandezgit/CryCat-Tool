@@ -15,6 +15,29 @@ def test_maximos_oficiales_a4():
     assert abs(x0 - 12.0) < 0.3 and abs(y0 - 12.35) < 0.3
 
 
+def test_area_ds_segura_para_cricut():
+    """`ds=True`: rectángulo SEGURO de Design Space (sin escalones) para
+    importar el PNG sin que DS pida redimensionar: en A4 ~2,15 cm de margen
+    por lado (167.0 x 254.0 mm)."""
+    area = g.cut_area(210.0, 297.0, "maker5", "A4", ds=True)
+    x0, y0, bw, bh = area.bbox
+    # máximo rectangular REAL de DS: 167.31 x 254.10 mm (menos 0.3 de margen)
+    assert abs(bw - 167.01) < 0.05 and abs(bh - 253.80) < 0.05
+    assert abs(x0 - 21.5) < 0.1 and abs(y0 - 21.6) < 0.1
+    assert len(area.poly) == 4 and not area.notches
+    # en A5 (sin dato oficial) escala desde el A4 (~15 mm de margen)
+    a5 = g.cut_area(148.0, 210.0, "maker5", "A5", ds=True)
+    assert abs(a5.bbox[0] - 15.1) < 0.3
+    assert abs(a5.bbox[2] - 117.8) < 0.5
+    # Letter también usa su máximo real (6.823 x 9.323 in)
+    le = g.cut_area(215.9, 279.4, "maker5", "Letter", ds=True)
+    assert abs(le.bbox[2] - 173.0) < 0.1 and abs(le.bbox[3] - 236.5) < 0.1
+    # sin `ds` sigue el área escalonada de siempre
+    normal = g.cut_area(210.0, 297.0, "maker5", "A4")
+    assert len(normal.poly) == 20 and len(normal.notches) == 8
+    assert abs(normal.bbox[2] - 186.0) < 0.1
+
+
 def test_no_es_una_caja():
     """El polígono NO puede ser un rectángulo: un rect que use el alto máximo
     no puede usar el ancho máximo a la vez (documentado por Cricut)."""

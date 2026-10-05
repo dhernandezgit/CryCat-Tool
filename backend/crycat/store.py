@@ -296,7 +296,10 @@ class Session:
         pw = float(settings.get("pagina_w"))
         ph = float(settings.get("pagina_h"))
         machine = str(settings.get("maquina"))
-        self.area = cut_area(pw, ph, machine)
+        # con «PNG para Cricut Design» (por defecto) se usa el rectángulo
+        # seguro de Design Space: el diseño nunca tendrá que redimensionarse
+        self.area = cut_area(pw, ph, machine,
+                             ds=bool(settings.get("ds_144", True)))
         return self.area
 
     # ------------------------------------------------------- colocaciones --

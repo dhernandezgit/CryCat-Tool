@@ -393,7 +393,7 @@ export default function SettingsPanel({ settings, saveSettings,
             label="PNG para Cricut Design (144 ppp)"
             tip="Design Space interpreta las imágenes a 144 ppp: guardando los PNG a esa resolución se importan al tamaño EXACTO, sin que pida redimensionar." />
           <div className="hint">
-            {t("Recomendado: los PNG se guardan a 144 ppp (la resolución que usa Design Space) conservando el tamaño real, para importarlos sin redimensionar. Desactívalo solo si vas a imprimir los PNG fuera de Design Space.")}
+            {t("Recomendado: los PNG se guardan a 144 ppp (la resolución de Design Space) y la colocación se ajusta a su área segura de Print Then Cut (≈2,15 cm de margen por lado en A4), para importarlos al tamaño exacto sin que DS pida redimensionar. Desactívalo si vas a imprimir los PNG fuera de Design Space.")}
           </div>
         </div>
         <div className="ctl">
