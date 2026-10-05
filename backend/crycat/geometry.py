@@ -39,14 +39,22 @@ from dataclasses import dataclass, field
 
 from .i18n import tr
 
-# Máximos oficiales por tamaño de papel (retrato): (max_ancho, max_alto) en mm
+# Máximos OFICIALES de Print Then Cut por tamaño de papel (retrato):
+# (max_ancho, max_alto) en mm, del help oficial de Cricut («How large can I
+# Print Then Cut?», exactos desde pulgadas):
+#   A4      7.2   x 10.62  in = 182.88 x 269.75 mm
+#   Letter  7.44  x  9.94  in = 188.98 x 252.48 mm
+#   Legal   7.44  x 12.94  in = 188.98 x 328.68 mm
+#   Tabloid 9.94  x 15.94  in = 252.48 x 404.88 mm
+#   A3      10.64 x 15.44  in = 270.26 x 392.18 mm
+# A5 no es tamaño oficial de PTC: se mantiene la referencia del usuario.
 OFFICIAL_MAX: dict[str, tuple[float, float]] = {
-    "A4": (186.0, 272.3),  # calibrado sobre la referencia A4 del usuario
-    "Letter": (189.0, 252.5),
-    "Legal": (189.0, 328.7),
-    "Tabloid": (252.5, 404.9),
-    "A3": (270.0, 392.0),
-    "A5": (131.0, 192.5),  # proporcional (A4/√2)
+    "A4": (182.88, 269.75),
+    "Letter": (188.98, 252.48),
+    "Legal": (188.98, 328.68),
+    "Tabloid": (252.48, 404.88),
+    "A3": (270.26, 392.18),
+    "A5": (131.0, 192.5),
 }
 
 # Tamaños de papel en mm (retrato): (ancho, alto)
@@ -77,12 +85,15 @@ MARK_INK = 1.72
 MARKS_A4 = (13.63, 13.21, 196.09, 280.08)   # A4 vertical (referencia real)
 
 # --- escalones de la GUÍA DE CORTE oficial ------------------------------
-# Medidos sobre `assets/Cricut_A5_Limites_300ppp.png` (borde blanco sobre
-# negro, página A5 148x210): la esquina del área retrocede primero ~5.5 mm y
-# luego ~22.5 mm (en mm desde la esquina de la caja). Antes se derivaban del
-# tamaño de las marcas (25.32) y NO coincidían con la referencia.
-STEP1 = 5.5
-STEP2 = 22.5
+# El escalón pequeño se deduce de los datos reales de DS: el máximo
+# RECTANGULAR (= área escalonada menos ese escalón por lado) del A4 oficial
+# (182.88 x 269.75) es 167.31 x 254.10 → escalón = 7.85 mm por lado. El
+# grande mantiene la proporción del documento del usuario (22.5/5.5 ≈ 4.09).
+# Se escalan con el tamaño del papel: en A5 salen 5.6/22.7, que coinciden
+# con su referencia (5.5/22.5). Antes se derivaban del tamaño de las marcas
+# (25.32) y NO cuadraban ni con la referencia ni con DS.
+STEP1_A4 = 7.85
+STEP2_A4 = 32.1
 
 # --- máximo RECTANGULAR real de Print Then Cut de Design Space ----------
 # Para un diseño RECTANGULAR, Design Space no deja usar todo el área
@@ -253,15 +264,18 @@ def _bands_polygon(x0: float, y0: float, bw: float, bh: float
     la referencia del usuario (`STEP1`/`STEP2`)."""
     x1 = x0 + bw
     y1 = y0 + bh
-    # escalón 1 (el pequeño, ~5.5 mm) y escalón 2 (el grande, ~22.5 mm)
-    wx0 = x0 + STEP1
-    wx1 = x1 - STEP1
-    cx0 = x0 + STEP2
-    cx1 = x1 - STEP2
-    t1 = y0 + STEP1
-    t2 = y0 + STEP2
-    t3 = y1 - STEP2
-    t4 = y1 - STEP1
+    # escalones escalados con el tamaño del papel (base: el A4 oficial)
+    esc = math.sqrt(max(1e-9, bw * bh) / (182.88 * 269.75))
+    s1, s2 = STEP1_A4 * esc, STEP2_A4 * esc
+    # escalón 1 (el pequeño, ~7.85 mm en A4) y escalón 2 (el grande, ~32.1)
+    wx0 = x0 + s1
+    wx1 = x1 - s1
+    cx0 = x0 + s2
+    cx1 = x1 - s2
+    t1 = y0 + s1
+    t2 = y0 + s2
+    t3 = y1 - s2
+    t4 = y1 - s1
     # acotar a la caja y ordenar (por cajas muy pequeñas)
     cx0, cx1 = sorted((min(max(cx0, x0), x1), min(max(cx1, x0), x1)))
     wx0, wx1 = sorted((min(max(wx0, x0), x1), min(max(wx1, x0), x1)))

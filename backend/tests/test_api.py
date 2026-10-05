@@ -429,8 +429,8 @@ def test_area_ds_segura_por_defecto(client):
     assert abs(st.current_area().bbox[2] - 167.01) < 0.1
     assert abs(st.current_area().bbox[3] - 253.80) < 0.1
     c.put("/api/settings", json={"ds_144": False})
-    assert abs(st.current_area().bbox[2] - 186.0) < 0.1
-    assert abs(st.current_area().bbox[3] - 272.3) < 0.1
+    assert abs(st.current_area().bbox[2] - 182.88) < 0.1
+    assert abs(st.current_area().bbox[3] - 269.75) < 0.1
 
 
 def test_export_ds_144_para_cricut(client, tmp_path):

@@ -4,15 +4,14 @@ from crycat import geometry as g
 
 
 def test_maximos_oficiales_a4():
-    """A4 (calibrado con la referencia del usuario): 186.0 x 272.3 mm."""
+    """A4: máximo OFICIAL de Print Then Cut 7.2 x 10.62 in = 182.88 x 269.75 mm
+    (help de Cricut), centrado en la hoja."""
     area = g.cut_area(210.0, 297.0, "maker5", "A4")   # vertical
-    assert abs(area.bbox_w - 186.0) < 0.01
-    assert abs(area.bbox_h - 272.3) < 0.01
-    # bbox centrado en la página
+    assert abs(area.bbox_w - 182.88) < 0.01
+    assert abs(area.bbox_h - 269.75) < 0.01
     x0, y0, bw, bh = area.bbox
-    assert abs(bw - 186.0) < 0.01 and abs(bh - 272.3) < 0.01
-    # los márgenes son ~12 mm por lado
-    assert abs(x0 - 12.0) < 0.3 and abs(y0 - 12.35) < 0.3
+    # márgenes oficiales (~13.5 mm por lado)
+    assert abs(x0 - 13.56) < 0.1 and abs(y0 - 13.625) < 0.1
 
 
 def test_area_ds_segura_para_cricut():
@@ -32,10 +31,10 @@ def test_area_ds_segura_para_cricut():
     # Letter también usa su máximo real (6.823 x 9.323 in)
     le = g.cut_area(215.9, 279.4, "maker5", "Letter", ds=True)
     assert abs(le.bbox[2] - 173.0) < 0.1 and abs(le.bbox[3] - 236.5) < 0.1
-    # sin `ds` sigue el área escalonada de siempre
+    # sin `ds` sigue el área escalonada oficial de siempre
     normal = g.cut_area(210.0, 297.0, "maker5", "A4")
     assert len(normal.poly) == 20 and len(normal.notches) == 8
-    assert abs(normal.bbox[2] - 186.0) < 0.1
+    assert abs(normal.bbox[2] - 182.88) < 0.01
 
 
 def test_no_es_una_caja():
@@ -110,12 +109,13 @@ def test_punto_dentro_fuera():
 
 
 def test_letter_y_a3():
+    # oficiales exactos: 7.44 x 9.94 in y 10.64 x 15.44 in
     a = g.cut_area(215.9, 279.4, "estandar", "Letter")
-    assert abs(a.bbox_w - 189.0) < 0.01
-    assert abs(a.bbox_h - 252.5) < 0.01
+    assert abs(a.bbox_w - 188.98) < 0.01
+    assert abs(a.bbox_h - 252.48) < 0.01
     b = g.cut_area(420.0, 297.0, "estandar", "A3")  # apaisada
-    assert abs(b.bbox_w - 392.0) < 0.01
-    assert abs(b.bbox_h - 270.0) < 0.01
+    assert abs(b.bbox_w - 392.18) < 0.01
+    assert abs(b.bbox_h - 270.26) < 0.01
 
 
 def test_maquina_joy():

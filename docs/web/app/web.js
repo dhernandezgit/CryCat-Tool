@@ -11742,7 +11742,7 @@ function qh() {
     )
   ] }) }) : /* @__PURE__ */ o.jsx("div", { style: { padding: 30 }, children: Hf("es", "Cargando CryCat…") });
 }
-const Uh = "1791194787413", op = document.getElementById("root"), vi = [
+const Uh = "1791196081536", op = document.getElementById("root"), vi = [
   "Cargando peluches de apoyo emocional…",
   "Afilando tijeras de pegatinas…",
   "Preparando boba teas…",
