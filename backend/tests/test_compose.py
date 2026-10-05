@@ -245,8 +245,10 @@ def test_marcas_delimitar_en_los_limites_y_dentro():
     ys, xs = np.nonzero(blanco)
     assert len(xs) > 0, "deben pintarse los cuadrados"
     px = 100.0 / 25.4
+    # el CENTRO de cada píxel debe estar dentro (el borde del píxel puede
+    # tocar el límite: a 100 ppp un píxel son 0,25 mm)
     fuera = [(x / px, y / px) for x, y in zip(xs, ys)
-             if not _dentro_poly(x / px, y / px, area.poly)]
+             if not _dentro_poly((x + 0.5) / px, (y + 0.5) / px, area.poly)]
     assert not fuera, f"{len(fuera)} píxeles fuera del área de corte"
     # pegados a los límites izquierdo y derecho
     bx, by, bw, bh = area.bbox

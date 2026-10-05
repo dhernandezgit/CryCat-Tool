@@ -218,10 +218,12 @@ def cajas_delimitar(area: CutArea, lado_mm: float = 1.0
     """
     bx, by, bw, bh = area.bbox
     # a la altura del centro (donde el área SÍ llega a los extremos: las
-    # esquinas del polígono están escalonadas) y pegados a los límites
-    # (0,1 mm hacia dentro para que el redondeo a píxeles no se salga)
+    # esquinas del polígono están escalonadas) y con los bordes EXTERIORES
+    # pegados a los límites: así el diseño exportado mide EXACTO el ancho
+    # real del área de Cricut. El 0,05 mm evita que el redondeo a píxeles
+    # saque la tinta del límite (a 300 ppp un píxel son 0,085 mm).
     cy = by + bh / 2.0 - lado_mm / 2.0
-    return [(bx + 0.1, cy), (bx + bw - lado_mm - 0.1, cy)]
+    return [(bx + 0.05, cy), (bx + bw - lado_mm - 0.05, cy)]
 
 
 def marcas_delimitar(canvas: Image.Image, area: CutArea, dpi: float,
@@ -550,11 +552,10 @@ def export_pages(area: CutArea, placements: list[Placement],
         img = render_page(area, pls_pag, images,
                           dpi, full_page, color, delimitar_mm,
                           delimitar_margen_mm, separacion_px)
-        # al guardar se recorta a la zona con elementos (la impresión no).
-        # Para Design Space el recorte va SIN margen extra: el PNG debe
-        # caber EXACTO en el máximo rectangular (167.31 x 254.10 en A4).
-        img = _recorte_contenido(img, area, pls_pag, dpi, full_page,
-                                 0.0 if export_dpi else 0.5)
+        # al guardar se recorta a la zona con elementos (la impresión no),
+        # SIN margen extra: el PNG mide EXACTO lo que ocupa el diseño (los
+        # cuadrados guía ya marcan los límites reales del área de Cricut)
+        img = _recorte_contenido(img, area, pls_pag, dpi, full_page, 0.0)
         if bleed_mm > 0:
             img = con_bleed(img, int(round(bleed_mm / 25.4 * dpi)))
         img = _resample_export(img, dpi, export_dpi)
@@ -575,10 +576,9 @@ def export_single(area: CutArea, placements: list[Placement],
     """Guarda UNA página directamente en un PNG concreto (sin carpeta)."""
     img = render_page(area, placements, images, dpi, full_page, color,
                       delimitar_mm, delimitar_margen_mm, separacion_px)
-    # al guardar se recorta a la zona con elementos (la impresión no).
-    # Para Design Space el recorte va SIN margen extra (caber EXACTO).
-    img = _recorte_contenido(img, area, placements, dpi, full_page,
-                             0.0 if export_dpi else 0.5)
+    # al guardar se recorta a la zona con elementos (la impresión no),
+    # SIN margen extra: el PNG mide EXACTO lo que ocupa el diseño
+    img = _recorte_contenido(img, area, placements, dpi, full_page, 0.0)
     if bleed_mm > 0:
         img = con_bleed(img, int(round(bleed_mm / 25.4 * dpi)))
     img = _resample_export(img, dpi, export_dpi)

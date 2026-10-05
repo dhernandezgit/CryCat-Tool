@@ -732,8 +732,8 @@ def test_modo_rata_llena_la_pagina_y_no_va_al_png(client, tmp_path):
     dpi_png = float((im.info.get("dpi") or (300.0, 300.0))[0])
     px = dpi_png / 25.4
     x0, y0, x1, y1 = _caja_reales(res)
-    assert abs(im.width / px - (x1 - x0 + 1.0)) < 1.5, im.size
-    assert abs(im.height / px - (y1 - y0 + 1.0)) < 1.5, im.size
+    assert abs(im.width / px - (x1 - x0)) < 1.5, im.size
+    assert abs(im.height / px - (y1 - y0)) < 1.5, im.size
 
 
 def test_marcas_negras_coinciden_con_la_tinta_de_las_piezas(client):
