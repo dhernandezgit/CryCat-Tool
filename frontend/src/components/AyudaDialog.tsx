@@ -45,7 +45,7 @@ export default function AyudaDialog({ open, onClose, onAbrirCarpeta }: {
     [<IconoRecalcular size={18} />, t("4 · Se coloca solo"),
      t("Automático; «Recalcular» afina la colocación cuando quieras.")],
     [<IconoGuardar size={18} />, t("5 · Guarda"),
-     t("PNG listo para Cricut Design (144 ppp, se importa al tamaño exacto) o a 300 ppp para imprimir. Nunca sobrescribe nada.")],
+     t("PNG a 300 ppp (máxima calidad) o a 144 ppp para que Cricut Design lo importe al tamaño exacto. Nunca sobrescribe nada.")],
   ];
 
   // guía detallada: lo adicional, en una línea por tema
@@ -75,7 +75,7 @@ export default function AyudaDialog({ open, onClose, onAbrirCarpeta }: {
   const cricut = [
     t("Abre Cricut Design Space."),
     t("Sube el PNG y elige «Imagen completa» (conserva la transparencia)."),
-    t("Con «PNG para Cricut Design» (activado por defecto) se importa al tamaño EXACTO: no hace falta redimensionar."),
+    t("Con «PPP del PNG» en 144 se importa al tamaño EXACTO: no hace falta redimensionar (a 300 hay que escalarlo al ~48 %)."),
     t("Pulsa «Crear» y comprueba que las medidas coinciden."),
     t("Imprime en papel mate blanco (o usa las marcas de Cricut) y colócalo en la esterilla."),
     t("¡Listo! La máquina leerá las marcas y cortará tus pegatinas."),

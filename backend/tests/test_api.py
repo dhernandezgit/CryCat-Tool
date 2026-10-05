@@ -423,40 +423,41 @@ def test_export_no_sobrescribe_nada(client, tmp_path):
 
 def test_area_oficial_de_ptc(client):
     """El área útil es la forma escalonada oficial de Print Then Cut (se
-    aprovecha entera), con o sin «PNG para Cricut Design»."""
+    aprovecha entera) con cualquier opción de PPP del PNG."""
     c, st, _ = client
     assert abs(st.current_area().bbox[2] - 182.88) < 0.01
     assert abs(st.current_area().bbox[3] - 269.75) < 0.01
-    c.put("/api/settings", json={"ds_144": False})
+    c.put("/api/settings", json={"export_ppp": 144})
     assert abs(st.current_area().bbox[2] - 182.88) < 0.01
     assert abs(st.current_area().bbox[3] - 269.75) < 0.01
 
 
-def test_export_ds_144_para_cricut(client, tmp_path):
-    """«PNG para Cricut Design» (por defecto): el PNG se guarda a 144 ppp
-    (la resolución con la que DS interpreta las imágenes) y dentro del área
-    oficial de Print Then Cut en A4 (182.88 x 269.75 mm)."""
+def test_export_ppp_300_por_defecto_y_144_opcional(client, tmp_path):
+    """El PNG se guarda a 300 ppp por defecto (máxima calidad); con la opción
+    en 144 (la resolución con la que DS interpreta las imágenes) se guarda a
+    144 ppp dentro del área oficial de Print Then Cut."""
     c, st, _ = client
     upload(c, "gato.png")
     _optimiza(c)
     salida = tmp_path / "ds"
     salida.mkdir(exist_ok=True)
-    # por defecto (ds_144 = True) → 144 ppp y dentro del área oficial
-    r = c.post("/api/export", json={"name": "ds", "folder": str(salida)}).json()
+    # por defecto (export_ppp = 300) → 300 ppp
+    r = c.post("/api/export", json={"name": "q300",
+                                    "folder": str(salida)}).json()
     fp = [f for f in r["files"] if f.endswith(".png")][0]
     with Image.open(fp) as im:
         dpi = im.info.get("dpi")
-        assert dpi and abs(dpi[0] - 144) < 1.0, dpi
-        assert im.width / dpi[0] * 25.4 <= 182.88
-        assert im.height / dpi[1] * 25.4 <= 269.75
-    # desactivado → la resolución de salida (300) y el área escalonada
-    c.put("/api/settings", json={"ds_144": False})
-    r2 = c.post("/api/export", json={"name": "ds300",
+        assert dpi and abs(dpi[0] - 300) < 1.0, dpi
+    # opción 144 → 144 ppp y dentro del área oficial (sin redimensionar en DS)
+    c.put("/api/settings", json={"export_ppp": 144})
+    r2 = c.post("/api/export", json={"name": "ds144",
                                      "folder": str(salida)}).json()
     fp2 = [f for f in r2["files"] if f.endswith(".png")][0]
     with Image.open(fp2) as im2:
         dpi2 = im2.info.get("dpi")
-        assert dpi2 and abs(dpi2[0] - 300) < 1.0, dpi2
+        assert dpi2 and abs(dpi2[0] - 144) < 1.0, dpi2
+        assert im2.width / dpi2[0] * 25.4 <= 182.88
+        assert im2.height / dpi2[1] * 25.4 <= 269.75
 
 
 def test_defaults_extras_pikmin(client):

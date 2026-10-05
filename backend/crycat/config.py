@@ -98,10 +98,10 @@ DEFAULTS: dict = {
     "margen_mm": 0.0,            # margen de seguridad a los límites (mm)
     "rotacion": "libre",         # no | 90 (0/90/180/270) | libre (por defecto)
     "dpi_salida": 300,
-    # PNG para Cricut Design Space a 144 ppp: Design Space interpreta las
-    # imágenes a 144 ppp (no lee sus metadatos), así que guardando el PNG a
-    # esa resolución se importa AL TAMAÑO EXACTO sin que pida redimensionar
-    "ds_144": True,
+    # PPP del PNG al guardar: 300 = máxima calidad (por defecto); 144 = la
+    # resolución con la que Design Space interpreta las imágenes (no lee los
+    # metadatos), así que a 144 se importa AL TAMAÑO EXACTO sin redimensionar
+    "export_ppp": 300,
     "pagina": "A4",
     "pagina_w": APP_W,           # mm (A4 vertical)
     "pagina_h": APP_H,

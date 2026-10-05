@@ -260,7 +260,7 @@ Co.Fragment = Mp;
 Co.jsx = Wc;
 Co.jsxs = Wc;
 Dc.exports = Co;
-var o = Dc.exports, Qc = { exports: {} }, at = {}, Yc = { exports: {} }, Kc = {};
+var o = Dc.exports, Qc = { exports: {} }, nt = {}, Yc = { exports: {} }, Kc = {};
 /**
  * @license React
  * scheduler.production.min.js
@@ -478,7 +478,7 @@ var Ap = Yc.exports;
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
  */
-var Ip = g, nt = Ap;
+var Ip = g, tt = Ap;
 function M(e) {
   for (var t = "https://reactjs.org/docs/error-decoder.html?invariant=" + e, n = 1; n < arguments.length; n++) t += "&args[]=" + encodeURIComponent(arguments[n]);
   return "Minified React error #" + e + "; visit " + t + " for the full message or use the non-minified dev environment for full errors and additional helpful warnings.";
@@ -1200,7 +1200,7 @@ function gu(e) {
   }
   return null;
 }
-var vu = nt.unstable_scheduleCallback, Ml = nt.unstable_cancelCallback, Xp = nt.unstable_shouldYield, Jp = nt.unstable_requestPaint, ke = nt.unstable_now, Zp = nt.unstable_getCurrentPriorityLevel, Ts = nt.unstable_ImmediatePriority, yu = nt.unstable_UserBlockingPriority, to = nt.unstable_NormalPriority, em = nt.unstable_LowPriority, xu = nt.unstable_IdlePriority, So = null, Mt = null;
+var vu = tt.unstable_scheduleCallback, Ml = tt.unstable_cancelCallback, Xp = tt.unstable_shouldYield, Jp = tt.unstable_requestPaint, ke = tt.unstable_now, Zp = tt.unstable_getCurrentPriorityLevel, Ts = tt.unstable_ImmediatePriority, yu = tt.unstable_UserBlockingPriority, to = tt.unstable_NormalPriority, em = tt.unstable_LowPriority, xu = tt.unstable_IdlePriority, So = null, Mt = null;
 function tm(e) {
   if (Mt && typeof Mt.onCommitFiberRoot == "function") try {
     Mt.onCommitFiberRoot(So, e, void 0, (e.current.flags & 128) === 128);
@@ -1438,7 +1438,7 @@ function um() {
   Di = !1, an !== null && qr(an) && (an = null), rn !== null && qr(rn) && (rn = null), on !== null && qr(on) && (on = null), Ya.forEach(Rl), Ka.forEach(Rl);
 }
 function ba(e, t) {
-  e.blockedOn === t && (e.blockedOn = null, Di || (Di = !0, nt.unstable_scheduleCallback(nt.unstable_NormalPriority, um)));
+  e.blockedOn === t && (e.blockedOn = null, Di || (Di = !0, tt.unstable_scheduleCallback(tt.unstable_NormalPriority, um)));
 }
 function Xa(e) {
   function t(r) {
@@ -1611,7 +1611,7 @@ function Er() {
 function Ll() {
   return !1;
 }
-function rt(e) {
+function at(e) {
   function t(n, a, r, i, s) {
     this._reactName = n, this._targetInst = r, this.type = a, this.nativeEvent = i, this.target = s, this.currentTarget = null;
     for (var c in e) e.hasOwnProperty(c) && (n = e[c], this[c] = n ? n(i) : i[c]);
@@ -1629,15 +1629,15 @@ function rt(e) {
 }
 var ha = { eventPhase: 0, bubbles: 0, cancelable: 0, timeStamp: function(e) {
   return e.timeStamp || Date.now();
-}, defaultPrevented: 0, isTrusted: 0 }, Ds = rt(ha), hr = we({}, ha, { view: 0, detail: 0 }), mm = rt(hr), Yo, Ko, Ea, _o = we({}, hr, { screenX: 0, screenY: 0, clientX: 0, clientY: 0, pageX: 0, pageY: 0, ctrlKey: 0, shiftKey: 0, altKey: 0, metaKey: 0, getModifierState: $s, button: 0, buttons: 0, relatedTarget: function(e) {
+}, defaultPrevented: 0, isTrusted: 0 }, Ds = at(ha), hr = we({}, ha, { view: 0, detail: 0 }), mm = at(hr), Yo, Ko, Ea, _o = we({}, hr, { screenX: 0, screenY: 0, clientX: 0, clientY: 0, pageX: 0, pageY: 0, ctrlKey: 0, shiftKey: 0, altKey: 0, metaKey: 0, getModifierState: $s, button: 0, buttons: 0, relatedTarget: function(e) {
   return e.relatedTarget === void 0 ? e.fromElement === e.srcElement ? e.toElement : e.fromElement : e.relatedTarget;
 }, movementX: function(e) {
   return "movementX" in e ? e.movementX : (e !== Ea && (Ea && e.type === "mousemove" ? (Yo = e.screenX - Ea.screenX, Ko = e.screenY - Ea.screenY) : Ko = Yo = 0, Ea = e), Yo);
 }, movementY: function(e) {
   return "movementY" in e ? e.movementY : Ko;
-} }), Al = rt(_o), fm = we({}, _o, { dataTransfer: 0 }), hm = rt(fm), gm = we({}, hr, { relatedTarget: 0 }), Xo = rt(gm), vm = we({}, ha, { animationName: 0, elapsedTime: 0, pseudoElement: 0 }), ym = rt(vm), xm = we({}, ha, { clipboardData: function(e) {
+} }), Al = at(_o), fm = we({}, _o, { dataTransfer: 0 }), hm = at(fm), gm = we({}, hr, { relatedTarget: 0 }), Xo = at(gm), vm = we({}, ha, { animationName: 0, elapsedTime: 0, pseudoElement: 0 }), ym = at(vm), xm = we({}, ha, { clipboardData: function(e) {
   return "clipboardData" in e ? e.clipboardData : window.clipboardData;
-} }), wm = rt(xm), jm = we({}, ha, { data: 0 }), Il = rt(jm), km = {
+} }), wm = at(xm), jm = we({}, ha, { data: 0 }), Il = at(jm), km = {
   Esc: "Escape",
   Spacebar: " ",
   Left: "ArrowLeft",
@@ -1707,7 +1707,7 @@ var Nm = we({}, hr, { key: function(e) {
   return e.type === "keydown" || e.type === "keyup" ? e.keyCode : 0;
 }, which: function(e) {
   return e.type === "keypress" ? Vr(e) : e.type === "keydown" || e.type === "keyup" ? e.keyCode : 0;
-} }), bm = rt(Nm), Em = we({}, _o, { pointerId: 0, width: 0, height: 0, pressure: 0, tangentialPressure: 0, tiltX: 0, tiltY: 0, twist: 0, pointerType: 0, isPrimary: 0 }), Dl = rt(Em), zm = we({}, hr, { touches: 0, targetTouches: 0, changedTouches: 0, altKey: 0, metaKey: 0, ctrlKey: 0, shiftKey: 0, getModifierState: $s }), Pm = rt(zm), Mm = we({}, ha, { propertyName: 0, elapsedTime: 0, pseudoElement: 0 }), Tm = rt(Mm), Rm = we({}, _o, {
+} }), bm = at(Nm), Em = we({}, _o, { pointerId: 0, width: 0, height: 0, pressure: 0, tangentialPressure: 0, tiltX: 0, tiltY: 0, twist: 0, pointerType: 0, isPrimary: 0 }), Dl = at(Em), zm = we({}, hr, { touches: 0, targetTouches: 0, changedTouches: 0, altKey: 0, metaKey: 0, ctrlKey: 0, shiftKey: 0, getModifierState: $s }), Pm = at(zm), Mm = we({}, ha, { propertyName: 0, elapsedTime: 0, pseudoElement: 0 }), Tm = at(Mm), Rm = we({}, _o, {
   deltaX: function(e) {
     return "deltaX" in e ? e.deltaX : "wheelDeltaX" in e ? -e.wheelDeltaX : 0;
   },
@@ -1716,7 +1716,7 @@ var Nm = we({}, hr, { key: function(e) {
   },
   deltaZ: 0,
   deltaMode: 0
-}), Lm = rt(Rm), Am = [9, 13, 27, 32], Os = Vt && "CompositionEvent" in window, $a = null;
+}), Lm = at(Rm), Am = [9, 13, 27, 32], Os = Vt && "CompositionEvent" in window, $a = null;
 Vt && "documentMode" in document && ($a = document.documentMode);
 var Im = Vt && "TextEvent" in window && !$a, zu = Vt && (!Os || $a && 8 < $a && 11 >= $a), $l = " ", Ol = !1;
 function Pu(e, t) {
@@ -2399,7 +2399,7 @@ function Us(e) {
   for (; e === co; ) co = Yn[--Kn], Yn[Kn] = null, uo = Yn[--Kn], Yn[Kn] = null;
   for (; e === zn; ) zn = it[--st], it[st] = null, qt = it[--st], it[st] = null, Ft = it[--st], it[st] = null;
 }
-var tt = null, et = null, ve = !1, xt = null;
+var et = null, Ze = null, ve = !1, xt = null;
 function Qu(e, t) {
   var n = lt(5, null, null, 0);
   n.elementType = "DELETED", n.stateNode = t, n.return = e, t = e.deletions, t === null ? (e.deletions = [n], e.flags |= 16) : t.push(n);
@@ -2408,11 +2408,11 @@ function ec(e, t) {
   switch (e.tag) {
     case 5:
       var n = e.type;
-      return t = t.nodeType !== 1 || n.toLowerCase() !== t.nodeName.toLowerCase() ? null : t, t !== null ? (e.stateNode = t, tt = e, et = sn(t.firstChild), !0) : !1;
+      return t = t.nodeType !== 1 || n.toLowerCase() !== t.nodeName.toLowerCase() ? null : t, t !== null ? (e.stateNode = t, et = e, Ze = sn(t.firstChild), !0) : !1;
     case 6:
-      return t = e.pendingProps === "" || t.nodeType !== 3 ? null : t, t !== null ? (e.stateNode = t, tt = e, et = null, !0) : !1;
+      return t = e.pendingProps === "" || t.nodeType !== 3 ? null : t, t !== null ? (e.stateNode = t, et = e, Ze = null, !0) : !1;
     case 13:
-      return t = t.nodeType !== 8 ? null : t, t !== null ? (n = zn !== null ? { id: Ft, overflow: qt } : null, e.memoizedState = { dehydrated: t, treeContext: n, retryLane: 1073741824 }, n = lt(18, null, null, 0), n.stateNode = t, n.return = e, e.child = n, tt = e, et = null, !0) : !1;
+      return t = t.nodeType !== 8 ? null : t, t !== null ? (n = zn !== null ? { id: Ft, overflow: qt } : null, e.memoizedState = { dehydrated: t, treeContext: n, retryLane: 1073741824 }, n = lt(18, null, null, 0), n.stateNode = t, n.return = e, e.child = n, et = e, Ze = null, !0) : !1;
     default:
       return !1;
   }
@@ -2422,30 +2422,30 @@ function Wi(e) {
 }
 function Qi(e) {
   if (ve) {
-    var t = et;
+    var t = Ze;
     if (t) {
       var n = t;
       if (!ec(e, t)) {
         if (Wi(e)) throw Error(M(418));
         t = sn(n.nextSibling);
-        var a = tt;
-        t && ec(e, t) ? Qu(a, n) : (e.flags = e.flags & -4097 | 2, ve = !1, tt = e);
+        var a = et;
+        t && ec(e, t) ? Qu(a, n) : (e.flags = e.flags & -4097 | 2, ve = !1, et = e);
       }
     } else {
       if (Wi(e)) throw Error(M(418));
-      e.flags = e.flags & -4097 | 2, ve = !1, tt = e;
+      e.flags = e.flags & -4097 | 2, ve = !1, et = e;
     }
   }
 }
 function tc(e) {
   for (e = e.return; e !== null && e.tag !== 5 && e.tag !== 3 && e.tag !== 13; ) e = e.return;
-  tt = e;
+  et = e;
 }
 function Tr(e) {
-  if (e !== tt) return !1;
+  if (e !== et) return !1;
   if (!ve) return tc(e), ve = !0, !1;
   var t;
-  if ((t = e.tag !== 3) && !(t = e.tag !== 5) && (t = e.type, t = t !== "head" && t !== "body" && !Vi(e.type, e.memoizedProps)), t && (t = et)) {
+  if ((t = e.tag !== 3) && !(t = e.tag !== 5) && (t = e.type, t = t !== "head" && t !== "body" && !Vi(e.type, e.memoizedProps)), t && (t = Ze)) {
     if (Wi(e)) throw Yu(), Error(M(418));
     for (; t; ) Qu(e, t), t = sn(t.nextSibling);
   }
@@ -2457,7 +2457,7 @@ function Tr(e) {
           var n = e.data;
           if (n === "/$") {
             if (t === 0) {
-              et = sn(e.nextSibling);
+              Ze = sn(e.nextSibling);
               break e;
             }
             t--;
@@ -2465,16 +2465,16 @@ function Tr(e) {
         }
         e = e.nextSibling;
       }
-      et = null;
+      Ze = null;
     }
-  } else et = tt ? sn(e.stateNode.nextSibling) : null;
+  } else Ze = et ? sn(e.stateNode.nextSibling) : null;
   return !0;
 }
 function Yu() {
-  for (var e = et; e; ) e = sn(e.nextSibling);
+  for (var e = Ze; e; ) e = sn(e.nextSibling);
 }
 function la() {
-  et = tt = null, ve = !1;
+  Ze = et = null, ve = !1;
 }
 function Vs(e) {
   xt === null ? xt = [e] : xt.push(e);
@@ -3389,12 +3389,12 @@ function Cd(e, t, n, a, r) {
 }
 function Sd(e, t, n) {
   var a = t.pendingProps, r = a.children, i = e !== null ? e.memoizedState : null;
-  if (a.mode === "hidden") if (!(t.mode & 1)) t.memoizedState = { baseLanes: 0, cachePool: null, transitions: null }, fe(Zn, Ze), Ze |= n;
+  if (a.mode === "hidden") if (!(t.mode & 1)) t.memoizedState = { baseLanes: 0, cachePool: null, transitions: null }, fe(Zn, Je), Je |= n;
   else {
-    if (!(n & 1073741824)) return e = i !== null ? i.baseLanes | n : n, t.lanes = t.childLanes = 1073741824, t.memoizedState = { baseLanes: e, cachePool: null, transitions: null }, t.updateQueue = null, fe(Zn, Ze), Ze |= e, null;
-    t.memoizedState = { baseLanes: 0, cachePool: null, transitions: null }, a = i !== null ? i.baseLanes : n, fe(Zn, Ze), Ze |= a;
+    if (!(n & 1073741824)) return e = i !== null ? i.baseLanes | n : n, t.lanes = t.childLanes = 1073741824, t.memoizedState = { baseLanes: e, cachePool: null, transitions: null }, t.updateQueue = null, fe(Zn, Je), Je |= e, null;
+    t.memoizedState = { baseLanes: 0, cachePool: null, transitions: null }, a = i !== null ? i.baseLanes : n, fe(Zn, Je), Je |= a;
   }
-  else i !== null ? (a = i.baseLanes | n, t.memoizedState = null) : a = n, fe(Zn, Ze), Ze |= a;
+  else i !== null ? (a = i.baseLanes | n, t.memoizedState = null) : a = n, fe(Zn, Je), Je |= a;
   return qe(e, t, r, n), t.child;
 }
 function _d(e, t) {
@@ -3516,7 +3516,7 @@ function vf(e, t, n, a, r, i, s) {
     }
     return cl(), a = di(Error(M(421))), Lr(e, t, s, a);
   }
-  return r.data === "$?" ? (t.flags |= 128, t.child = e.child, t = Pf.bind(null, e), r._reactRetry = t, null) : (e = i.treeContext, et = sn(r.nextSibling), tt = t, ve = !0, xt = null, e !== null && (it[st++] = Ft, it[st++] = qt, it[st++] = zn, Ft = e.id, qt = e.overflow, zn = t), t = al(t, a.children), t.flags |= 4096, t);
+  return r.data === "$?" ? (t.flags |= 128, t.child = e.child, t = Pf.bind(null, e), r._reactRetry = t, null) : (e = i.treeContext, Ze = sn(r.nextSibling), et = t, ve = !0, xt = null, e !== null && (it[st++] = Ft, it[st++] = qt, it[st++] = zn, Ft = e.id, qt = e.overflow, zn = t), t = al(t, a.children), t.flags |= 4096, t);
 }
 function gc(e, t, n) {
   e.lanes |= t;
@@ -3885,7 +3885,7 @@ function xf(e, t, n) {
       else {
         if (typeof a != "string" && t.stateNode === null) throw Error(M(166));
         if (n = Sn(rr.current), Sn(Tt.current), Tr(t)) {
-          if (a = t.stateNode, n = t.memoizedProps, a[Pt] = t, (i = a.nodeValue !== n) && (e = tt, e !== null)) switch (e.tag) {
+          if (a = t.stateNode, n = t.memoizedProps, a[Pt] = t, (i = a.nodeValue !== n) && (e = et, e !== null)) switch (e.tag) {
             case 3:
               Mr(a.nodeValue, n, (e.mode & 1) !== 0);
               break;
@@ -3898,7 +3898,7 @@ function xf(e, t, n) {
       return De(t), null;
     case 13:
       if (ge(ye), a = t.memoizedState, e === null || e.memoizedState !== null && e.memoizedState.dehydrated !== null) {
-        if (ve && et !== null && t.mode & 1 && !(t.flags & 128)) Yu(), la(), t.flags |= 98560, i = !1;
+        if (ve && Ze !== null && t.mode & 1 && !(t.flags & 128)) Yu(), la(), t.flags |= 98560, i = !1;
         else if (i = Tr(t), a !== null && a.dehydrated !== null) {
           if (e === null) {
             if (!i) throw Error(M(318));
@@ -3938,7 +3938,7 @@ function xf(e, t, n) {
       return i.tail !== null ? (t = i.tail, i.rendering = t, i.tail = t.sibling, i.renderingStartTime = ke(), t.sibling = null, n = ye.current, fe(ye, a ? n & 1 | 2 : n & 1), t) : (De(t), null);
     case 22:
     case 23:
-      return ll(), a = t.memoizedState !== null, e !== null && e.memoizedState !== null !== a && (t.flags |= 8192), a && t.mode & 1 ? Ze & 1073741824 && (De(t), t.subtreeFlags & 6 && (t.flags |= 8192)) : De(t), null;
+      return ll(), a = t.memoizedState !== null, e !== null && e.memoizedState !== null !== a && (t.flags |= 8192), a && t.mode & 1 ? Je & 1073741824 && (De(t), t.subtreeFlags & 6 && (t.flags |= 8192)) : De(t), null;
     case 24:
       return null;
     case 25:
@@ -4615,7 +4615,7 @@ function kc(e) {
     q = t.return;
   }
 }
-var Sf = Math.ceil, yo = Wt.ReactCurrentDispatcher, rl = Wt.ReactCurrentOwner, ct = Wt.ReactCurrentBatchConfig, oe = 0, Pe = null, Se = null, Te = 0, Ze = 0, Zn = hn(0), Ne = 0, lr = null, Mn = 0, Ro = 0, ol = 0, Va = null, He = null, il = 0, pa = 1 / 0, $t = null, xo = !1, ls = null, cn = null, Ir = !1, nn = null, wo = 0, Ga = 0, cs = null, Qr = -1, Yr = 0;
+var Sf = Math.ceil, yo = Wt.ReactCurrentDispatcher, rl = Wt.ReactCurrentOwner, ct = Wt.ReactCurrentBatchConfig, oe = 0, Pe = null, Se = null, Te = 0, Je = 0, Zn = hn(0), Ne = 0, lr = null, Mn = 0, Ro = 0, ol = 0, Va = null, He = null, il = 0, pa = 1 / 0, $t = null, xo = !1, ls = null, cn = null, Ir = !1, nn = null, wo = 0, Ga = 0, cs = null, Qr = -1, Yr = 0;
 function Ue() {
   return oe & 6 ? ke() : Qr !== -1 ? Qr : Qr = ke();
 }
@@ -4800,7 +4800,7 @@ function Tn(e) {
   }
 }
 function ll() {
-  Ze = Zn.current, ge(Zn);
+  Je = Zn.current, ge(Zn);
 }
 function _n(e, t) {
   e.finishedWork = null, e.finishedLanes = 0;
@@ -4835,7 +4835,7 @@ function _n(e, t) {
     }
     n = n.return;
   }
-  if (Pe = e, Se = e = dn(e.current, null), Te = Ze = t, Ne = 0, lr = null, ol = Ro = Mn = 0, He = Va = null, Cn !== null) {
+  if (Pe = e, Se = e = dn(e.current, null), Te = Je = t, Ne = 0, lr = null, ol = Ro = Mn = 0, He = Va = null, Cn !== null) {
     for (t = 0; t < Cn.length; t++) if (n = Cn[t], a = n.interleaved, a !== null) {
       n.interleaved = null;
       var r = a.next, i = n.pending;
@@ -4954,7 +4954,7 @@ function bf() {
   for (; Se !== null && !Xp(); ) Fd(Se);
 }
 function Fd(e) {
-  var t = Vd(e.alternate, e, Ze);
+  var t = Vd(e.alternate, e, Je);
   e.memoizedProps = e.pendingProps, t === null ? qd(e) : Se = t, rl.current = null;
 }
 function qd(e) {
@@ -4971,7 +4971,7 @@ function qd(e) {
         Ne = 6, Se = null;
         return;
       }
-    } else if (n = xf(n, t, Ze), n !== null) {
+    } else if (n = xf(n, t, Je), n !== null) {
       Se = n;
       return;
     }
@@ -5229,7 +5229,7 @@ Vd = function(e, t, n) {
         } else if (a !== r) {
           r = da(Error(M(424)), t), t = hc(e, t, a, n, r);
           break e;
-        } else for (et = sn(t.stateNode.containerInfo.firstChild), tt = t, ve = !0, xt = null, n = Xu(t, null, a, n), t.child = n; n; ) n.flags = n.flags & -3 | 4096, n = n.sibling;
+        } else for (Ze = sn(t.stateNode.containerInfo.firstChild), et = t, ve = !0, xt = null, n = Xu(t, null, a, n), t.child = n; n; ) n.flags = n.flags & -3 | 4096, n = n.sibling;
         else {
           if (la(), a === r) {
             t = Ht(e, t, n);
@@ -5629,18 +5629,18 @@ if (typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ < "u") {
   } catch {
   }
 }
-at.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED = $f;
-at.createPortal = function(e, t) {
+nt.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED = $f;
+nt.createPortal = function(e, t) {
   var n = 2 < arguments.length && arguments[2] !== void 0 ? arguments[2] : null;
   if (!fl(t)) throw Error(M(200));
   return Af(e, t, null, n);
 };
-at.createRoot = function(e, t) {
+nt.createRoot = function(e, t) {
   if (!fl(e)) throw Error(M(299));
   var n = !1, a = "", r = Wd;
   return t != null && (t.unstable_strictMode === !0 && (n = !0), t.identifierPrefix !== void 0 && (a = t.identifierPrefix), t.onRecoverableError !== void 0 && (r = t.onRecoverableError)), t = dl(e, 1, !1, null, null, n, !1, a, r), e[Gt] = t.current, er(e.nodeType === 8 ? e.parentNode : e), new ml(t);
 };
-at.findDOMNode = function(e) {
+nt.findDOMNode = function(e) {
   if (e == null) return null;
   if (e.nodeType === 1) return e;
   var t = e._reactInternals;
@@ -5648,14 +5648,14 @@ at.findDOMNode = function(e) {
     throw typeof e.render == "function" ? Error(M(188)) : (e = Object.keys(e).join(","), Error(M(268, e)));
   return e = hu(t), e = e === null ? null : e.stateNode, e;
 };
-at.flushSync = function(e) {
+nt.flushSync = function(e) {
   return Tn(e);
 };
-at.hydrate = function(e, t, n) {
+nt.hydrate = function(e, t, n) {
   if (!Do(t)) throw Error(M(200));
   return $o(null, e, t, !0, n);
 };
-at.hydrateRoot = function(e, t, n) {
+nt.hydrateRoot = function(e, t, n) {
   if (!fl(e)) throw Error(M(405));
   var a = n != null && n.hydratedSources || null, r = !1, i = "", s = Wd;
   if (n != null && (n.unstable_strictMode === !0 && (r = !0), n.identifierPrefix !== void 0 && (i = n.identifierPrefix), n.onRecoverableError !== void 0 && (s = n.onRecoverableError)), t = Hd(t, null, e, 1, n ?? null, r, !1, i, s), e[Gt] = t.current, er(e), a) for (e = 0; e < a.length; e++) n = a[e], r = n._getVersion, r = r(n._source), t.mutableSourceEagerHydrationData == null ? t.mutableSourceEagerHydrationData = [n, r] : t.mutableSourceEagerHydrationData.push(
@@ -5664,11 +5664,11 @@ at.hydrateRoot = function(e, t, n) {
   );
   return new Io(t);
 };
-at.render = function(e, t, n) {
+nt.render = function(e, t, n) {
   if (!Do(t)) throw Error(M(200));
   return $o(null, e, t, !1, n);
 };
-at.unmountComponentAtNode = function(e) {
+nt.unmountComponentAtNode = function(e) {
   if (!Do(e)) throw Error(M(40));
   return e._reactRootContainer ? (Tn(function() {
     $o(null, null, e, !1, function() {
@@ -5676,13 +5676,13 @@ at.unmountComponentAtNode = function(e) {
     });
   }), !0) : !1;
 };
-at.unstable_batchedUpdates = sl;
-at.unstable_renderSubtreeIntoContainer = function(e, t, n, a) {
+nt.unstable_batchedUpdates = sl;
+nt.unstable_renderSubtreeIntoContainer = function(e, t, n, a) {
   if (!Do(n)) throw Error(M(200));
   if (e == null || e._reactInternals === void 0) throw Error(M(38));
   return $o(e, t, n, !1, a);
 };
-at.version = "18.3.1-next-f1338f8080-20240426";
+nt.version = "18.3.1-next-f1338f8080-20240426";
 function Qd() {
   if (!(typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ > "u" || typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.checkDCE != "function"))
     try {
@@ -5691,7 +5691,7 @@ function Qd() {
       console.error(e);
     }
 }
-Qd(), Qc.exports = at;
+Qd(), Qc.exports = nt;
 var Ff = Qc.exports, Yd, bc = Ff;
 Yd = bc.createRoot, bc.hydrateRoot;
 const Ec = {
@@ -6421,8 +6421,14 @@ const Zd = {
   "Cualquier ángulo": "Any angle",
   "Resolución de salida": "Output resolution",
   "PNG para Cricut Design (144 ppp)": "PNG for Cricut Design (144 dpi)",
-  "PNG listo para Cricut Design (144 ppp, se importa al tamaño exacto) o a 300 ppp para imprimir. Nunca sobrescribe nada.": "PNG ready for Cricut Design (144 dpi, imports at the exact size) or 300 dpi for printing. It never overwrites anything.",
-  "Con «PNG para Cricut Design» (activado por defecto) se importa al tamaño EXACTO: no hace falta redimensionar.": "With “PNG for Cricut Design” on (default) it imports at the EXACT size: no resizing needed.",
+  "PPP del PNG al guardar": "PNG dpi when saving",
+  "300 · máxima calidad": "300 · max quality",
+  "144 · Cricut Design": "144 · Cricut Design",
+  "144 ppp: la resolución con la que Design Space interpreta las imágenes; se importan al tamaño EXACTO sin redimensionar.": "144 dpi: the resolution Design Space uses to read images; they import at the EXACT size with no resizing.",
+  "300 ppp: máxima calidad (para imprimir o si vas a escalar en Design Space).": "300 dpi: max quality (for printing or if you'll scale it in Design Space).",
+  "300 ppp por defecto: máxima calidad. Con 144 ppp (la resolución que usa Design Space para Print Then Cut) el PNG se importa al tamaño exacto sin que DS pida redimensionar. La colocación aprovecha toda la forma escalonada oficial.": "300 dpi by default: max quality. At 144 dpi (the resolution Design Space uses for Print Then Cut) the PNG imports at the exact size with no resize prompt. The layout uses the full official stepped shape.",
+  "PNG a 300 ppp (máxima calidad) o a 144 ppp para que Cricut Design lo importe al tamaño exacto. Nunca sobrescribe nada.": "PNG at 300 dpi (max quality) or 144 dpi so Cricut Design imports it at the exact size. It never overwrites anything.",
+  "Con «PPP del PNG» en 144 se importa al tamaño EXACTO: no hace falta redimensionar (a 300 hay que escalarlo al ~48 %).": "With “PNG dpi” set to 144 it imports at the EXACT size: no resizing needed (at 300 you'd have to scale it to ~48%).",
   "Design Space interpreta las imágenes a 144 ppp: guardando los PNG a esa resolución se importan al tamaño EXACTO, sin que pida redimensionar.": "Design Space reads images at 144 dpi: saving PNGs at that resolution makes them import at the EXACT size, with no resize prompt.",
   "Recomendado: los PNG se guardan a 144 ppp (la resolución de Design Space) para que se importen al tamaño exacto sin que DS pida redimensionar. La colocación aprovecha toda la forma escalonada oficial de Print Then Cut (bandas anchas del centro incluidas). Desactívalo si vas a imprimir los PNG fuera de Design Space.": "Recommended: PNGs are saved at 144 dpi (Design Space's resolution) so they import at the exact size with no resize prompt. The layout uses the full official Print Then Cut stepped shape (wide centre bands included). Turn it off if you'll print the PNGs outside Design Space.",
   "Tamaño de salida (vertical)": "Output size (portrait)",
@@ -6681,7 +6687,7 @@ function Bf({ idioma: e, children: t }) {
 function hl() {
   return g.useContext(ep);
 }
-function Xe() {
+function rt() {
   const e = hl();
   return (t, n) => {
     let a = e === "en" ? Zd[t] ?? t : t;
@@ -7004,7 +7010,7 @@ function dh({ size: e }) {
   ] });
 }
 function ph({ open: e, assets: t, onClose: n, onDone: a }) {
-  const r = Xe(), i = g.useMemo(() => t.map((E) => E.id), [t]), [s, c] = g.useState(/* @__PURE__ */ new Set()), [l, d] = g.useState("escala"), [h, m] = g.useState(100), [y, N] = g.useState(50), [j, S] = g.useState("mayor"), [_, u] = g.useState("");
+  const r = rt(), i = g.useMemo(() => t.map((E) => E.id), [t]), [s, c] = g.useState(/* @__PURE__ */ new Set()), [l, d] = g.useState("escala"), [h, m] = g.useState(100), [y, N] = g.useState(50), [j, S] = g.useState("mayor"), [_, u] = g.useState("");
   g.useEffect(() => {
     e && (c(/* @__PURE__ */ new Set()), u(""));
   }, [e, i.join(",")]);
@@ -7235,7 +7241,7 @@ function mh({
   sel: N = !1,
   onSel: j
 }) {
-  const S = Xe(), [_, u] = g.useState(() => cr(e));
+  const S = rt(), [_, u] = g.useState(() => cr(e));
   g.useEffect(() => u(cr(e)), [e]);
   const p = g.useRef(null), f = i && Number(s) || 0, v = Math.max(0, f + _.offset_mm), b = -f, z = _.offset_modo || i && c || "", C = z === "unir_recto" || z === "unir_curvo" ? 0 : v, R = (L) => {
     const re = Math.max(b, Math.min(20, Math.round(L * 2) / 2));
@@ -7671,7 +7677,7 @@ function fh({
   onLimpiarSeleccion: S,
   onBulk: _
 }) {
-  const u = Xe(), p = g.useRef(null), [f, v] = g.useState(!1), [b, z] = g.useState(
+  const u = rt(), p = g.useRef(null), [f, v] = g.useState(!1), [b, z] = g.useState(
     { tamano: !1, borde: !1, mini: !1 }
   ), [C, R] = g.useState(null), I = async (w) => {
     const x = [];
@@ -8152,7 +8158,7 @@ function fh({
 }
 const wt = (e) => (globalThis.__crycatAssets || "") + e;
 function rp({ open: e, onClose: t, onPick: n, initial: a }) {
-  const r = Xe(), [i, s] = g.useState(null), [c, l] = g.useState("");
+  const r = rt(), [i, s] = g.useState(null), [c, l] = g.useState("");
   g.useEffect(() => {
     e && d(a || "");
   }, [e]);
@@ -8208,7 +8214,7 @@ function hh({
   onClose: i,
   preview: s
 }) {
-  const c = Xe(), [l, d] = g.useState("resumen");
+  const c = rt(), [l, d] = g.useState("resumen");
   if (!e) return null;
   const h = t.length > 0 && t.every((y) => y.startsWith("data:")), m = [
     c("Abre Cricut Design Space."),
@@ -8302,7 +8308,7 @@ function hh({
   ] }) }) });
 }
 function gh({ assets: e, result: t, settings: n, ui: a, setUi: r, saveSettings: i, onRefresh: s, onJob: c, onRecalc: l, editando: d, onFinEdicion: h, onDeshacer: m, onRehacer: y, puedeDeshacer: N, puedeRehacer: j, seleccion: S = [], onSeleccion: _ }) {
-  const u = Xe(), p = hl(), [f, v] = g.useState(1), [b, z] = g.useState({ x: 0, y: 0 }), [C, R] = g.useState(null), [I, E] = g.useState(1), [w, x] = g.useState(null), [D, $] = g.useState(null), [G, K] = g.useState(!1), [J, T] = g.useState(2), [O, Q] = g.useState(0);
+  const u = rt(), p = hl(), [f, v] = g.useState(1), [b, z] = g.useState({ x: 0, y: 0 }), [C, R] = g.useState(null), [I, E] = g.useState(1), [w, x] = g.useState(null), [D, $] = g.useState(null), [G, K] = g.useState(!1), [J, T] = g.useState(2), [O, Q] = g.useState(0);
   g.useEffect(() => {
     if (!a.verBordes) return;
     const k = window.setInterval(
@@ -8311,7 +8317,7 @@ function gh({ assets: e, result: t, settings: n, ui: a, setUi: r, saveSettings: 
     );
     return () => window.clearInterval(k);
   }, [a.verBordes]);
-  const [te, V] = g.useState([]), [ce, ie] = g.useState([]), [ae, L] = g.useState(""), [re, ot] = g.useState(/* @__PURE__ */ new Set()), [H, Ce] = g.useState("ninguna"), [be, Be] = g.useState(2), [St, yr] = g.useState("#ffffff"), [In, Qt] = g.useState(""), [_t, Je] = g.useState(/* @__PURE__ */ new Set()), Dn = g.useRef(null), Nt = g.useRef(null), vn = p === "en" ? Vf : Uf, va = g.useMemo(
+  const [te, V] = g.useState([]), [ce, ie] = g.useState([]), [ae, L] = g.useState(""), [re, ot] = g.useState(/* @__PURE__ */ new Set()), [H, Ce] = g.useState("ninguna"), [be, Be] = g.useState(2), [St, yr] = g.useState("#ffffff"), [In, Qt] = g.useState(""), [_t, Xe] = g.useState(/* @__PURE__ */ new Set()), Dn = g.useRef(null), Nt = g.useRef(null), vn = p === "en" ? Vf : Uf, va = g.useMemo(
     () => vn[Math.floor(Math.random() * vn.length)],
     [vn]
   ), xr = a.saveName.trim() || va;
@@ -8408,13 +8414,13 @@ function gh({ assets: e, result: t, settings: n, ui: a, setUi: r, saveSettings: 
     }
   }, [a.verBordes, t == null ? void 0 : t.placed, t == null ? void 0 : t.minis, I]), g.useEffect(() => {
     if (Qt(""), ot(/* @__PURE__ */ new Set()), Ce("ninguna"), !d) {
-      ie([]), L(""), Je(/* @__PURE__ */ new Set());
+      ie([]), L(""), Xe(/* @__PURE__ */ new Set());
       return;
     }
     B.blobs(d.id).then((k) => {
       ie(k.blobs), Be(k.union_mm ?? 2), T(d.offset_mm > 0 ? d.offset_mm : k.union_mm ?? 2), Ce(
         d.offset_modo === "unir_recto" || d.offset_modo === "unir_curvo" || d.offset_modo === "blanco" ? d.offset_modo : "ninguna"
-      ), yr(d.offset_color || "#ffffff"), L(k.preview_png), Je(new Set(k.blobs.filter((A) => !A.principal).map((A) => A.id)));
+      ), yr(d.offset_color || "#ffffff"), L(k.preview_png), Xe(new Set(k.blobs.filter((A) => !A.principal).map((A) => A.id)));
     }).catch(() => {
       ie([]), L("");
     });
@@ -8441,7 +8447,7 @@ function gh({ assets: e, result: t, settings: n, ui: a, setUi: r, saveSettings: 
     };
   }, [d, re, H, J, St]);
   const Fe = () => {
-    _t.size && (ot((k) => /* @__PURE__ */ new Set([...k, ..._t])), Je(/* @__PURE__ */ new Set()));
+    _t.size && (ot((k) => /* @__PURE__ */ new Set([...k, ..._t])), Xe(/* @__PURE__ */ new Set()));
   }, $n = (k) => {
     k !== H && k !== "ninguna" && T(be), Ce(k);
   }, Oo = async () => {
@@ -8453,7 +8459,7 @@ function gh({ assets: e, result: t, settings: n, ui: a, setUi: r, saveSettings: 
       await (h == null ? void 0 : h());
     }
   }, Fo = (k) => {
-    Je((A) => {
+    Xe((A) => {
       const F = new Set(A);
       return F.has(k) ? F.delete(k) : F.add(k), F;
     });
@@ -9001,7 +9007,7 @@ function gh({ assets: e, result: t, settings: n, ui: a, setUi: r, saveSettings: 
             "button",
             {
               "data-testid": "btn-sel-todo",
-              onClick: () => Je(new Set(ce.filter((k) => !k.principal && !re.has(k.id)).map((k) => k.id))),
+              onClick: () => Xe(new Set(ce.filter((k) => !k.principal && !re.has(k.id)).map((k) => k.id))),
               children: u("Seleccionar todo")
             }
           ),
@@ -9009,7 +9015,7 @@ function gh({ assets: e, result: t, settings: n, ui: a, setUi: r, saveSettings: 
             "button",
             {
               "data-testid": "btn-sel-nada",
-              onClick: () => Je(/* @__PURE__ */ new Set()),
+              onClick: () => Xe(/* @__PURE__ */ new Set()),
               children: u("Quitar selección")
             }
           )
@@ -9130,7 +9136,7 @@ function gh({ assets: e, result: t, settings: n, ui: a, setUi: r, saveSettings: 
   ] });
 }
 function vh({ settings: e, saveSettings: t }) {
-  const n = Xe(), a = e.usar_minis, r = e.modo === "experto", i = {
+  const n = rt(), a = e.usar_minis, r = e.modo === "experto", i = {
     90: "libre",
     libre: "no",
     no: "90"
@@ -9234,7 +9240,7 @@ const hi = [
 ];
 function yh({ settings: e, saveSettings: t }) {
   var h;
-  const n = Xe(), [a, r] = g.useState(
+  const n = rt(), [a, r] = g.useState(
     {}
   ), [i, s] = g.useState("");
   g.useEffect(() => {
@@ -9281,27 +9287,7 @@ function yh({ settings: e, saveSettings: t }) {
     i && /* @__PURE__ */ o.jsx("div", { className: "hint", "data-testid": "modos-aviso", children: i })
   ] });
 }
-function xh({ checked: e, onChange: t, label: n, testid: a, tip: r }) {
-  const i = Xe();
-  return /* @__PURE__ */ o.jsxs(
-    "button",
-    {
-      type: "button",
-      className: `toggle${e ? " on" : ""}`,
-      "data-testid": a,
-      "data-tip": r ? i(r) : void 0,
-      role: "switch",
-      "aria-checked": e,
-      onClick: () => t(!e),
-      children: [
-        /* @__PURE__ */ o.jsx("span", { className: "toggle-pista", children: /* @__PURE__ */ o.jsx("span", { className: "toggle-bola" }) }),
-        /* @__PURE__ */ o.jsx("span", { className: "toggle-texto", children: i(n) }),
-        /* @__PURE__ */ o.jsx("span", { className: "toggle-estado", children: i(e ? "Sí" : "No") })
-      ]
-    }
-  );
-}
-function wh({ i: e, valor: t, refBase: n, onValor: a, onQuitar: r, t: i, modo: s = "mm" }) {
+function xh({ i: e, valor: t, refBase: n, onValor: a, onQuitar: r, t: i, modo: s = "mm" }) {
   const c = s === "mm" ? t : t / 100 * n, l = s === "mm" ? n ? t / n * 100 : 0 : t;
   return /* @__PURE__ */ o.jsxs("div", { className: "mini-fila", children: [
     /* @__PURE__ */ o.jsx(
@@ -9345,7 +9331,7 @@ function wh({ i: e, valor: t, refBase: n, onValor: a, onQuitar: r, t: i, modo: s
     )
   ] });
 }
-function jh({ valor: e, onValor: t, min: n, max: a, step: r, testid: i, title: s }) {
+function wh({ valor: e, onValor: t, min: n, max: a, step: r, testid: i, title: s }) {
   const [c, l] = g.useState(String(e)), d = g.useRef(!1);
   return g.useEffect(() => {
     d.current || l(String(e));
@@ -9373,7 +9359,7 @@ function jh({ valor: e, onValor: t, min: n, max: a, step: r, testid: i, title: s
     }
   );
 }
-const kh = {
+const jh = {
   borde: ["offset", "contorno", "border", "margen"],
   offset: ["borde", "contorno"],
   tamano: ["escala", "size", "medida"],
@@ -9393,7 +9379,7 @@ const kh = {
 function $r(e) {
   return e.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
-function Ch(e, t) {
+function kh(e, t) {
   const n = e.length, a = t.length;
   if (!n) return a;
   if (!a) return n;
@@ -9415,9 +9401,9 @@ function Rc(e, t) {
   const n = t.split(/[^a-z0-9]+/).filter(Boolean);
   for (const a of n) {
     if (a.startsWith(e)) return 2;
-    if (e.length >= 4 && Ch(a, e) <= 2) return 1;
+    if (e.length >= 4 && kh(a, e) <= 2) return 1;
   }
-  for (const [a, r] of Object.entries(kh))
+  for (const [a, r] of Object.entries(jh))
     if (a.includes(e) || e.includes(a)) {
       for (const i of r) if (t.includes(i)) return 1;
     }
@@ -9436,14 +9422,14 @@ function Dt({ id: e, title: t, open: n, toggle: a, children: r, icon: i }) {
 function Lc(e, t) {
   return e.split(new RegExp(`(${t.join("|")})`)).map((n, a) => t.includes(n) ? /* @__PURE__ */ o.jsx("strong", { children: n }, a) : n);
 }
-const Sh = {
+const Ch = {
   auto: 6,
   rapido: 3,
   greedy: 6,
   largest: 3,
   voronoi: 6,
   genetic: 25
-}, _h = {
+}, Sh = {
   auto: "Automático",
   rapido: "Silueta rápida",
   greedy: "Greedy / Bottom-Left",
@@ -9451,12 +9437,12 @@ const Sh = {
   voronoi: "Voronoi",
   genetic: "Genético"
 };
-function Nh({
+function _h({
   settings: e,
   saveSettings: t,
   assets: n
 }) {
-  const a = Xe(), [r, i] = g.useState(!0), [s, c] = g.useState({
+  const a = rt(), [r, i] = g.useState(!0), [s, c] = g.useState({
     general: !0,
     minis: !1,
     optimizacion: !1,
@@ -9526,7 +9512,7 @@ function Nh({
     /* @__PURE__ */ o.jsx("label", { ...O ? { "data-tip": a(O) } : {}, children: a(x) }),
     /* @__PURE__ */ o.jsxs("div", { className: "row", children: [
       /* @__PURE__ */ o.jsx(
-        jh,
+        wh,
         {
           valor: Number(e[D]) || 0,
           min: $,
@@ -9642,17 +9628,23 @@ function Nh({
             /* @__PURE__ */ o.jsxs(I, { titulo: "Hoja y máquina", children: [
               /* @__PURE__ */ o.jsx(b, { children: E("Resolución de salida", "dpi_salida", 72, 1200, 1, "ppp") }),
               /* @__PURE__ */ o.jsxs("div", { className: "ctl", children: [
-                /* @__PURE__ */ o.jsx(
-                  xh,
+                /* @__PURE__ */ o.jsx("label", { children: a("PPP del PNG al guardar") }),
+                /* @__PURE__ */ o.jsx("div", { className: "seg-row", children: [
+                  [300, a("300 · máxima calidad")],
+                  [144, a("144 · Cricut Design")]
+                ].map(([x, D]) => /* @__PURE__ */ o.jsx(
+                  "button",
                   {
-                    testid: "set-ds_144",
-                    checked: e.ds_144 !== !1,
-                    onChange: (x) => C({ ds_144: x }),
-                    label: "PNG para Cricut Design (144 ppp)",
-                    tip: "Design Space interpreta las imágenes a 144 ppp: guardando los PNG a esa resolución se importan al tamaño EXACTO, sin que pida redimensionar."
-                  }
-                ),
-                /* @__PURE__ */ o.jsx("div", { className: "hint", children: a("Recomendado: los PNG se guardan a 144 ppp (la resolución de Design Space) para que se importen al tamaño exacto sin que DS pida redimensionar. La colocación aprovecha toda la forma escalonada oficial de Print Then Cut (bandas anchas del centro incluidas). Desactívalo si vas a imprimir los PNG fuera de Design Space.") })
+                    type: "button",
+                    className: `seg ${(Number(e.export_ppp) || 300) === x ? "on" : ""}`,
+                    "data-testid": `export-ppp-${x}`,
+                    "data-tip": a(x === 144 ? "144 ppp: la resolución con la que Design Space interpreta las imágenes; se importan al tamaño EXACTO sin redimensionar." : "300 ppp: máxima calidad (para imprimir o si vas a escalar en Design Space)."),
+                    onClick: () => C({ export_ppp: x }),
+                    children: D
+                  },
+                  x
+                )) }),
+                /* @__PURE__ */ o.jsx("div", { className: "hint", children: a("300 ppp por defecto: máxima calidad. Con 144 ppp (la resolución que usa Design Space para Print Then Cut) el PNG se importa al tamaño exacto sin que DS pida redimensionar. La colocación aprovecha toda la forma escalonada oficial.") })
               ] }),
               /* @__PURE__ */ o.jsxs("div", { className: "ctl", children: [
                 /* @__PURE__ */ o.jsx("label", { children: a("Tamaño de salida (vertical)") }),
@@ -9819,7 +9811,7 @@ function Nh({
                 ] }),
                 /* @__PURE__ */ o.jsxs("div", { className: "size-list", "data-testid": "mini-lista", children: [
                   (e.mini_tamanos_lista ?? []).map((x, D) => /* @__PURE__ */ o.jsx(
-                    wh,
+                    xh,
                     {
                       i: D,
                       valor: x,
@@ -9967,8 +9959,8 @@ function Nh({
               e.opt_tiempo_auto !== !1 ? /* @__PURE__ */ o.jsx("div", { className: "hint", "data-testid": "tiempo-recomendado", children: a(
                 "Base de {s} s con «{m}» que CRECE con cada pieza (más piezas, más tiempo para buscar el mejor encaje; tope 3 min).",
                 {
-                  s: Sh[e.opt_metodo] ?? 8,
-                  m: a(_h[e.opt_metodo] ?? e.opt_metodo)
+                  s: Ch[e.opt_metodo] ?? 8,
+                  m: a(Sh[e.opt_metodo] ?? e.opt_metodo)
                 }
               ) }) : E("Tiempo máximo", "opt_tiempo_max_s", 0.5, 120, 0.5, "s")
             ] }),
@@ -10425,8 +10417,8 @@ function Nh({
     )
   ] });
 }
-function bh({ ver: e, onCerrar: t }) {
-  const n = Xe(), a = e == null ? void 0 : e.actualizacion, r = (a == null ? void 0 : a.estado) ?? "descargando", i = (a == null ? void 0 : a.progreso) != null ? Math.round(a.progreso) : null, s = g.useRef((e == null ? void 0 : e.actual) ?? ""), [c, l] = g.useState(!1), d = r === "error", h = r === "reiniciando";
+function Nh({ ver: e, onCerrar: t }) {
+  const n = rt(), a = e == null ? void 0 : e.actualizacion, r = (a == null ? void 0 : a.estado) ?? "descargando", i = (a == null ? void 0 : a.progreso) != null ? Math.round(a.progreso) : null, s = g.useRef((e == null ? void 0 : e.actual) ?? ""), [c, l] = g.useState(!1), d = r === "error", h = r === "reiniciando";
   return g.useEffect(() => {
     if (!h) return;
     l(!0);
@@ -10472,7 +10464,7 @@ function gi(e) {
   const t = Math.floor(e / 60), n = Math.round(e % 60);
   return t < 60 ? `${t} min ${n} s` : `${Math.floor(t / 60)} h ${t % 60} min`;
 }
-function Eh({
+function bh({
   job: e,
   backendOk: t,
   result: n,
@@ -10489,7 +10481,7 @@ function Eh({
   modoRata: N = !1
 }) {
   var L, re, ot;
-  const j = Xe(), S = hl(), [_, u] = g.useState([]), [p, f] = g.useState(0), [v, b] = g.useState(null), [z, C] = g.useState(!1), [R, I] = g.useState(""), [E, w] = g.useState(!1), x = g.useRef(!1), D = g.useRef([]);
+  const j = rt(), S = hl(), [_, u] = g.useState([]), [p, f] = g.useState(0), [v, b] = g.useState(null), [z, C] = g.useState(!1), [R, I] = g.useState(""), [E, w] = g.useState(!1), x = g.useRef(!1), D = g.useRef([]);
   g.useEffect(() => {
     fetch("/api/funmsgs").then((H) => H.ok ? H.json() : { msgs: [] }).then((H) => u(H.msgs ?? [])).catch(() => {
     });
@@ -10559,7 +10551,7 @@ function Eh({
   }, ae = !!(v != null && v.hay_nueva && !G && !$) ? j("Nueva versión {v} disponible", { v: (v == null ? void 0 : v.ultima) ?? "" }) : "";
   return /* @__PURE__ */ o.jsxs(o.Fragment, { children: [
     E && /* @__PURE__ */ o.jsx(
-      bh,
+      Nh,
       {
         ver: v,
         onCerrar: () => w(!1)
@@ -10797,7 +10789,7 @@ function Eh({
     ] })
   ] });
 }
-const zh = [
+const Eh = [
   "/pikmin/01_yellow_lay_bud.png",
   "/pikmin/02_white.webp",
   "/pikmin/03_unnamed.webp",
@@ -10820,9 +10812,9 @@ const zh = [
   "/pikmin/15_winged.png",
   "/pikmin/18_rock.png",
   "/pikmin/alma.png"
-], Ph = "/pikmin_bloom/", Ac = "/pikmin/alma.png", Mh = "/sonidos/pikmin.mp3", Th = "/sonidos/pikmin_morir.mp3";
-function Rh(e) {
-  const [t, n] = g.useState(zh), [a, r] = g.useState([]);
+], zh = "/pikmin_bloom/", Ac = "/pikmin/alma.png", Ph = "/sonidos/pikmin.mp3", Mh = "/sonidos/pikmin_morir.mp3";
+function Th(e) {
+  const [t, n] = g.useState(Eh), [a, r] = g.useState([]);
   return g.useEffect(() => {
     fetch(wt("/pikmin/indice.json")).then((i) => i.ok ? i.json() : null).then((i) => {
       Array.isArray(i) && i.length && n(i.map((s) => "/pikmin/" + s));
@@ -10834,7 +10826,7 @@ function Rh(e) {
         const l = Math.floor(Math.random() * (c + 1));
         [s[c], s[l]] = [s[l], s[c]];
       }
-      r(s.slice(0, 60).map((c) => wt(Ph + c)));
+      r(s.slice(0, 60).map((c) => wt(zh + c)));
     }).catch(() => {
     });
   }, []), g.useMemo(
@@ -10842,7 +10834,7 @@ function Rh(e) {
     [e, t, a]
   );
 }
-function Lh({
+function Rh({
   activo: e = !0,
   frecuenciaMin: t = 5,
   sonido: n = !0,
@@ -10854,14 +10846,14 @@ function Lh({
   maxDelay: l,
   fuentes: d
 }) {
-  const h = Rh(d), [m, y] = g.useState([]), N = g.useRef(void 0), j = g.useRef(
+  const h = Th(d), [m, y] = g.useState([]), N = g.useRef(void 0), j = g.useRef(
     typeof document < "u" && document.visibilityState === "hidden"
   ), S = g.useRef(s);
   S.current = s;
   const _ = Math.max(5e3, t * 6e4), u = (b) => {
     if (!(!n || i))
       try {
-        const z = new Audio(wt(b ? Th : Mh));
+        const z = new Audio(wt(b ? Mh : Ph));
         z.volume = Math.min(1, Math.max(0, r)), z.play().catch(() => {
         });
       } catch {
@@ -10932,7 +10924,7 @@ function Lh({
   )) });
 }
 const Ic = "crycat_bienvenida_v2";
-function Ah() {
+function Lh() {
   const [e, t] = g.useState(!1);
   return g.useEffect(() => {
     try {
@@ -10948,8 +10940,8 @@ function Ah() {
     t(!1);
   } };
 }
-function Ih({ open: e, onClose: t, onAbrirCarpeta: n }) {
-  const a = Xe(), [r, i] = g.useState("inicio");
+function Ah({ open: e, onClose: t, onAbrirCarpeta: n }) {
+  const a = rt(), [r, i] = g.useState("inicio");
   if (!e) return null;
   const s = [
     [
@@ -10975,7 +10967,7 @@ function Ih({ open: e, onClose: t, onAbrirCarpeta: n }) {
     [
       /* @__PURE__ */ o.jsx(Tc, { size: 18 }),
       a("5 · Guarda"),
-      a("PNG listo para Cricut Design (144 ppp, se importa al tamaño exacto) o a 300 ppp para imprimir. Nunca sobrescribe nada.")
+      a("PNG a 300 ppp (máxima calidad) o a 144 ppp para que Cricut Design lo importe al tamaño exacto. Nunca sobrescribe nada.")
     ]
   ], c = [
     [
@@ -11031,7 +11023,7 @@ function Ih({ open: e, onClose: t, onAbrirCarpeta: n }) {
   ], l = [
     a("Abre Cricut Design Space."),
     a("Sube el PNG y elige «Imagen completa» (conserva la transparencia)."),
-    a("Con «PNG para Cricut Design» (activado por defecto) se importa al tamaño EXACTO: no hace falta redimensionar."),
+    a("Con «PPP del PNG» en 144 se importa al tamaño EXACTO: no hace falta redimensionar (a 300 hay que escalarlo al ~48 %)."),
     a("Pulsa «Crear» y comprueba que las medidas coinciden."),
     a("Imprime en papel mate blanco (o usa las marcas de Cricut) y colócalo en la esterilla."),
     a("¡Listo! La máquina leerá las marcas y cortará tus pegatinas.")
@@ -11079,7 +11071,7 @@ function Ih({ open: e, onClose: t, onAbrirCarpeta: n }) {
     ] })
   ] }) });
 }
-const Dh = "https://github.com/dhernandezgit/CryCat-Tool", $h = "daniel.hernandez@pixelabs.es", Oh = [
+const Ih = "https://github.com/dhernandezgit/CryCat-Tool", Dh = "daniel.hernandez@pixelabs.es", $h = [
   [
     "Se solapan elementos",
     "He visto dos pegatinas que se pisan entre sí. Adjunto los ajustes que usé."
@@ -11109,14 +11101,14 @@ const Dh = "https://github.com/dhernandezgit/CryCat-Tool", $h = "daniel.hernande
     "La versión del navegador se queda en la pantalla de carga o da un error."
   ]
 ];
-function Fh({
+function Oh({
   open: e,
   onClose: t,
   settings: n,
   job: a,
   result: r
 }) {
-  const i = Xe(), [s, c] = g.useState(""), [l, d] = g.useState(""), [h, m] = g.useState(""), [y, N] = g.useState(!0), [j, S] = g.useState(!0), [_, u] = g.useState(!0), [p, f] = g.useState(!1);
+  const i = rt(), [s, c] = g.useState(""), [l, d] = g.useState(""), [h, m] = g.useState(""), [y, N] = g.useState(!0), [j, S] = g.useState(!0), [_, u] = g.useState(!0), [p, f] = g.useState(!1);
   g.useEffect(() => {
     e && (B.version().then((w) => c(w.actual)).catch(() => {
     }), f(!1));
@@ -11172,13 +11164,13 @@ function Fh({
 `);
   }, R = () => `[CryCat] ${l.trim().split(`
 `)[0].slice(0, 70) || "algo no va bien"}`, I = () => {
-    const w = `mailto:${$h}?` + new URLSearchParams({
+    const w = `mailto:${Dh}?` + new URLSearchParams({
       subject: R(),
       body: C().slice(0, 1800)
     }).toString();
     window.location.href = w, t();
   }, E = () => {
-    const w = `${Dh}/issues/new?` + new URLSearchParams({
+    const w = `${Ih}/issues/new?` + new URLSearchParams({
       title: R(),
       body: C(),
       labels: "bug"
@@ -11189,7 +11181,7 @@ function Fh({
     /* @__PURE__ */ o.jsx("h3", { children: i("Reportar un bug") }),
     /* @__PURE__ */ o.jsx("div", { className: "hint", children: i("Rellena el informe y envíalo por EMAIL (no hace falta cuenta ni login). También puedes copiarlo o abrirlo en GitHub si prefieres.") }),
     /* @__PURE__ */ o.jsx("div", { className: "hint", children: i("Sugerencias (pulsa para añadirla):") }),
-    /* @__PURE__ */ o.jsx("div", { className: "reportar-chips", children: Oh.map(([w, x]) => /* @__PURE__ */ o.jsx(
+    /* @__PURE__ */ o.jsx("div", { className: "reportar-chips", children: $h.map(([w, x]) => /* @__PURE__ */ o.jsx(
       "button",
       {
         type: "button",
@@ -11309,7 +11301,7 @@ ${C()}`
     ] })
   ] }) });
 }
-function qh() {
+function Fh() {
   const [e, t] = g.useState([]), [n, a] = g.useState(null), [r, i] = g.useState(null), [s, c] = g.useState(null), [l, d] = g.useState(null), [h, m] = g.useState(null), [y, N] = g.useState(!0), [j, S] = g.useState(!1), [_, u] = g.useState(!1), [p, f] = g.useState({
     eyeTransparent: !1,
     eyeFosforito: !1,
@@ -11318,7 +11310,7 @@ function qh() {
     contornoModo: "final",
     viewMode: 1,
     saveName: ""
-  }), [v, b] = g.useState(33.3), [z, C] = g.useState(33.3), R = Ah(), I = g.useRef(null), E = g.useRef(null);
+  }), [v, b] = g.useState(33.3), [z, C] = g.useState(33.3), R = Lh(), I = g.useRef(null), E = g.useRef(null);
   g.useEffect(() => {
     (async () => {
       try {
@@ -11483,7 +11475,7 @@ function qh() {
       });
     }
     await $();
-  }, [e, $]), be = g.useRef([]), Be = g.useRef([]), [St, yr] = g.useState({ puedeDeshacer: !1, puedeRehacer: !1 }), In = (l == null ? void 0 : l.historial) !== !1, Qt = (l == null ? void 0 : l.historial_max) ?? 40, _t = g.useRef(!1), Je = g.useRef(""), Dn = g.useRef({ assets: [], result: null, settings: null }), Nt = g.useCallback((P, U, W) => JSON.stringify({
+  }, [e, $]), be = g.useRef([]), Be = g.useRef([]), [St, yr] = g.useState({ puedeDeshacer: !1, puedeRehacer: !1 }), In = (l == null ? void 0 : l.historial) !== !1, Qt = (l == null ? void 0 : l.historial_max) ?? 40, _t = g.useRef(!1), Xe = g.useRef(""), Dn = g.useRef({ assets: [], result: null, settings: null }), Nt = g.useCallback((P, U, W) => JSON.stringify({
     a: P.map((Z) => [
       Z.id,
       Z.scale_pct,
@@ -11549,21 +11541,21 @@ function qh() {
     In && (be.current = [
       ...be.current,
       { assets: e, result: r, settings: l }
-    ].slice(-Qt), Be.current = [], Je.current = Nt(e, r, l), vn());
+    ].slice(-Qt), Be.current = [], Xe.current = Nt(e, r, l), vn());
   }, [e, r, l, In, Qt, Nt]);
   g.useEffect(() => {
     if (!In || D.current) return;
     const P = Nt(e, r, l);
     if (_t.current) {
-      Je.current = P, _t.current = !1;
+      Xe.current = P, _t.current = !1;
       return;
     }
-    if (!Je.current) {
+    if (!Xe.current) {
       if (e.length === 0 && !r) return;
-      Je.current = P;
+      Xe.current = P;
       return;
     }
-    P !== Je.current && (be.current = [...be.current, Dn.current].slice(-Qt), Be.current = [], Je.current = P, vn());
+    P !== Xe.current && (be.current = [...be.current, Dn.current].slice(-Qt), Be.current = [], Xe.current = P, vn());
   }, [e, r, l, In, Qt, Nt]), g.useEffect(() => {
     Dn.current = { assets: e, result: r, settings: l };
   }, [e, r, l]);
@@ -11677,7 +11669,7 @@ function qh() {
       ) }),
       /* @__PURE__ */ o.jsx("div", { className: "splitter", "data-testid": "splitter-center", onMouseDown: () => yn("center") }),
       /* @__PURE__ */ o.jsx("div", { className: "panel right", style: { flex: 1 }, "data-testid": "settings-panel", children: /* @__PURE__ */ o.jsx(
-        Nh,
+        _h,
         {
           settings: l,
           assets: e,
@@ -11686,7 +11678,7 @@ function qh() {
       ) })
     ] }),
     /* @__PURE__ */ o.jsx(
-      Eh,
+      bh,
       {
         job: h,
         backendOk: y,
@@ -11708,7 +11700,7 @@ function qh() {
       }
     ),
     /* @__PURE__ */ o.jsx(
-      Lh,
+      Rh,
       {
         activo: l.pikmin_activo !== !1,
         frecuenciaMin: l.pikmin_frecuencia_min ?? 1,
@@ -11720,7 +11712,7 @@ function qh() {
       }
     ),
     /* @__PURE__ */ o.jsx(
-      Ih,
+      Ah,
       {
         open: R.visible,
         onClose: R.cerrar,
@@ -11731,7 +11723,7 @@ function qh() {
       }
     ),
     /* @__PURE__ */ o.jsx(
-      Fh,
+      Oh,
       {
         open: j,
         onClose: () => S(!1),
@@ -11742,7 +11734,7 @@ function qh() {
     )
   ] }) }) : /* @__PURE__ */ o.jsx("div", { style: { padding: 30 }, children: Hf("es", "Cargando CryCat…") });
 }
-const Uh = "1791198126094", op = document.getElementById("root"), vi = [
+const qh = "1791198646756", op = document.getElementById("root"), vi = [
   "Cargando peluches de apoyo emocional…",
   "Afilando tijeras de pegatinas…",
   "Preparando boba teas…",
@@ -11887,11 +11879,11 @@ const xi = (e, t) => {
     r && (r.style.width = `${Math.round(t / vs * 100)}%`);
   }
 };
-let qn = null, sp = !1, Vh = 0;
+let qn = null, sp = !1, Uh = 0;
 const xs = /* @__PURE__ */ new Map();
 function lp(e) {
   return new Promise((t) => {
-    const n = ++Vh;
+    const n = ++Uh;
     xs.set(n, t), qn.postMessage({ ...e, id: n });
   });
 }
@@ -11902,12 +11894,12 @@ const ws = (e) => {
   for (let r = 0; r < t.length; r += a)
     n += String.fromCharCode.apply(null, t.subarray(r, r + a));
   return btoa(n);
-}, Gh = (e) => {
+}, Vh = (e) => {
   const t = atob(e || ""), n = new Uint8Array(t.length);
   for (let a = 0; a < t.length; a++) n[a] = t.charCodeAt(a);
   return n;
 };
-async function Bh(e) {
+async function Gh(e) {
   const t = "----crycat" + Math.random().toString(36).slice(2), n = [], a = [];
   e.forEach((i, s) => a.push([s, i]));
   for (const [i, s] of a)
@@ -11929,7 +11921,7 @@ ${s}\r
     `multipart/form-data; boundary=${t}`
   ];
 }
-async function Hh(e, t, n) {
+async function Bh(e, t, n) {
   const a = new URL(t, location.href), r = a.pathname.indexOf("/api/"), i = (r >= 0 ? a.pathname.slice(r) : a.pathname) + a.search, s = {};
   new Headers((n == null ? void 0 : n.headers) || {}).forEach((h, m) => {
     s[m] = h;
@@ -11937,7 +11929,7 @@ async function Hh(e, t, n) {
   let c = "";
   const l = n == null ? void 0 : n.body;
   if (l instanceof FormData) {
-    const [h, m] = await Bh(l);
+    const [h, m] = await Gh(l);
     c = h, s["content-type"] = m;
   } else l instanceof Blob ? c = ws(await l.arrayBuffer()) : typeof l == "string" && (c = ws(new TextEncoder().encode(l).buffer));
   const d = await lp({
@@ -11947,18 +11939,18 @@ async function Hh(e, t, n) {
     headers: JSON.stringify(s),
     body: c
   });
-  return d && d.error ? new Response("error: " + d.error, { status: 500 }) : new Response(Gh(d.body), {
+  return d && d.error ? new Response("error: " + d.error, { status: 500 }) : new Response(Vh(d.body), {
     status: d.status || 200,
     headers: d.headers || { "content-type": "application/json" }
   });
 }
-function Wh() {
+function Hh() {
   const e = window.fetch.bind(window);
   window.fetch = async (t, n) => {
     const a = typeof t == "string" ? t : t && t.url ? t.url : String(t);
     if (a.includes("/api/") && sp)
       try {
-        return await Hh(((n == null ? void 0 : n.method) || "GET").toUpperCase(), a, n);
+        return await Bh(((n == null ? void 0 : n.method) || "GET").toUpperCase(), a, n);
       } catch (r) {
         return new Response(
           "error: " + r.message,
@@ -11968,7 +11960,7 @@ function Wh() {
     return e(t, n);
   };
 }
-async function Qh() {
+async function Wh() {
   try {
     if (yi("Preparando el entorno…"), "serviceWorker" in navigator)
       try {
@@ -11980,7 +11972,7 @@ async function Qh() {
       } catch {
       }
     const e = new URL(
-      `worker-crycat.js?v=${Uh}`,
+      `worker-crycat.js?v=${qh}`,
       location.href
     ).href;
     qn = new Worker(e, { type: "module" }), qn.onmessage = (t) => {
@@ -12027,7 +12019,7 @@ async function Qh() {
             body: btoa("error: " + (r && r.message ? r.message : r))
           });
         }
-    }), globalThis.__crycatBase = new URL("./", location.href).pathname, globalThis.__crycatAssets = new URL("./app", location.href).pathname, Wh();
+    }), globalThis.__crycatBase = new URL("./", location.href).pathname, globalThis.__crycatAssets = new URL("./app", location.href).pathname, Hh();
     try {
       const t = Jd().key;
       t && t !== "wiwi" && await fetch(bn() + "/api/settings", {
@@ -12043,9 +12035,9 @@ async function Qh() {
       Array.isArray(t) && t.length === 0 && await fetch(bn() + "api/demo?n=24", { method: "POST" });
     } catch {
     }
-    xi("Abriendo la aplicación…", 8), window.clearTimeout(ys), Yd(op).render(/* @__PURE__ */ o.jsx(qh, {}));
+    xi("Abriendo la aplicación…", 8), window.clearTimeout(ys), Yd(op).render(/* @__PURE__ */ o.jsx(Fh, {}));
   } catch (e) {
     yi("No se pudo iniciar la versión web: " + (e && e.message ? e.message : e), !0);
   }
 }
-Qh();
+Wh();

@@ -1238,11 +1238,14 @@ def create_app(store: Session = session) -> FastAPI:
         dpi = float(settings.get("dpi_salida", 300))
         full = settings.get("lienzo") == "pagina"
         color = settings.get("color_formato", "rgba")
-        # PNG para Cricut Design Space: Design Space interpreta TODAS las
-        # imágenes a 144 ppp (no lee los metadatos del PNG), así que se
-        # guarda a 144 ppp conservando el tamaño físico en mm: al importarlo
-        # sale al tamaño exacto y no pide redimensionar.
-        export_dpi = 144.0 if settings.get("ds_144", True) else None
+        # PPP del PNG al guardar: 300 (por defecto, máxima calidad) o 144
+        # (la resolución con la que Design Space interpreta las imágenes: se
+        # importa al tamaño exacto sin que DS pida redimensionar)
+        try:
+            ppp = int(settings.get("export_ppp", 300) or 300)
+        except Exception:
+            ppp = 300
+        export_dpi = 144.0 if ppp == 144 else None
         paginas = max((p.page for p in store.last.placements), default=0) + 1
         if paginas <= 1:
             # UNA sola página: PNG directo, sin carpeta y sin JSON

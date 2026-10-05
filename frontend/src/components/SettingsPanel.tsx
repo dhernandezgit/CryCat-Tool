@@ -387,13 +387,23 @@ export default function SettingsPanel({ settings, saveSettings,
         <Grupo titulo="Hoja y máquina">
         <Av>{num("Resolución de salida", "dpi_salida", 72, 1200, 1, "ppp")}</Av>
         <div className="ctl">
-          <Toggle testid="set-ds_144"
-            checked={settings.ds_144 !== false}
-            onChange={(v) => set({ ds_144: v })}
-            label="PNG para Cricut Design (144 ppp)"
-            tip="Design Space interpreta las imágenes a 144 ppp: guardando los PNG a esa resolución se importan al tamaño EXACTO, sin que pida redimensionar." />
+          <label>{t("PPP del PNG al guardar")}</label>
+          <div className="seg-row">
+            {([[300, t("300 · máxima calidad")],
+               [144, t("144 · Cricut Design")]] as const).map(([v, etiqueta]) => (
+              <button key={v} type="button"
+                className={`seg ${(Number(settings.export_ppp) || 300) === v ? "on" : ""}`}
+                data-testid={`export-ppp-${v}`}
+                data-tip={v === 144
+                  ? t("144 ppp: la resolución con la que Design Space interpreta las imágenes; se importan al tamaño EXACTO sin redimensionar.")
+                  : t("300 ppp: máxima calidad (para imprimir o si vas a escalar en Design Space).")}
+                onClick={() => set({ export_ppp: v })}>
+                {etiqueta}
+              </button>
+            ))}
+          </div>
           <div className="hint">
-            {t("Recomendado: los PNG se guardan a 144 ppp (la resolución de Design Space) para que se importen al tamaño exacto sin que DS pida redimensionar. La colocación aprovecha toda la forma escalonada oficial de Print Then Cut (bandas anchas del centro incluidas). Desactívalo si vas a imprimir los PNG fuera de Design Space.")}
+            {t("300 ppp por defecto: máxima calidad. Con 144 ppp (la resolución que usa Design Space para Print Then Cut) el PNG se importa al tamaño exacto sin que DS pida redimensionar. La colocación aprovecha toda la forma escalonada oficial.")}
           </div>
         </div>
         <div className="ctl">

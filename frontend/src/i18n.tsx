@@ -353,10 +353,19 @@ export const EN: Record<string, string> = {
   "Cualquier ángulo": "Any angle",
   "Resolución de salida": "Output resolution",
   "PNG para Cricut Design (144 ppp)": "PNG for Cricut Design (144 dpi)",
-  "PNG listo para Cricut Design (144 ppp, se importa al tamaño exacto) o a 300 ppp para imprimir. Nunca sobrescribe nada.":
-    "PNG ready for Cricut Design (144 dpi, imports at the exact size) or 300 dpi for printing. It never overwrites anything.",
-  "Con «PNG para Cricut Design» (activado por defecto) se importa al tamaño EXACTO: no hace falta redimensionar.":
-    "With “PNG for Cricut Design” on (default) it imports at the EXACT size: no resizing needed.",
+  "PPP del PNG al guardar": "PNG dpi when saving",
+  "300 · máxima calidad": "300 · max quality",
+  "144 · Cricut Design": "144 · Cricut Design",
+  "144 ppp: la resolución con la que Design Space interpreta las imágenes; se importan al tamaño EXACTO sin redimensionar.":
+    "144 dpi: the resolution Design Space uses to read images; they import at the EXACT size with no resizing.",
+  "300 ppp: máxima calidad (para imprimir o si vas a escalar en Design Space).":
+    "300 dpi: max quality (for printing or if you'll scale it in Design Space).",
+  "300 ppp por defecto: máxima calidad. Con 144 ppp (la resolución que usa Design Space para Print Then Cut) el PNG se importa al tamaño exacto sin que DS pida redimensionar. La colocación aprovecha toda la forma escalonada oficial.":
+    "300 dpi by default: max quality. At 144 dpi (the resolution Design Space uses for Print Then Cut) the PNG imports at the exact size with no resize prompt. The layout uses the full official stepped shape.",
+  "PNG a 300 ppp (máxima calidad) o a 144 ppp para que Cricut Design lo importe al tamaño exacto. Nunca sobrescribe nada.":
+    "PNG at 300 dpi (max quality) or 144 dpi so Cricut Design imports it at the exact size. It never overwrites anything.",
+  "Con «PPP del PNG» en 144 se importa al tamaño EXACTO: no hace falta redimensionar (a 300 hay que escalarlo al ~48 %).":
+    "With “PNG dpi” set to 144 it imports at the EXACT size: no resizing needed (at 300 you'd have to scale it to ~48%).",
   "Design Space interpreta las imágenes a 144 ppp: guardando los PNG a esa resolución se importan al tamaño EXACTO, sin que pida redimensionar.":
     "Design Space reads images at 144 dpi: saving PNGs at that resolution makes them import at the EXACT size, with no resize prompt.",
   "Recomendado: los PNG se guardan a 144 ppp (la resolución de Design Space) para que se importen al tamaño exacto sin que DS pida redimensionar. La colocación aprovecha toda la forma escalonada oficial de Print Then Cut (bandas anchas del centro incluidas). Desactívalo si vas a imprimir los PNG fuera de Design Space.":

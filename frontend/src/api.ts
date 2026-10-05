@@ -70,7 +70,7 @@ export interface AppSettings {
   ver_contornos?: boolean;
   contorno_modo?: "final" | "orig" | "ambos" | "ninguno";
   dpi_salida: number;
-  ds_144?: boolean;   // PNG para Cricut Design a 144 ppp (tamaño exacto)
+  export_ppp?: number;   // PPP del PNG al guardar: 300 (calidad) | 144 (DS)
   pagina: string;
   pagina_w: number;
   pagina_h: number;
