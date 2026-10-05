@@ -421,35 +421,34 @@ def test_export_no_sobrescribe_nada(client, tmp_path):
     assert importante.read_text("utf-8") == "importante"
 
 
-def test_area_ds_segura_por_defecto(client):
-    """Con «PNG para Cricut Design» (por defecto) la optimización usa el
-    rectángulo seguro de Design Space; desactivado, el área escalonada."""
+def test_area_oficial_de_ptc(client):
+    """El área útil es la forma escalonada oficial de Print Then Cut (se
+    aprovecha entera), con o sin «PNG para Cricut Design»."""
     c, st, _ = client
-    # máximo rectangular real de DS en A4: 167.31 x 254.10 (-0.3 de margen)
-    assert abs(st.current_area().bbox[2] - 167.01) < 0.1
-    assert abs(st.current_area().bbox[3] - 253.80) < 0.1
+    assert abs(st.current_area().bbox[2] - 182.88) < 0.01
+    assert abs(st.current_area().bbox[3] - 269.75) < 0.01
     c.put("/api/settings", json={"ds_144": False})
-    assert abs(st.current_area().bbox[2] - 182.88) < 0.1
-    assert abs(st.current_area().bbox[3] - 269.75) < 0.1
+    assert abs(st.current_area().bbox[2] - 182.88) < 0.01
+    assert abs(st.current_area().bbox[3] - 269.75) < 0.01
 
 
 def test_export_ds_144_para_cricut(client, tmp_path):
-    """«PNG para Cricut Design» (por defecto): el PNG se guarda a 144 ppp y
-    la colocación usa el máximo RECTANGULAR real de DS en A4 (167.31 x
-    254.10 mm): se importa al tamaño exacto, sin redimensionar."""
+    """«PNG para Cricut Design» (por defecto): el PNG se guarda a 144 ppp
+    (la resolución con la que DS interpreta las imágenes) y dentro del área
+    oficial de Print Then Cut en A4 (182.88 x 269.75 mm)."""
     c, st, _ = client
     upload(c, "gato.png")
     _optimiza(c)
     salida = tmp_path / "ds"
     salida.mkdir(exist_ok=True)
-    # por defecto (ds_144 = True) → 144 ppp y dentro del máximo rectangular
+    # por defecto (ds_144 = True) → 144 ppp y dentro del área oficial
     r = c.post("/api/export", json={"name": "ds", "folder": str(salida)}).json()
     fp = [f for f in r["files"] if f.endswith(".png")][0]
     with Image.open(fp) as im:
         dpi = im.info.get("dpi")
         assert dpi and abs(dpi[0] - 144) < 1.0, dpi
-        assert im.width / dpi[0] * 25.4 <= 167.31
-        assert im.height / dpi[1] * 25.4 <= 254.10
+        assert im.width / dpi[0] * 25.4 <= 182.88
+        assert im.height / dpi[1] * 25.4 <= 269.75
     # desactivado → la resolución de salida (300) y el área escalonada
     c.put("/api/settings", json={"ds_144": False})
     r2 = c.post("/api/export", json={"name": "ds300",

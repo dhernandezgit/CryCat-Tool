@@ -95,25 +95,13 @@ MARKS_A4 = (13.63, 13.21, 196.09, 280.08)   # A4 vertical (referencia real)
 STEP1_A4 = 7.85
 STEP2_A4 = 32.1
 
-# --- máximo RECTANGULAR real de Print Then Cut de Design Space ----------
-# Para un diseño RECTANGULAR, Design Space no deja usar todo el área
-# escalonada: su auto-redimensionado encaja el diseño en el mayor
-# rectángulo interior. Tabla verificada por la comunidad (repetidamente
-# medida; Reddit r/cricut + medidores de área), en pulgadas → mm:
-#   A4      6.587 x 10.004 in  → 167.31 x 254.10 mm
-#   Letter  6.823 x  9.323 in  → 173.30 x 236.80 mm
-#   Legal   6.823 x 12.32  in  → 173.30 x 312.93 mm
-#   Tabloid 9.32  x 15.32  in  → 236.73 x 389.13 mm
-#   A3      10.024 x 14.82 in  → 254.61 x 376.43 mm
-DS_RECT_MAX: dict[str, tuple[float, float]] = {
-    "A4": (167.31, 254.10),
-    "Letter": (173.30, 236.80),
-    "Legal": (173.30, 312.93),
-    "Tabloid": (236.73, 389.13),
-    "A3": (254.61, 376.43),
-}
-# un pelín de seguridad (redondeo a píxeles al guardar a 144 ppp ≈ 0.18 mm)
-DS_SAFE_EPS = 0.3
+# Referencia (por si hace falta): el mayor RECTÁNGULO interior del área de
+# PTC de DS (lo que DS usa para auto-redimensionar un bloque macizo), en mm.
+# CryCat NO lo usa para colocar: la forma escalonada completa se aprovecha
+# entera (DS acepta el diseño si las esquinas quedan libres, como en la guía
+# roja). Tabla verificada por la comunidad:
+#   A4      167.31 x 254.10 | Letter 173.30 x 236.80 | Legal 173.30 x 312.93
+#   Tabloid 236.73 x 389.13 | A3     254.61 x 376.43
 
 
 def marks_rect(page_w: float, page_h: float,
@@ -322,15 +310,17 @@ def inset_area(area: CutArea, margin: float) -> CutArea:
 
 
 def cut_area(page_w: float, page_h: float, machine: str = "estandar",
-             paper_key: str | None = None, ds: bool = False) -> CutArea:
+             paper_key: str | None = None) -> CutArea:
     """Calcula el área recortable para una página (mm) y máquina.
 
     `paper_key` indica el tamaño base para buscar los máximos oficiales
     (A4, A3, ...). Si es None se intenta deducir por coincidencia de
     dimensiones (con la página en cualquier orientación).
-    `ds=True` devuelve el rectángulo SEGURO de Design Space (sin escalones,
-    ~2,15 cm de margen por lado en A4) para que el PNG se importe sin que DS
-    pida redimensionar.
+
+    El área es la forma ESCALONADA oficial de Print Then Cut (máximos
+    oficiales + escalones reales): se aprovecha entera (bandas anchas del
+    centro y altas incluidas) y las esquinas quedan libres, que es lo que
+    Design Space necesita para no pedir redimensionar.
     """
     if paper_key is None:
         paper_key = _match_paper(page_w, page_h)
@@ -353,31 +343,12 @@ def cut_area(page_w: float, page_h: float, machine: str = "estandar",
     x0 = (page_w - bw) / 2.0
     y0 = (page_h - bh) / 2.0
 
-    if ds:
-        # --- máximo RECTANGULAR real de Design Space --------------------
-        # Para importar el PNG en Design Space sin que pida redimensionar:
-        # el diseño debe caber en el mayor rectángulo interior del área de
-        # Print Then Cut (tabla DS_RECT_MAX). Se centra en la hoja (como
-        # DS), se limita al área de la máquina y se deja un pelín para el
-        # redondeo a píxeles del guardado.
-        base = DS_RECT_MAX.get(paper_key)
-        if base is None:
-            # tamaño sin dato oficial (A5, personalizado): se escala el A4
-            esc0 = math.sqrt(max(1e-9, page_w * page_h) / (210.0 * 297.0))
-            base = (DS_RECT_MAX["A4"][0] * esc0, DS_RECT_MAX["A4"][1] * esc0)
-        dw = min(max(10.0, base[0] - DS_SAFE_EPS), bw)
-        dh = min(max(10.0, base[1] - DS_SAFE_EPS), bh)
-        dx = min(max((page_w - dw) / 2.0, x0), x0 + bw - dw)
-        dy = min(max((page_h - dh) / 2.0, y0), y0 + bh - dh)
-        poly = [(dx, dy), (dx + dw, dy), (dx + dw, dy + dh), (dx, dy + dh)]
-        return CutArea(page_w=page_w, page_h=page_h, poly=poly,
-                       bbox=(dx, dy, dw, dh), notches=[], machine=machine)
-
-    # --- límites OFICIALES (calibrados sobre la referencia del usuario) ---
-    # El área útil es el máximo oficial (186×272.3 en A4) y los ESCALONES son
-    # los de la guía real de Design Space medidos en
-    # `assets/Cricut_A5_Limites_300ppp.png` (STEP1/STEP2). El contenido puede
-    # llegar a esos límites; las marcas se colocan abrazándolo por fuera.
+    # --- límites OFICIALES + ESCALONES reales ---------------------------
+    # El área útil es el máximo oficial de Print Then Cut por tamaño y los
+    # escalones salen del máximo rectangular real (STEP1_A4/STEP2_A4,
+    # escalados por papel). El contenido puede llegar a toda la forma (las
+    # bandas centrales anchas/altas incluidas); las marcas se colocan
+    # abrazándolo por fuera.
     poly, notches = _bands_polygon(x0, y0, bw, bh)
     return CutArea(page_w=page_w, page_h=page_h, poly=poly, bbox=(x0, y0, bw, bh),
                    notches=notches, machine=machine)
