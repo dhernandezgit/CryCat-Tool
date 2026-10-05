@@ -211,19 +211,21 @@ def _fit_box(img: Image.Image, tw: int, th: int) -> tuple[Image.Image, float]:
 
 def cajas_delimitar(area: CutArea, lado_mm: float = 1.0
                     ) -> list[tuple[float, float]]:
-    """Posiciones de los dos cuadrados de referencia (esquina sup. izq. y der.).
+    """Posiciones de los CUATRO cuadrados de referencia.
 
-    Uno SIEMPRE pegado al límite más izquierdo y otro al más derecho, en la
-    parte de arriba, independientemente de márgenes y configuración.
+    Dos SIEMPRE pegados a los límites izquierdo/derecho (a media altura) y
+    dos pegados a los límites superior/inferior (a media anchura): así el
+    diseño exportado mide EXACTO el ancho Y el alto reales del área.
     """
     bx, by, bw, bh = area.bbox
-    # a la altura del centro (donde el área SÍ llega a los extremos: las
+    # a media altura/anchura (donde el área SÍ llega a los extremos: las
     # esquinas del polígono están escalonadas) y con los bordes EXTERIORES
-    # pegados a los límites: así el diseño exportado mide EXACTO el ancho
-    # real del área de Cricut. El 0,05 mm evita que el redondeo a píxeles
+    # pegados a los límites. El 0,05 mm evita que el redondeo a píxeles
     # saque la tinta del límite (a 300 ppp un píxel son 0,085 mm).
     cy = by + bh / 2.0 - lado_mm / 2.0
-    return [(bx + 0.05, cy), (bx + bw - lado_mm - 0.05, cy)]
+    cx = bx + bw / 2.0 - lado_mm / 2.0
+    return [(bx + 0.05, cy), (bx + bw - lado_mm - 0.05, cy),
+            (cx, by + 0.05), (cx, by + bh - lado_mm - 0.05)]
 
 
 def marcas_delimitar(canvas: Image.Image, area: CutArea, dpi: float,

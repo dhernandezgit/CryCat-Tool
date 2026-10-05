@@ -259,11 +259,18 @@ def test_marcas_delimitar_en_los_limites_y_dentro():
     # y a la altura del centro
     yc = (min(ys) + max(ys)) / 2 / px
     assert abs(yc - (by + bh / 2)) < 0.5, yc
-    # posiciones deterministas del helper
+    # posiciones deterministas del helper: 4 cuadrados (lados + arriba/abajo)
     cajas = compose.cajas_delimitar(area, 1.0)
-    assert len(cajas) == 2
+    assert len(cajas) == 4
     assert abs(cajas[0][0] - bx) < 0.2
     assert abs(cajas[1][0] - (bx + bw - 1.0)) < 0.2
+    assert abs(cajas[2][1] - by) < 0.2
+    assert abs(cajas[3][1] - (by + bh - 1.0)) < 0.2
+    # y también pegado a los límites arriba/abajo
+    y0 = min(ys) / px
+    y1 = max(ys) / px
+    assert abs(y0 - by) < 0.6, y0
+    assert abs(y1 - (by + bh)) < 0.6, y1
     # sin delimitar no hay nada
     img2 = compose.render_page(area, [], {}, 100.0, True, "rgba")
     a2 = np.asarray(img2.convert("RGBA"))
