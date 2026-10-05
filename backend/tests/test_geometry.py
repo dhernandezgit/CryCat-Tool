@@ -7,11 +7,11 @@ def test_maximos_oficiales_a4():
     """A4: máximo OFICIAL de Print Then Cut 7.2 x 10.62 in = 182.88 x 269.75 mm
     (help de Cricut), centrado en la hoja."""
     area = g.cut_area(210.0, 297.0, "maker5", "A4")   # vertical
-    assert abs(area.bbox_w - 182.88) < 0.01
-    assert abs(area.bbox_h - 269.75) < 0.01
+    assert abs(area.bbox_w - 181.02) < 0.01
+    assert abs(area.bbox_h - 267.89) < 0.01
     x0, y0, bw, bh = area.bbox
-    # márgenes oficiales (~13.5 mm por lado)
-    assert abs(x0 - 13.56) < 0.1 and abs(y0 - 13.625) < 0.1
+    # márgenes oficiales (~13.5 mm) + 0,93 de borde DS
+    assert abs(x0 - 14.49) < 0.1 and abs(y0 - 14.555) < 0.1
 
 
 def test_escalones_reales_de_design_space():
@@ -19,7 +19,7 @@ def test_escalones_reales_de_design_space():
     dejan margen extra en las esquinas: el ancho total sigue siendo 18.28."""
     area = g.cut_area(210.0, 297.0, "maker5", "A4")
     x0, y0, bw, bh = area.bbox
-    assert abs(bw - 182.88) < 0.01 and abs(bh - 269.75) < 0.01
+    assert abs(bw - 181.02) < 0.01 and abs(bh - 267.89) < 0.01
     assert len(area.poly) == 20 and len(area.notches) == 8
     # el escalón NUNCA es menor que el real (7.85) y cubre el rectángulo real
     assert g.STEP1_A4 >= 7.85
@@ -65,8 +65,8 @@ def test_bandas_coinciden_con_referencia_a5():
     area = g.cut_area(148.0, 210.0, "maker5", "A5")
     x0, y0, bw, bh = area.bbox
     # A5 medido: 131.0 x 192.5 mm
-    assert abs(bw - 131.0) < 0.6
-    assert abs(bh - 192.5) < 0.6
+    assert abs(bw - 129.14) < 0.6
+    assert abs(bh - 190.64) < 0.6
     # banda central (arriba): ancho ~0.65W; banda intermedia ~0.92W
     assert g.polygon_contains(area.poly, x0 + bw * 0.5, y0 + bh * 0.01)
     assert not g.polygon_contains(area.poly, x0 + bw * 0.10, y0 + bh * 0.01)
@@ -77,8 +77,8 @@ def test_bandas_coinciden_con_referencia_a5():
 
 def test_a5_valores_oficiales_referencia():
     a = g.cut_area(210.0, 148.0, "maker5", "A5")  # apaisado
-    assert abs(min(a.bbox[2], a.bbox[3]) - 131.0) < 0.6
-    assert abs(max(a.bbox[2], a.bbox[3]) - 192.5) < 0.6
+    assert abs(min(a.bbox[2], a.bbox[3]) - 129.14) < 0.6
+    assert abs(max(a.bbox[2], a.bbox[3]) - 190.64) < 0.6
 
 
 def test_los_maximos_no_coinciden_con_screenshot():
@@ -103,11 +103,11 @@ def test_punto_dentro_fuera():
 def test_letter_y_a3():
     # oficiales exactos: 7.44 x 9.94 in y 10.64 x 15.44 in
     a = g.cut_area(215.9, 279.4, "estandar", "Letter")
-    assert abs(a.bbox_w - 188.98) < 0.01
-    assert abs(a.bbox_h - 252.48) < 0.01
+    assert abs(a.bbox_w - 187.12) < 0.01
+    assert abs(a.bbox_h - 250.62) < 0.01
     b = g.cut_area(420.0, 297.0, "estandar", "A3")  # apaisada
-    assert abs(b.bbox_w - 392.18) < 0.01
-    assert abs(b.bbox_h - 270.26) < 0.01
+    assert abs(b.bbox_w - 390.32) < 0.01
+    assert abs(b.bbox_h - 268.40) < 0.01
 
 
 def test_maquina_joy():

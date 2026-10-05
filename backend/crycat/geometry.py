@@ -97,6 +97,13 @@ MARKS_A4 = (13.63, 13.21, 196.09, 280.08)   # A4 vertical (referencia real)
 STEP1_A4 = 9.85
 STEP2_A4 = 36.1
 
+# --- margen de borde de Design Space ------------------------------------
+# En las imágenes oficiales de la guía («Maximum horizontal»), el diseño de
+# máximo ancho queda DENTRO de la línea roja ~0,9 mm por lado: DS
+# auto-redimensiona si el contenido llega justo al borde. Con este margen el
+# diseño se importa tal cual (sin redimensionar) y con los tamaños exactos.
+DS_EDGE_MM = 0.93
+
 # Referencia (por si hace falta): el mayor RECTÁNGULO interior del área de
 # PTC de DS (lo que DS usa para auto-redimensionar un bloque macizo), en mm.
 # CryCat NO lo usa para colocar: la forma escalonada completa se aprovecha
@@ -344,13 +351,19 @@ def cut_area(page_w: float, page_h: float, machine: str = "estandar",
 
     x0 = (page_w - bw) / 2.0
     y0 = (page_h - bh) / 2.0
+    # margen de borde de DS: el contenido (y los cuadrados guía) se quedan
+    # ~0,93 mm dentro del máximo oficial; así DS NO auto-redimensiona y las
+    # piezas se importan con su tamaño exacto (en A4: 18.09 x 26.79 cm)
+    bw = max(10.0, bw - 2 * DS_EDGE_MM)
+    bh = max(10.0, bh - 2 * DS_EDGE_MM)
+    x0 += DS_EDGE_MM
+    y0 += DS_EDGE_MM
 
     # --- límites OFICIALES + ESCALONES reales ---------------------------
-    # El área útil es el máximo oficial de Print Then Cut por tamaño y los
-    # escalones salen del máximo rectangular real (STEP1_A4/STEP2_A4,
-    # escalados por papel). El contenido puede llegar a toda la forma (las
-    # bandas centrales anchas/altas incluidas); las marcas se colocan
-    # abrazándolo por fuera.
+    # El área útil es el máximo oficial de Print Then Cut por tamaño (menos
+    # el margen de borde de DS) y los escalones salen del máximo rectangular
+    # real (STEP1_A4/STEP2_A4, escalados por papel). El contenido puede
+    # llegar a toda la forma; las marcas se colocan abrazándolo por fuera.
     poly, notches = _bands_polygon(x0, y0, bw, bh)
     return CutArea(page_w=page_w, page_h=page_h, poly=poly, bbox=(x0, y0, bw, bh),
                    notches=notches, machine=machine)
