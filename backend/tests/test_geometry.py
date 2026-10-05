@@ -15,15 +15,15 @@ def test_maximos_oficiales_a4():
 
 
 def test_escalones_reales_de_design_space():
-    """Los escalones salen del máximo rectangular real de DS: en A4 el
-    escalón pequeño son 7.85 mm y la banda intermedia mide 167.18 mm, que
-    coincide con el máximo rectangular real (167.31) dentro de 0.2 mm."""
+    """Los escalones cubren al menos el máximo rectangular real de DS y
+    dejan margen extra en las esquinas: el ancho total sigue siendo 18.28."""
     area = g.cut_area(210.0, 297.0, "maker5", "A4")
     x0, y0, bw, bh = area.bbox
+    assert abs(bw - 182.88) < 0.01 and abs(bh - 269.75) < 0.01
     assert len(area.poly) == 20 and len(area.notches) == 8
-    # banda intermedia = ancho total - 2 escalones pequeños ≈ 167.31 (dato real)
-    assert abs((bw - 2 * g.STEP1_A4) - 167.31) < 0.2
-    assert abs((bh - 2 * g.STEP1_A4) - 254.10) < 0.2
+    # el escalón NUNCA es menor que el real (7.85) y cubre el rectángulo real
+    assert g.STEP1_A4 >= 7.85
+    assert bw - 2 * g.STEP1_A4 <= 167.31 + 0.01
     # la banda central (todo el ancho) llega a la altura completa
     assert g.polygon_contains(area.poly, x0 + bw / 2, y0 + 0.5)
     assert g.polygon_contains(area.poly, x0 + 0.5, y0 + bh / 2)

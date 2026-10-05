@@ -87,13 +87,15 @@ MARKS_A4 = (13.63, 13.21, 196.09, 280.08)   # A4 vertical (referencia real)
 # --- escalones de la GUÍA DE CORTE oficial ------------------------------
 # El escalón pequeño se deduce de los datos reales de DS: el máximo
 # RECTANGULAR (= área escalonada menos ese escalón por lado) del A4 oficial
-# (182.88 x 269.75) es 167.31 x 254.10 → escalón = 7.85 mm por lado. El
-# grande mantiene la proporción del documento del usuario (22.5/5.5 ≈ 4.09).
-# Se escalan con el tamaño del papel: en A5 salen 5.6/22.7, que coinciden
-# con su referencia (5.5/22.5). Antes se derivaban del tamaño de las marcas
-# (25.32) y NO cuadraban ni con la referencia ni con DS.
-STEP1_A4 = 7.85
-STEP2_A4 = 32.1
+# (182.88 x 269.75) es 167.31 x 254.10 → escalón mínimo = 7.85 mm por lado.
+# El grande mantiene la proporción del documento del usuario (22.5/5.5).
+# Se escalan con el tamaño del papel: en A5 salen ~5.6/22.7, que coinciden
+# con su referencia (5.5/22.5).
+# Margen EXTRA en las esquinas (+2 mm el pequeño, +4 mm el grande) para que
+# Design Space no recorte el ancho útil por las esquinas (detectaba 17.98
+# en vez de 18.28): así el diseño se queda más adentro en las esquinas.
+STEP1_A4 = 9.85
+STEP2_A4 = 36.1
 
 # Referencia (por si hace falta): el mayor RECTÁNGULO interior del área de
 # PTC de DS (lo que DS usa para auto-redimensionar un bloque macizo), en mm.
