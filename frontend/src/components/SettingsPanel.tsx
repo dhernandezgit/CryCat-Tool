@@ -387,6 +387,16 @@ export default function SettingsPanel({ settings, saveSettings,
         <Grupo titulo="Hoja y máquina">
         <Av>{num("Resolución de salida", "dpi_salida", 72, 1200, 1, "ppp")}</Av>
         <div className="ctl">
+          <Toggle testid="set-ds_144"
+            checked={settings.ds_144 !== false}
+            onChange={(v) => set({ ds_144: v })}
+            label="PNG para Cricut Design (144 ppp)"
+            tip="Design Space interpreta las imágenes a 144 ppp: guardando los PNG a esa resolución se importan al tamaño EXACTO, sin que pida redimensionar." />
+          <div className="hint">
+            {t("Recomendado: los PNG se guardan a 144 ppp (la resolución que usa Design Space) conservando el tamaño real, para importarlos sin redimensionar. Desactívalo solo si vas a imprimir los PNG fuera de Design Space.")}
+          </div>
+        </div>
+        <div className="ctl">
           <label>{t("Tamaño de salida (vertical)")}</label>
           <select
             data-testid="set-pagina"

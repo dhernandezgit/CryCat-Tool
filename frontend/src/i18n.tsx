@@ -352,6 +352,15 @@ export const EN: Record<string, string> = {
   "Giros de 0º / 90º / 180º / 270º": "0º / 90º / 180º / 270º turns",
   "Cualquier ángulo": "Any angle",
   "Resolución de salida": "Output resolution",
+  "PNG para Cricut Design (144 ppp)": "PNG for Cricut Design (144 dpi)",
+  "PNG listo para Cricut Design (144 ppp, se importa al tamaño exacto) o a 300 ppp para imprimir. Nunca sobrescribe nada.":
+    "PNG ready for Cricut Design (144 dpi, imports at the exact size) or 300 dpi for printing. It never overwrites anything.",
+  "Con «PNG para Cricut Design» (activado por defecto) se importa al tamaño EXACTO: no hace falta redimensionar.":
+    "With “PNG for Cricut Design” on (default) it imports at the EXACT size: no resizing needed.",
+  "Design Space interpreta las imágenes a 144 ppp: guardando los PNG a esa resolución se importan al tamaño EXACTO, sin que pida redimensionar.":
+    "Design Space reads images at 144 dpi: saving PNGs at that resolution makes them import at the EXACT size, with no resize prompt.",
+  "Recomendado: los PNG se guardan a 144 ppp (la resolución que usa Design Space) conservando el tamaño real, para importarlos sin redimensionar. Desactívalo solo si vas a imprimir los PNG fuera de Design Space.":
+    "Recommended: PNGs are saved at 144 dpi (the resolution Design Space uses) keeping the real size, so they import with no resizing. Turn it off only if you'll print the PNGs outside Design Space.",
   "Tamaño de salida (vertical)": "Output size (portrait)",
   "Ancho × alto (mm)": "Width × height (mm)",
   "Máquina Cricut": "Cricut machine",

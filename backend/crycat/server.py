@@ -1238,6 +1238,11 @@ def create_app(store: Session = session) -> FastAPI:
         dpi = float(settings.get("dpi_salida", 300))
         full = settings.get("lienzo") == "pagina"
         color = settings.get("color_formato", "rgba")
+        # PNG para Cricut Design Space: Design Space interpreta TODAS las
+        # imágenes a 144 ppp (no lee los metadatos del PNG), así que se
+        # guarda a 144 ppp conservando el tamaño físico en mm: al importarlo
+        # sale al tamaño exacto y no pide redimensionar.
+        export_dpi = 144.0 if settings.get("ds_144", True) else None
         paginas = max((p.page for p in store.last.placements), default=0) + 1
         if paginas <= 1:
             # UNA sola página: PNG directo, sin carpeta y sin JSON
@@ -1252,7 +1257,8 @@ def create_app(store: Session = session) -> FastAPI:
                                   perfil=settings.get("espacio_color", "srgb"),
                                   bleed_mm=float(settings.get("bleed_mm", 0) or 0),
                                   delimitar_mm=_delimitar_mm(),
-            delimitar_margen_mm=_delimitar_margen())
+                                  delimitar_margen_mm=_delimitar_margen(),
+                                  export_dpi=export_dpi)
             settings.set({"carpeta_export": str(base)})
             return {"ok": True, "folder": str(base),
                     "files": [str(archivo)],
@@ -1270,7 +1276,8 @@ def create_app(store: Session = session) -> FastAPI:
             bleed_mm=float(settings.get("bleed_mm", 0) or 0),
             delimitar_mm=_delimitar_mm(),
             delimitar_margen_mm=_delimitar_margen(),
-            separacion_px=_separacion_px())
+            separacion_px=_separacion_px(),
+            export_dpi=export_dpi)
         settings.set({"carpeta_export": str(base)})
         return {"ok": True, "folder": str(out),
                 "files": [str(f) for f in written],

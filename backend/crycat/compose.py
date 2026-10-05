@@ -510,18 +510,37 @@ def _recorte_contenido(img: Image.Image, area: CutArea, placements: list,
     return img.crop(caja)
 
 
+def _resample_export(img: Image.Image, dpi_render: float,
+                     dpi_export: float | None) -> Image.Image:
+    """Reescala al ppp de SALIDA (p. ej. 144 para Cricut Design Space).
+
+    Conserva el tamaño físico en mm: solo cambia la densidad de píxeles, así
+    Design Space (que interpreta las imágenes a 144 ppp) importa el archivo
+    al tamaño exacto sin pedir redimensionar.
+    """
+    if not dpi_export or dpi_export <= 0 or abs(dpi_export - dpi_render) < 0.5:
+        return img
+    esc = float(dpi_export) / float(dpi_render)
+    return img.resize(
+        (max(1, int(round(img.width * esc))),
+         max(1, int(round(img.height * esc)))),
+        Image.Resampling.LANCZOS)
+
+
 def export_pages(area: CutArea, placements: list[Placement],
                  images: dict[str, Image.Image], out_dir: Path, name: str,
                  dpi: float, full_page: bool = False, color: str = "rgba",
                  perfil: str = "srgb", bleed_mm: float = 0.0,
                  delimitar_mm: float = 0.0,
                  delimitar_margen_mm: float = 0.0,
-                 separacion_px: int = 0) -> list[Path]:
+                 separacion_px: int = 0,
+                 export_dpi: float | None = None) -> list[Path]:
     """Guarda las páginas en PNG máxima calidad (pHYs = dpi, sin guías).
 
     PNG es sin pérdidas: no hay cuantización ni recompresión con pérdida; se
     escribe a la resolución pedida (300 ppp por defecto), con alfa intacto y
-    perfil sRGB.
+    perfil sRGB. Con `export_dpi` (p. ej. 144 para Design Space) se reescala
+    conservando el tamaño físico en mm.
     """
     out_dir.mkdir(parents=True, exist_ok=True)
     pages = sorted({p.page for p in placements})
@@ -535,8 +554,9 @@ def export_pages(area: CutArea, placements: list[Placement],
         img = _recorte_contenido(img, area, pls_pag, dpi, full_page)
         if bleed_mm > 0:
             img = con_bleed(img, int(round(bleed_mm / 25.4 * dpi)))
+        img = _resample_export(img, dpi, export_dpi)
         fp = out_dir / f"pagina-{i + 1:02d}.png"
-        _save_png(img, fp, dpi, perfil)
+        _save_png(img, fp, export_dpi or dpi, perfil)
         written.append(fp)
     return written
 
@@ -547,7 +567,8 @@ def export_single(area: CutArea, placements: list[Placement],
                   perfil: str = "srgb", bleed_mm: float = 0.0,
                   delimitar_mm: float = 0.0,
                   delimitar_margen_mm: float = 0.0,
-                  separacion_px: int = 0) -> Path:
+                  separacion_px: int = 0,
+                  export_dpi: float | None = None) -> Path:
     """Guarda UNA página directamente en un PNG concreto (sin carpeta)."""
     img = render_page(area, placements, images, dpi, full_page, color,
                       delimitar_mm, delimitar_margen_mm, separacion_px)
@@ -555,8 +576,9 @@ def export_single(area: CutArea, placements: list[Placement],
     img = _recorte_contenido(img, area, placements, dpi, full_page)
     if bleed_mm > 0:
         img = con_bleed(img, int(round(bleed_mm / 25.4 * dpi)))
+    img = _resample_export(img, dpi, export_dpi)
     path.parent.mkdir(parents=True, exist_ok=True)
-    _save_png(img, path, dpi, perfil)
+    _save_png(img, path, export_dpi or dpi, perfil)
     return path
 
 

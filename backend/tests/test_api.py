@@ -421,6 +421,37 @@ def test_export_no_sobrescribe_nada(client, tmp_path):
     assert importante.read_text("utf-8") == "importante"
 
 
+def test_export_ds_144_para_cricut(client, tmp_path):
+    """«PNG para Cricut Design» (por defecto): el PNG se guarda a 144 ppp
+    conservando el tamaño físico en mm, que es como Design Space interpreta
+    las imágenes (así se importan al tamaño exacto, sin redimensionar)."""
+    c, st, _ = client
+    upload(c, "gato.png")
+    _optimiza(c)
+    salida = tmp_path / "ds"
+    salida.mkdir(exist_ok=True)
+    # por defecto (ds_144 = True) → 144 ppp
+    r = c.post("/api/export", json={"name": "ds", "folder": str(salida)}).json()
+    fp = [f for f in r["files"] if f.endswith(".png")][0]
+    with Image.open(fp) as im:
+        dpi = im.info.get("dpi")
+        assert dpi and abs(dpi[0] - 144) < 1.0, dpi
+        w_mm = im.width / dpi[0] * 25.4
+        h_mm = im.height / dpi[1] * 25.4
+    # desactivado → la resolución de salida (300) y el MISMO tamaño físico
+    c.put("/api/settings", json={"ds_144": False})
+    r2 = c.post("/api/export", json={"name": "ds300",
+                                     "folder": str(salida)}).json()
+    fp2 = [f for f in r2["files"] if f.endswith(".png")][0]
+    with Image.open(fp2) as im2:
+        dpi2 = im2.info.get("dpi")
+        assert dpi2 and abs(dpi2[0] - 300) < 1.0, dpi2
+        assert abs(im2.width / dpi2[0] * 25.4 - w_mm) < 0.2
+        assert abs(im2.height / dpi2[1] * 25.4 - h_mm) < 0.2
+        # y a 144 ppp cabe de sobra en un A4 (lo que importa para DS)
+        assert w_mm <= 210.0 and h_mm <= 297.0
+
+
 def test_defaults_extras_pikmin(client):
     """Los extras del Pikmin y el volumen vienen configurados por defecto."""
     c, st, _ = client
@@ -689,7 +720,9 @@ def test_modo_rata_llena_la_pagina_y_no_va_al_png(client, tmp_path):
     assert r.status_code == 200
     fp = [f for f in r.json()["files"] if f.endswith(".png")][0]
     im = Image.open(fp)
-    px = float(c.get("/api/settings").json()["settings"]["dpi_salida"]) / 25.4
+    # el ppp REAL del PNG (con «PNG para Cricut Design» es 144, el que sea)
+    dpi_png = float((im.info.get("dpi") or (300.0, 300.0))[0])
+    px = dpi_png / 25.4
     x0, y0, x1, y1 = _caja_reales(res)
     assert abs(im.width / px - (x1 - x0 + 1.0)) < 1.5, im.size
     assert abs(im.height / px - (y1 - y0 + 1.0)) < 1.5, im.size
