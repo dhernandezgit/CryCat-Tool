@@ -71,6 +71,29 @@ def _color_rgb(valor: object,
             pass
     return por_defecto
 
+
+def _renombrar_con_tamano(path: Path) -> Path:
+    """Añade el tamaño físico REAL en cm al nombre del PNG exportado.
+
+    Formato: `nombre_fecha_18.28x26.97cm.png` — así se puede comparar con el
+    tamaño que muestra Cricut Design Space (o ponerle ese valor) y comprobar
+    que coincide. Si algo falla, se deja el nombre tal cual.
+    """
+    try:
+        with Image.open(path) as im:
+            d = im.info.get("dpi") or (300.0, 300.0)
+            w_cm = im.width / float(d[0]) * 2.54
+            h_cm = im.height / float(d[1]) * 2.54
+        nuevo = path.with_name(
+            f"{path.stem}_{w_cm:.2f}x{h_cm:.2f}cm{path.suffix}")
+        if not nuevo.exists():
+            path.rename(nuevo)
+            return nuevo
+    except Exception:
+        pass
+    return path
+
+
 # Historial de duraciones reales: [(n_piezas, segundos)] para estimar mejor
 _HIST: list[tuple[int, float]] = []
 
@@ -1262,6 +1285,7 @@ def create_app(store: Session = session) -> FastAPI:
                                   delimitar_mm=_delimitar_mm(),
                                   delimitar_margen_mm=_delimitar_margen(),
                                   export_dpi=export_dpi)
+            archivo = _renombrar_con_tamano(archivo)
             settings.set({"carpeta_export": str(base)})
             return {"ok": True, "folder": str(base),
                     "files": [str(archivo)],
@@ -1281,6 +1305,7 @@ def create_app(store: Session = session) -> FastAPI:
             delimitar_margen_mm=_delimitar_margen(),
             separacion_px=_separacion_px(),
             export_dpi=export_dpi)
+        written = [_renombrar_con_tamano(f) for f in written]
         settings.set({"carpeta_export": str(base)})
         return {"ok": True, "folder": str(out),
                 "files": [str(f) for f in written],

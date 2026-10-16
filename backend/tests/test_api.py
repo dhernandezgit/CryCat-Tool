@@ -421,6 +421,25 @@ def test_export_no_sobrescribe_nada(client, tmp_path):
     assert importante.read_text("utf-8") == "importante"
 
 
+def test_export_incluye_el_tamano_en_el_nombre(client, tmp_path):
+    """El PNG exportado lleva el tamaño REAL en cm en el nombre, después de
+    la fecha: `nombre_fecha_18.28x26.97cm.png` (para compararlo con el que
+    muestra Design Space)."""
+    import re
+    c, st, _ = client
+    upload(c, "gato.png")
+    _optimiza(c)
+    r = c.post("/api/export", json={"name": "medida",
+                                    "folder": str(tmp_path)}).json()
+    fp = Path([f for f in r["files"] if f.endswith(".png")][0])
+    m = re.search(r"_(\d+\.\d+)x(\d+\.\d+)cm\.png$", fp.name)
+    assert m, fp.name
+    with Image.open(fp) as im:
+        d = im.info["dpi"][0]
+        assert abs(float(m.group(1)) - im.width / d * 2.54) < 0.02
+        assert abs(float(m.group(2)) - im.height / d * 2.54) < 0.02
+
+
 def test_area_oficial_de_ptc(client):
     """El área útil es la forma escalonada oficial de Print Then Cut (se
     aprovecha entera) con cualquier opción de PPP del PNG."""
