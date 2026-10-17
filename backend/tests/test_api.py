@@ -421,6 +421,20 @@ def test_export_no_sobrescribe_nada(client, tmp_path):
     assert importante.read_text("utf-8") == "importante"
 
 
+def test_export_web_descarga_con_nombre_y_tamano(client, tmp_path):
+    """En la web (Pyodide) el PNG se entrega como data URL y con su nombre
+    final (fecha + tamaño) para la descarga."""
+    c, st, _ = client
+    c.put("/api/settings", json={"web_inline_jobs": True})
+    upload(c, "gato.png")
+    _optimiza(c)
+    r = c.post("/api/export", json={"name": "web",
+                                    "folder": str(tmp_path)}).json()
+    assert r["files"][0].startswith("data:image/png;base64,")
+    assert r["names"] and r["names"][0].endswith(".png")
+    assert "cm" in r["names"][0]
+
+
 def test_export_incluye_el_tamano_en_el_nombre(client, tmp_path):
     """El PNG exportado lleva el tamaño REAL en cm en el nombre, después de
     la fecha: `nombre_fecha_18.28x26.97cm.png` (para compararlo con el que

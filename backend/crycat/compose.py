@@ -482,11 +482,14 @@ def safe_name(name: str) -> str:
 
 def _recorte_contenido(img: Image.Image, area: CutArea, placements: list,
                        dpi: float, full_page: bool,
-                       pad_mm: float = 0.5) -> Image.Image:
+                       pad_mm: float = 0.5,
+                       delimitar_mm: float = 0.0) -> Image.Image:
     """Recorta la página a la zona que OCUPA EL CONTENIDO (+ un pelín).
 
     Al guardar ya no se exporta la hoja entera: solo lo que tiene elementos.
     La impresión (PDF) sigue sacando la página completa.
+    Con `delimitar_mm` los cuadrados guía se tienen en cuenta SIEMPRE en el
+    recorte: el diseño mide el límite fijo del área aunque haya pocas piezas.
     """
     # las ratas (extra de impresión, en los márgenes) no cuentan: el recorte
     # es de las piezas de verdad
@@ -498,6 +501,13 @@ def _recorte_contenido(img: Image.Image, area: CutArea, placements: list,
     y0 = min(p.y for p in reales)
     x1 = max(p.x + p.w for p in reales)
     y1 = max(p.y + p.h for p in reales)
+    if delimitar_mm > 0:
+        # los cuadrados guía marcan los extremos del área: cuentan siempre
+        for (dx, dy) in cajas_delimitar(area, delimitar_mm):
+            x0 = min(x0, dx)
+            y0 = min(y0, dy)
+            x1 = max(x1, dx + delimitar_mm)
+            y1 = max(y1, dy + delimitar_mm)
     if not full_page:
         bx, by = area.bbox[0], area.bbox[1]
         x0 -= bx
@@ -557,7 +567,8 @@ def export_pages(area: CutArea, placements: list[Placement],
         # al guardar se recorta a la zona con elementos (la impresión no),
         # SIN margen extra: el PNG mide EXACTO lo que ocupa el diseño (los
         # cuadrados guía ya marcan los límites reales del área de Cricut)
-        img = _recorte_contenido(img, area, pls_pag, dpi, full_page, 0.0)
+        img = _recorte_contenido(img, area, pls_pag, dpi, full_page, 0.0,
+                                 delimitar_mm)
         if bleed_mm > 0:
             img = con_bleed(img, int(round(bleed_mm / 25.4 * dpi)))
         img = _resample_export(img, dpi, export_dpi)
@@ -580,7 +591,8 @@ def export_single(area: CutArea, placements: list[Placement],
                       delimitar_mm, delimitar_margen_mm, separacion_px)
     # al guardar se recorta a la zona con elementos (la impresión no),
     # SIN margen extra: el PNG mide EXACTO lo que ocupa el diseño
-    img = _recorte_contenido(img, area, placements, dpi, full_page, 0.0)
+    img = _recorte_contenido(img, area, placements, dpi, full_page, 0.0,
+                             delimitar_mm)
     if bleed_mm > 0:
         img = con_bleed(img, int(round(bleed_mm / 25.4 * dpi)))
     img = _resample_export(img, dpi, export_dpi)

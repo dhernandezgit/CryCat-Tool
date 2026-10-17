@@ -4,10 +4,11 @@ import { IconoCarpeta, IconoCheck } from "./iconos";
 
 /** Popup propio (no el del navegador) al guardar: qué se guardó, dónde y los
  *  pasos para Cricut Design Space. */
-export default function SaveDialog({ open, files, folder, error, onOpenFolder,
-                                     onClose, preview }: {
+export default function SaveDialog({ open, files, names, folder, error,
+                                     onOpenFolder, onClose, preview }: {
   open: boolean;
   files: string[];
+  names?: string[];   // nombre final (fecha + tamaño) de cada archivo
   folder: string;
   error?: string;
   preview?: string;
@@ -51,8 +52,10 @@ export default function SaveDialog({ open, files, folder, error, onOpenFolder,
                 )}
                 <p className="hint">{t("Archivos:")}</p>
                 <ul className="lista-archivos">
-                  {files.map((f) => (
-                    <li key={f} title={f}>{f.split(/[\\/]/).pop()}</li>
+                  {files.map((f, i) => (
+                    <li key={i} title={names?.[i] ?? f}>
+                      {names?.[i] ?? f.split(/[\\/]/).pop()}
+                    </li>
                   ))}
                 </ul>
                 {!esWeb && (
@@ -68,7 +71,8 @@ export default function SaveDialog({ open, files, folder, error, onOpenFolder,
             <div className="modal-botones">
               {esWeb ? files.map((f, i) => (
                 <a key={i} data-testid={`btn-descargar-${i}`} href={f}
-                   download={`crycat_pagina-${String(i + 1).padStart(2, "0")}.png`}
+                   download={names?.[i]
+                     ?? `crycat_pagina-${String(i + 1).padStart(2, "0")}.png`}
                    className="btn-descarga">
                   <IconoCarpeta size={15} /> {t("Descargar página {n}", { n: i + 1 })}
                 </a>

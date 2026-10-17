@@ -338,7 +338,7 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
   };
 
   const [guardado, setGuardado] = useState<
-    { files: string[]; folder: string; error?: string;
+    { files: string[]; names?: string[]; folder: string; error?: string;
       preview?: string } | null>(null);
 
   // Imprimir: primero ASEGURA que está guardado y luego imprime el PDF con
@@ -347,7 +347,7 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
     try {
       const r = await api.export(ui.saveName || "crycat",
                                  settings.carpeta_export || undefined);
-      setGuardado({ files: r.files, folder: r.folder, preview: r.preview });
+      setGuardado({ files: r.files, names: r.names, folder: r.folder, preview: r.preview });
     } catch (e) {
       setGuardado({ files: [], folder: "", error: (e as Error).message });
       return;
@@ -392,7 +392,7 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
   const save = async () => {
     try {
       const r = await api.export(nombreGuardar);
-      setGuardado({ files: r.files, folder: r.folder, preview: r.preview });
+      setGuardado({ files: r.files, names: r.names, folder: r.folder, preview: r.preview });
     } catch (e) {
       setGuardado({ files: [], folder: "", error: (e as Error).message });
     }
@@ -406,7 +406,7 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
   const exportarEn = async (folder: string) => {
     try {
       const r = await api.export(nombreGuardar, folder);
-      setGuardado({ files: r.files, folder: r.folder, preview: r.preview });
+      setGuardado({ files: r.files, names: r.names, folder: r.folder, preview: r.preview });
     } catch (e) {
       setGuardado({ files: [], folder: "", error: (e as Error).message });
     }
@@ -1010,6 +1010,7 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
       <SaveDialog
         open={!!guardado}
         files={guardado?.files ?? []}
+        names={guardado?.names}
         folder={guardado?.folder ?? ""}
         preview={guardado?.preview}
         error={guardado?.error}

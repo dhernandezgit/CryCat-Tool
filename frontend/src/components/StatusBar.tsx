@@ -131,6 +131,18 @@ export default function StatusBar({ job, backendOk, result, estimate,
     return t("Listo para empezar");
   }, [aviso, actualizando, running, job, mensajes, idx, result, t, ver]);
 
+  // tamaño REAL del diseño al exportar (cuadrados guía incluidos, ratas no):
+  // es lo que medirá en Design Space. En cm con 2 decimales.
+  const tamanoCm = useMemo(() => {
+    const ps = (result?.placements ?? []).filter((p) => !p.rata);
+    if (!ps.length) return "";
+    const x0 = Math.min(...ps.map((p) => p.x));
+    const y0 = Math.min(...ps.map((p) => p.y));
+    const x1 = Math.max(...ps.map((p) => p.x + p.w));
+    const y1 = Math.max(...ps.map((p) => p.y + p.h));
+    return `${((x1 - x0) / 10).toFixed(2)}×${((y1 - y0) / 10).toFixed(2)}`;
+  }, [result]);
+
   const pct = Math.round((job?.progress ?? 0) * 100);
   // sin job todavía (web: el cálculo bloquea el hilo) -> barra en marcha
   const indeterminado = running && !job;
@@ -234,6 +246,12 @@ export default function StatusBar({ job, backendOk, result, estimate,
                 <b>{result.pages}</b>
                 <span>{result.pages > 1 ? t("páginas") : t("página")}</span>
               </div>
+              {tamanoCm && (
+                <div className="stat-card" data-testid="tamano-card"
+                     data-tip={t("Tamaño real del diseño al exportarlo (cuadrados guía incluidos): es lo que debe medir en Cricut Design Space.")}>
+                  <b>{tamanoCm}</b><span>cm</span>
+                </div>
+              )}
               <div className="stat-card" data-tip={t("Copias pequeñas extra que rellenan huecos")}>
                 <b>{result.minis}</b><span>{t("minis")}</span>
               </div>

@@ -72,6 +72,16 @@ def _color_rgb(valor: object,
     return por_defecto
 
 
+def _data_url_png(path) -> str:
+    """PNG del disco como data URL (para las descargas de la versión web)."""
+    try:
+        import base64
+        return ("data:image/png;base64,"
+                + base64.b64encode(Path(str(path)).read_bytes()).decode("ascii"))
+    except Exception:
+        return str(path)
+
+
 def _renombrar_con_tamano(path: Path) -> Path:
     """Añade el tamaño físico REAL en cm al nombre del PNG exportado.
 
@@ -552,7 +562,8 @@ def create_app(store: Session = session) -> FastAPI:
     def put_settings(payload: dict):
         page_changed = any(k in payload for k in
                            ("pagina_w", "pagina_h", "maquina", "espacio_mm",
-                            "margen_mm", "rotacion", "usar_minis", "mini_min_mm",
+                            "margen_mm", "marcas_delimitar", "rotacion",
+                            "usar_minis", "mini_min_mm",
                             "mini_rotacion", "mini_usar_lista",
                             "mini_tamanos_lista", "modo_forma",
                             "simplificar", "simplificar_threshold",
@@ -1287,8 +1298,16 @@ def create_app(store: Session = session) -> FastAPI:
                                   export_dpi=export_dpi)
             archivo = _renombrar_con_tamano(archivo)
             settings.set({"carpeta_export": str(base)})
+            if settings.get("web_inline_jobs"):
+                # versión web: no hay carpeta real; el PNG se entrega como
+                # descarga directa (data URL) con su nombre (fecha + tamaño)
+                return {"ok": True, "folder": str(base),
+                        "files": [_data_url_png(archivo)],
+                        "names": [archivo.name],
+                        "preview": _mini_preview(archivo)}
             return {"ok": True, "folder": str(base),
                     "files": [str(archivo)],
+                    "names": [archivo.name],
                     "preview": _mini_preview(archivo)}
         # varias páginas: carpeta con las páginas (sin JSON)
         out = base / base_name
@@ -1307,8 +1326,15 @@ def create_app(store: Session = session) -> FastAPI:
             export_dpi=export_dpi)
         written = [_renombrar_con_tamano(f) for f in written]
         settings.set({"carpeta_export": str(base)})
+        nombres = [f.name for f in written]
+        if settings.get("web_inline_jobs"):
+            return {"ok": True, "folder": str(out),
+                    "files": [_data_url_png(f) for f in written],
+                    "names": nombres,
+                    "preview": _mini_preview(written[0]) if written else ""}
         return {"ok": True, "folder": str(out),
                 "files": [str(f) for f in written],
+                "names": nombres,
                 "preview": _mini_preview(written[0]) if written else ""}
 
     _paginas_cache: dict = {}

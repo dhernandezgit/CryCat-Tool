@@ -411,6 +411,7 @@ export const api = {
     }),
   export: (name: string, folder?: string) =>
     req<{ ok: boolean; folder: string; files: string[];
+          names?: string[];   // nombre final (fecha + tamaño) de cada archivo
           preview?: string }>("/api/export", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

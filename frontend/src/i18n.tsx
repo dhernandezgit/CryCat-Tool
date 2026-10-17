@@ -354,6 +354,8 @@ export const EN: Record<string, string> = {
   "Resolución de salida": "Output resolution",
   "PNG para Cricut Design (144 ppp)": "PNG for Cricut Design (144 dpi)",
   "PPP del PNG al guardar": "PNG dpi when saving",
+  "Tamaño real del diseño al exportarlo (cuadrados guía incluidos): es lo que debe medir en Cricut Design Space.":
+    "Real size of the design when exported (guide squares included): this is what it should measure in Cricut Design Space.",
   "300 · máxima calidad": "300 · max quality",
   "144 · Cricut Design": "144 · Cricut Design",
   "144 ppp: la resolución con la que Design Space interpreta las imágenes; se importan al tamaño EXACTO sin redimensionar.":
