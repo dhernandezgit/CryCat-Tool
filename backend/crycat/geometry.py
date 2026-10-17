@@ -98,13 +98,11 @@ STEP1_A4 = 9.85
 STEP2_A4 = 36.1
 
 # --- margen de borde de Design Space ------------------------------------
-# DS deja ~0,9 mm entre el diseño y el borde de su guía y auto-redimensiona
-# si el contenido llega justo al límite. ACTIVADO: el área útil es lo que DS
-# acepta de verdad para una hoja llena (A4: 18.10 x 26.79 cm; su máximo
-# oficial es 18.3 x 26.98 y él mismo recorta a ~18.1). Así el PNG se importa
-# tal cual, SIN que DS lo reescale, y las piezas conservan su tamaño exacto.
-# Con 0 el diseño mide 18.28 pero DS lo encoge ~1 % al importarlo.
-DS_EDGE_MM = 0.93
+# Medido en la app del usuario: DS encaja el diseño a ~18.2 x 26.96 cm (el
+# máximo oficial es 18.3 x 26.98). Se deja a 0: el diseño ocupa el máximo
+# oficial y DS lo redimensiona SIEMPRE a lo mismo (18.2 x 26.96), que es lo
+# que se quiere para que el corte sea consistente.
+DS_EDGE_MM = 0.0
 
 # Referencia (por si hace falta): el mayor RECTÁNGULO interior del área de
 # PTC de DS (lo que DS usa para auto-redimensionar un bloque macizo), en mm.

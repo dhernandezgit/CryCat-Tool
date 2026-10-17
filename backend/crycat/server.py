@@ -164,7 +164,8 @@ def _png_bytes(img: Image.Image) -> bytes:
 
 def _delimitar_mm() -> float:
     """Tamaño (mm) de los cuadrados blancos de referencia, 0 = desactivado."""
-    return 1.0 if settings.get("marcas_delimitar") else 0.0
+    # 2 mm: un poco más grandes para que DS los detecte siempre
+    return 2.0 if settings.get("marcas_delimitar") else 0.0
 
 
 def _delimitar_margen() -> float:
@@ -290,7 +291,7 @@ def create_app(store: Session = session) -> FastAPI:
             imagenes = store.images()
             pinned_extra: list = []
             if settings.get("marcas_delimitar"):
-                lado = 1.0
+                lado = 2.0
                 plado = max(8, int(round(lado / 25.4 * 300)))
                 cuadro = Image.new("RGBA", (plado, plado), (255, 255, 255, 255))
                 for k, (dx, dy) in enumerate(compose.cajas_delimitar(
@@ -562,7 +563,7 @@ def create_app(store: Session = session) -> FastAPI:
     def put_settings(payload: dict):
         page_changed = any(k in payload for k in
                            ("pagina_w", "pagina_h", "maquina", "espacio_mm",
-                            "margen_mm", "marcas_delimitar", "tamano_final_cm",
+                            "margen_mm", "marcas_delimitar",
                             "rotacion",
                             "usar_minis", "mini_min_mm",
                             "mini_rotacion", "mini_usar_lista",

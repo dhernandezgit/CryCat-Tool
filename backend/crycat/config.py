@@ -105,10 +105,6 @@ DEFAULTS: dict = {
     "pagina": "A4",
     "pagina_w": APP_W,           # mm (A4 vertical)
     "pagina_h": APP_H,
-    # Tamaño FINAL del diseño (ancho en cm): 0 = automático (el máximo que
-    # Design Space acepta, ~18.09 en A4). Si se pone otro, los límites se
-    # restringen proporcionalmente y el diseño mide exactamente lo pedido.
-    "tamano_final_cm": 0.0,
     "maquina": "maker3",         # maker3 | maker | maker5 | estandar | joy
     "usar_minis": False,       # desactivado por defecto (se activa en la barra)
     # Forma de las piezas (modos rápidos): siluetas (pegatinas), redondas

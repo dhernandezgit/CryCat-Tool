@@ -209,7 +209,7 @@ def _fit_box(img: Image.Image, tw: int, th: int) -> tuple[Image.Image, float]:
     return img.resize((nw, nh), Image.Resampling.LANCZOS), k
 
 
-def cajas_delimitar(area: CutArea, lado_mm: float = 1.0
+def cajas_delimitar(area: CutArea, lado_mm: float = 2.0
                     ) -> list[tuple[float, float]]:
     """Posiciones de los CUATRO cuadrados de referencia.
 

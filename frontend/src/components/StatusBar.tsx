@@ -247,7 +247,7 @@ export default function StatusBar({ job, backendOk, result, estimate,
                 <span>{result.pages > 1 ? t("páginas") : t("página")}</span>
               </div>
               {tamanoCm && (
-                <div className="stat-card" data-testid="tamano-card"
+                <div className="stat-card tamano" data-testid="tamano-card"
                      data-tip={t("Tamaño real del diseño al exportarlo (cuadrados guía incluidos): es lo que debe medir en Cricut Design Space.")}>
                   <b>{tamanoCm}</b><span>cm</span>
                 </div>

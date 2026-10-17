@@ -666,26 +666,6 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
     );
   };
 
-  // --- tamaño FINAL configurable (ancho en cm; 0/vacío = automático) -----
-  const [cmTexto, setCmTexto] = useState("");
-  useEffect(() => {
-    const v = Number(settings.tamano_final_cm) || 0;
-    setCmTexto(v > 0 ? String(v) : "");
-  }, [settings.tamano_final_cm]);
-  const aplicarTamano = () => {
-    const v = Math.max(0, Math.min(99,
-      Number(cmTexto.replace(",", ".")) || 0));
-    setCmTexto(v > 0 ? String(v) : "");
-    void saveSettings({ tamano_final_cm: v });
-  };
-  const altoFinal = useMemo(() => {
-    const w = Number(settings.tamano_final_cm) || 0;
-    if (w <= 0) return "";
-    const asp = (result?.bbox_mm?.[1] ?? 267.89) /
-                (result?.bbox_mm?.[0] ?? 181.02);
-    return (w * asp).toFixed(2);
-  }, [settings.tamano_final_cm, result?.bbox_mm]);
-
   const visible = largePage !== null ? [largePage] : Array.from({ length: pages }, (_, i) => i);
 
   return (
@@ -698,23 +678,6 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
         </div>
       )}
       <div className="viewer-top">
-        {/* TAMAÑO FINAL del diseño (zona central, configurable): vacío =
-            automático (el máximo que acepta Design Space). Al poner un ancho
-            menor, los límites se restringen proporcionalmente y el diseño se
-            exporta con esa medida exacta (DS lo importa tal cual). */}
-        <div className="tamano-final" data-testid="tamano-final"
-             data-tip={t("Tamaño final del diseño: se exporta con esta medida exacta. Vacío = automático (el máximo que acepta Design Space).")}>
-          <span className="hint">{t("Tamaño final")}</span>
-          <input type="number" min={0} max={99} step={0.5}
-            data-testid="tamano-final-cm"
-            value={cmTexto}
-            placeholder={t("auto")}
-            onChange={(e) => setCmTexto(e.target.value)}
-            onBlur={aplicarTamano}
-            onKeyDown={(e) => { if (e.key === "Enter") aplicarTamano(); }} />
-          <span className="tf-cm">cm</span>
-          {altoFinal && <span className="hint tf-alto">× {altoFinal} cm</span>}
-        </div>
         <button
             data-testid="btn-bordes"
             className={`btn-contorno ${verCont ? "modo-final" : "modo-ninguno"}`}
