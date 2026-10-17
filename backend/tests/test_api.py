@@ -421,6 +421,28 @@ def test_export_no_sobrescribe_nada(client, tmp_path):
     assert importante.read_text("utf-8") == "importante"
 
 
+def test_tamano_final_configurable(client, tmp_path):
+    """El tamaño final (ancho en cm) restringe los límites proporcionalmente
+    y el diseño se exporta con esa medida exacta (DS lo importa tal cual)."""
+    c, st, _ = client
+    upload(c, "gato.png")
+    _optimiza(c)
+    # por defecto (0): automático, el máximo que acepta DS
+    assert abs(st.current_area().bbox[2] - 181.02) < 0.1
+    # con 15 cm de ancho: la zona se escala proporcionalmente
+    c.put("/api/settings", json={"tamano_final_cm": 15.0})
+    a = st.current_area()
+    assert abs(a.bbox[2] - 150.0) < 0.1
+    assert abs(a.bbox[3] - 267.89 * 150.0 / 181.02) < 0.2
+    _optimiza(c)
+    r = c.post("/api/export", json={"name": "tf",
+                                    "folder": str(tmp_path)}).json()
+    fp = Path([f for f in r["files"] if f.endswith(".png")][0])
+    with Image.open(fp) as im:
+        d = im.info["dpi"][0]
+        assert abs(im.width / d * 25.4 - 150.0) < 0.5
+
+
 def test_export_web_descarga_con_nombre_y_tamano(client, tmp_path):
     """En la web (Pyodide) el PNG se entrega como data URL y con su nombre
     final (fecha + tamaño) para la descarga."""

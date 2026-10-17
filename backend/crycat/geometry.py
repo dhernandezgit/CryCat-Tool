@@ -305,6 +305,27 @@ def _bands_polygon(x0: float, y0: float, bw: float, bh: float
     return poly, notches
 
 
+def scale_area(area: CutArea, escala: float) -> CutArea:
+    """Área reducida PROPORCIONALMENTE (mismo centro) con sus escalones.
+
+    Sirve para el «tamaño final» configurable: al pedir un ancho menor, los
+    límites se restringen proporcionalmente (ancho y alto) y el diseño
+    exportado mide exactamente lo pedido. DS lo importa tal cual (es más
+    pequeño que su máximo).
+    """
+    if escala >= 0.999:
+        return area
+    escala = max(0.05, float(escala))
+    x0, y0, bw, bh = area.bbox
+    nbw, nbh = bw * escala, bh * escala
+    nx0 = x0 + (bw - nbw) / 2.0
+    ny0 = y0 + (bh - nbh) / 2.0
+    poly, notches = _bands_polygon(nx0, ny0, nbw, nbh)
+    return CutArea(page_w=area.page_w, page_h=area.page_h, poly=poly,
+                   bbox=(nx0, ny0, nbw, nbh), notches=notches,
+                   machine=area.machine)
+
+
 def inset_area(area: CutArea, margin: float) -> CutArea:
     """Área recortable con un margen de seguridad extra por todos los lados."""
     if margin <= 0:

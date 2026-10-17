@@ -297,7 +297,17 @@ class Session:
         ph = float(settings.get("pagina_h"))
         machine = str(settings.get("maquina"))
         # forma escalonada oficial de Print Then Cut (se aprovecha entera)
-        self.area = cut_area(pw, ph, machine)
+        area = cut_area(pw, ph, machine)
+        # tamaño final configurable: si se pide un ancho menor (cm), los
+        # límites se restringen proporcionalmente (0 = automático, el máximo)
+        try:
+            objetivo_cm = float(settings.get("tamano_final_cm", 0) or 0)
+        except Exception:
+            objetivo_cm = 0.0
+        if objetivo_cm > 0:
+            from .geometry import scale_area
+            area = scale_area(area, min(1.0, objetivo_cm * 10.0 / area.bbox[2]))
+        self.area = area
         return self.area
 
     # ------------------------------------------------------- colocaciones --

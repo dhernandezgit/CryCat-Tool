@@ -356,6 +356,13 @@ export const EN: Record<string, string> = {
   "PPP del PNG al guardar": "PNG dpi when saving",
   "Tamaño real del diseño al exportarlo (cuadrados guía incluidos): es lo que debe medir en Cricut Design Space.":
     "Real size of the design when exported (guide squares included): this is what it should measure in Cricut Design Space.",
+  "Tamaño final": "Final size",
+  "auto": "auto",
+  "Tamaño final del diseño: se exporta con esta medida exacta. Vacío = automático (el máximo que acepta Design Space).":
+    "Final size of the design: it is exported at this exact measure. Empty = automatic (the maximum Design Space accepts).",
+  "Tamaño final (ancho, cm)": "Final size (width, cm)",
+  "0 = automático (el máximo que acepta Design Space, ~18.1 cm en A4). Al poner un ancho menor, los límites se restringen proporcionalmente y el diseño se exporta con esa medida exacta.":
+    "0 = automatic (the maximum Design Space accepts, ~18.1 cm on A4). With a smaller width, the limits shrink proportionally and the design is exported at that exact measure.",
   "300 · máxima calidad": "300 · max quality",
   "144 · Cricut Design": "144 · Cricut Design",
   "144 ppp: la resolución con la que Design Space interpreta las imágenes; se importan al tamaño EXACTO sin redimensionar.":

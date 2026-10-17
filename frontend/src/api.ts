@@ -74,6 +74,7 @@ export interface AppSettings {
   pagina: string;
   pagina_w: number;
   pagina_h: number;
+  tamano_final_cm?: number;   // ancho final (cm); 0 = automático (máximo DS)
   maquina: string;
   usar_minis: boolean;
   mini_min_mm: number;

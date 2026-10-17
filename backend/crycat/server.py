@@ -562,7 +562,8 @@ def create_app(store: Session = session) -> FastAPI:
     def put_settings(payload: dict):
         page_changed = any(k in payload for k in
                            ("pagina_w", "pagina_h", "maquina", "espacio_mm",
-                            "margen_mm", "marcas_delimitar", "rotacion",
+                            "margen_mm", "marcas_delimitar", "tamano_final_cm",
+                            "rotacion",
                             "usar_minis", "mini_min_mm",
                             "mini_rotacion", "mini_usar_lista",
                             "mini_tamanos_lista", "modo_forma",

@@ -386,6 +386,9 @@ export default function SettingsPanel({ settings, saveSettings,
         </Grupo>
         <Grupo titulo="Hoja y máquina">
         <Av>{num("Resolución de salida", "dpi_salida", 72, 1200, 1, "ppp")}</Av>
+        {num("Tamaño final (ancho, cm)", "tamano_final_cm", 0, 99, 0.5, "cm",
+             undefined,
+             "0 = automático (el máximo que acepta Design Space, ~18.1 cm en A4). Al poner un ancho menor, los límites se restringen proporcionalmente y el diseño se exporta con esa medida exacta.")}
         <div className="ctl">
           <label>{t("PPP del PNG al guardar")}</label>
           <div className="seg-row">
