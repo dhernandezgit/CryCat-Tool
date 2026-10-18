@@ -60,6 +60,8 @@ export interface Result {
   minis: number;
   placed: number;
   unplaced?: number;   // copias que no caben (modo Solo 1 página)
+  // cuántas quedaron sin colocar por archivo (aviso desplegable)
+  unplaced_detalle?: { id: string; name: string; n: number }[];
 }
 
 export interface AppSettings {

@@ -672,9 +672,21 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
     <div className="viewer" data-testid="viewer">
       {(pages > 1 || (result?.unplaced ?? 0) > 0) && (
         <div className="aviso-paginas-flotante" data-testid="aviso-paginas">
-          {pages > 1
-            ? t("No cabe en una página: {n} páginas", { n: pages })
-            : t("No caben todas las copias")}
+          {pages > 1 ? (
+            t("No cabe en una página: {n} páginas", { n: pages })
+          ) : (
+            <details className="aviso-unplaced">
+              <summary data-testid="aviso-unplaced-resumen">
+                {t("No caben todas las copias: {n} sin colocar",
+                   { n: result?.unplaced ?? 0 })}
+              </summary>
+              <ul data-testid="aviso-unplaced-lista">
+                {(result?.unplaced_detalle ?? []).map((d) => (
+                  <li key={d.id}>{d.name} — {d.n}</li>
+                ))}
+              </ul>
+            </details>
+          )}
         </div>
       )}
       <div className="viewer-top">

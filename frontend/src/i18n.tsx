@@ -280,6 +280,8 @@ export const EN: Record<string, string> = {
     "Copy the whole report to the clipboard (in case you don't use GitHub)",
   "Se solapan elementos": "Elements overlap",
   "No caben todas las copias": "Not all copies fit",
+  "No caben todas las copias: {n} sin colocar":
+    "Not all copies fit: {n} left over",
   "Los bordes no quedan bien": "Borders don't look right",
   "La impresión sale movida": "Print comes out shifted",
   "El Pikmin no aparece": "The Pikmin never shows up",

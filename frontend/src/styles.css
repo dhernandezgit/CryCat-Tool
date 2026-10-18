@@ -196,6 +196,22 @@ input::placeholder { color: #cbbfc8; opacity: 1; font-style: italic; }
   padding: 6px 14px; border-radius: 999px;
   box-shadow: 0 4px 14px rgba(90, 30, 60, .25);
 }
+/* aviso de copias sin colocar: DESPLEGABLE con la lista por archivo */
+.aviso-unplaced { pointer-events: auto; }
+.aviso-unplaced summary {
+  cursor: pointer; list-style: none; display: flex; align-items: center;
+  gap: 6px;
+}
+.aviso-unplaced summary::-webkit-details-marker { display: none; }
+.aviso-unplaced summary::before { content: "▸"; font-size: 11px; }
+.aviso-unplaced[open] summary::before { content: "▾"; }
+.aviso-unplaced ul {
+  margin: 6px 0 2px 2px; padding: 6px 10px 6px 22px; list-style: disc;
+  text-align: left; font-weight: 600; font-size: 12px;
+  max-height: 180px; overflow: auto;
+  background: rgba(255, 255, 255, .14); border-radius: 10px;
+}
+.aviso-unplaced li { margin: 3px 0; }
 .viewer { position: relative; }
 .viewer-flotantes {
   position: absolute; inset: auto 10px 95px 10px; display: flex;

@@ -35,8 +35,13 @@ beforeEach(() => {
 });
 
 describe("Panel de ajustes", () => {
-  it("la vista general (General) está siempre desplegada con sus controles", () => {
+  it("General empieza MINIMIZADO y se abre al pulsarlo", async () => {
+    const u = userEvent.setup();
     render(<SettingsPanel settings={settings} saveSettings={saveSettings} />);
+    // minimizado: no se ven sus controles
+    expect(screen.queryByTestId("set-espacio_mm")).toBeNull();
+    await u.click(within(screen.getByTestId("sect-general"))
+      .getByText("General"));
     expect(screen.getByTestId("set-espacio_mm")).toHaveValue(2);
     expect(screen.getByTestId("set-rotacion")).toHaveValue("no");
     expect(screen.getByTestId("set-dpi_salida")).toHaveValue(300);
@@ -62,7 +67,8 @@ describe("Panel de ajustes", () => {
     expect(screen.queryByTestId("set-mini_max_rescale")).toBeNull();
   });
 
-  it("el modo rápido deja solo lo esencial (y el experto lo enseña todo)", () => {
+  it("el modo rápido deja solo lo esencial (y el experto lo enseña todo)", async () => {
+    const u = userEvent.setup();
     const rapido = { ...settings, modo: "rapido" as const };
     const { rerender } = render(
       <SettingsPanel settings={rapido} saveSettings={saveSettings} />);
@@ -70,6 +76,9 @@ describe("Panel de ajustes", () => {
     expect(screen.queryByTestId("sect-corte")).toBeNull();
     expect(screen.getByTestId("modo-rapido-aviso")).toBeInTheDocument();
     rerender(<SettingsPanel settings={settings} saveSettings={saveSettings} />);
+    // General empieza plegada: se abre para ver todos sus controles
+    await u.click(within(screen.getByTestId("sect-general"))
+      .getByText("General"));
     expect(screen.getByTestId("set-dpi_salida")).toBeInTheDocument();
     expect(screen.getByTestId("sect-corte")).toBeInTheDocument();
   });
@@ -100,16 +109,22 @@ describe("Panel de ajustes", () => {
     expect(saveSettings).toHaveBeenCalled();
   });
 
-  it("las rotaciones ofrecen 0/90/180/270 y cualquier ángulo", () => {
+  it("las rotaciones ofrecen 0/90/180/270 y cualquier ángulo", async () => {
+    const u = userEvent.setup();
     render(<SettingsPanel settings={settings} saveSettings={saveSettings} />);
+    await u.click(within(screen.getByTestId("sect-general"))
+      .getByText("General"));
     const sel = screen.getByTestId("set-rotacion");
     const opciones = Array.from(sel.querySelectorAll("option")).map((o) => o.textContent);
     expect(opciones.join(" ")).toMatch(/180/);
     expect(opciones.join(" ")).toMatch(/Cualquier ángulo/);
   });
 
-  it("la máquina Cricut Maker 5 está disponible y por defecto", () => {
+  it("la máquina Cricut Maker 5 está disponible y por defecto", async () => {
+    const u = userEvent.setup();
     render(<SettingsPanel settings={settings} saveSettings={saveSettings} />);
+    await u.click(within(screen.getByTestId("sect-general"))
+      .getByText("General"));
     expect(screen.getByTestId("set-maquina")).toBeInTheDocument();
     const opts = Array.from(screen.getByTestId("set-maquina").querySelectorAll("option"))
       .map((o) => (o as HTMLOptionElement).value);
@@ -119,6 +134,8 @@ describe("Panel de ajustes", () => {
   it("elegir un tamaño de papel actualiza sus medidas", async () => {
     const u = userEvent.setup();
     render(<SettingsPanel settings={settings} saveSettings={saveSettings} />);
+    await u.click(within(screen.getByTestId("sect-general"))
+      .getByText("General"));
     await u.selectOptions(screen.getByTestId("set-pagina"), "A3");
     expect(saveSettings).toHaveBeenCalledWith(
       expect.objectContaining({ pagina: "A3", pagina_w: 297, pagina_h: 420 })
@@ -217,6 +234,8 @@ describe("Marcas y medidas nuevas", () => {
   it("«Marcas para delimitar» está en General (modo básico incluido)", async () => {
     const u = userEvent.setup();
     render(<SettingsPanel settings={settings} saveSettings={saveSettings} />);
+    await u.click(within(screen.getByTestId("sect-general"))
+      .getByText("General"));
     const chk = screen.getByTestId("set-marcas-delimitar");
     expect(chk).not.toBeChecked();
     await u.click(chk);

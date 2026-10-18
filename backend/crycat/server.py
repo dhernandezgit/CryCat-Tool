@@ -72,6 +72,25 @@ def _color_rgb(valor: object,
     return por_defecto
 
 
+def _detalle_unplaced(unplaced, assets: dict) -> list[dict]:
+    """Cuántas copias quedaron sin colocar, agrupadas por archivo.
+
+    Devuelve [{"id", "name", "n"}] ordenado de más a menos, para el aviso
+    desplegable del visor (una línea por archivo).
+    """
+    try:
+        from collections import Counter
+        cnt = Counter(str(u).split("#", 1)[0] for u in (unplaced or []))
+        out = []
+        for aid, n in cnt.most_common():
+            a = assets.get(aid)
+            nombre = getattr(a, "name", "") if a is not None else ""
+            out.append({"id": aid, "name": nombre or aid, "n": n})
+        return out
+    except Exception:
+        return []
+
+
 def _data_url_png(path) -> str:
     """PNG del disco como data URL (para las descargas de la versión web)."""
     try:
@@ -1175,7 +1194,7 @@ def create_app(store: Session = session) -> FastAPI:
                     "marcas": {}, "marcas_cajas_mm": [],
                     "page_mm": [settings.get("pagina_w"), settings.get("pagina_h")],
                     "warnings": [], "method": "", "minis": 0, "placed": 0,
-                    "unplaced": 0}
+                    "unplaced": 0, "unplaced_detalle": []}
         r, area = store.last, store.area
         bx, by, bw, bh = area.bbox
         # caja de las marcas POR PÁGINA: su TINTA abraza el contenido de esa
@@ -1215,8 +1234,10 @@ def create_app(store: Session = session) -> FastAPI:
             "method": r.method,
             "minis": sum(1 for p in r.placements if p.mini),
             "placed": len(r.placements),
-            # copias que no caben (modo Solo 1 página): el visor avisa
+            # copias que no caben (modo Solo 1 página): el visor avisa con
+            # el total y el detalle por archivo (aviso desplegable)
             "unplaced": len(r.unplaced),
+            "unplaced_detalle": _detalle_unplaced(r.unplaced, store.assets),
         }
 
     @app.post("/api/result/restore")

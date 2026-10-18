@@ -186,8 +186,10 @@ export default function SettingsPanel({ settings, saveSettings,
   assets }: Props) {
   const t = useT();
   const [panelAbierto, setPanelAbierto] = useState(true);
+  // la sección «General» empieza MINIMIZADA (así el usuario no toca lo que
+  // no debe); se abre pulsando su cabecera o el raíl
   const [open, setOpen] = useState<Record<string, boolean>>({
-    general: true, minis: false, optimizacion: false, imagen: false,
+    general: false, minis: false, optimizacion: false, imagen: false,
     visualizacion: false,
     historial: false,
     perfiles: false, corte: false, extras: false, offset: false,
@@ -243,9 +245,7 @@ export default function SettingsPanel({ settings, saveSettings,
     setCoinciden(ids);
   }, [busca]);
 
-  const buscar = () => {
-    const q = normaliza(busca.trim());
-    if (!q) return;
+  const buscarEnDom = (q: string) => {
     const panel = document.querySelector(".settings-panel");
     for (const c of Array.from(panel?.querySelectorAll(".ctl") ?? [])) {
       if (puntua(q, normaliza(c.textContent || "")) <= 0) continue;
@@ -265,6 +265,20 @@ export default function SettingsPanel({ settings, saveSettings,
       }
       return;
     }
+  };
+
+  const buscar = () => {
+    const q = normaliza(busca.trim());
+    if (!q) return;
+    // al buscar se ABREN todas las secciones (aunque estén plegadas, como
+    // «General») para poder encontrar cualquier ajuste, y se resalta el
+    // primero que coincida
+    setOpen((o) => {
+      const todos: Record<string, boolean> = { ...o };
+      for (const k of Object.keys(o)) todos[k] = true;
+      return todos;
+    });
+    window.setTimeout(() => buscarEnDom(q), 60);
   };
 
   // imagen de referencia para la columna de mm: la más grande con minis

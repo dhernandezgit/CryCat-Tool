@@ -98,11 +98,10 @@ STEP1_A4 = 9.85
 STEP2_A4 = 36.1
 
 # --- margen de borde de Design Space ------------------------------------
-# Medido en la app del usuario: DS encaja el diseño a ~18.2 x 26.96 cm (el
-# máximo oficial es 18.3 x 26.98). Se deja a 0: el diseño ocupa el máximo
-# oficial y DS lo redimensiona SIEMPRE a lo mismo (18.2 x 26.96), que es lo
-# que se quiere para que el corte sea consistente.
-DS_EDGE_MM = 0.0
+# Medido en la app del usuario: DS acepta como máximo 18.27 x 26.96 cm (el
+# oficial es 18.3 x 26.98). Con 0.1 mm por lado el diseño mide exactamente
+# eso: DS lo importa TAL CUAL (sin redimensionar) y siempre sale lo mismo.
+DS_EDGE_MM = 0.1
 
 # Referencia (por si hace falta): el mayor RECTÁNGULO interior del área de
 # PTC de DS (lo que DS usa para auto-redimensionar un bloque macizo), en mm.

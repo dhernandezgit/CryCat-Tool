@@ -125,6 +125,11 @@ export default function StatusBar({ job, backendOk, result, estimate,
     }
     if (job && job.status === "error") return job.message || "Error";
     if (result && result.pages > 0) {
+      // si algo no cupo, se dice CUÁNTAS quedaron sin colocar
+      if ((result.unplaced ?? 0) > 0) {
+        return t("No caben todas las copias: {n} sin colocar",
+                 { n: result.unplaced ?? 0 });
+      }
       // el resumen va en las tarjetas (stat-cards), más visual
       return t("Listo");
     }
