@@ -1,7 +1,7 @@
 """Tests del empaquetado por silueta real (forma no transparente)."""
 
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageDraw
 
 from crycat import geometry as g
 from crycat import silhouette
@@ -295,7 +295,7 @@ def test_el_solape_se_calcula_con_la_silueta():
     got = ctx.best_for(0, dm, rm)
     ty, tx = got[0]
     silhouette._commit_offset(ctx, "c", "c", 0, 0.0, 1.0, False, rm, dm,
-                              (ty, tx), 40.0, 40.0)
+                              (ty, tx), 40.0, 40.0, circle)
     # vecino hexagonal exacto: centro a 20 mm en x y 34.6 mm en y (dist = 40)
     dy = int(round(34.6 / 0.5))
     dx = int(round(20.0 / 0.5))
@@ -306,6 +306,37 @@ def test_el_solape_se_calcula_con_la_silueta():
     assert solape == 0, "la diagonal debe caber: el solape es de SILUETA"
     # y las cajas (40x40) sí se solapan en esa posición
     assert dx * 0.5 < 40.0 and dy * 0.5 < 40.0
+
+
+def test_tamano_girado_es_la_silueta_no_la_caja():
+    """El tamaño de una pieza girada es su SILUETA, no la caja del rectángulo.
+
+    Un círculo de 70 mm girado 45° sigue midiendo 70 mm (antes se le
+    inventaba una caja de 99: el bbox del cuadrado girado)."""
+    circle = _circle(70)
+    w, h = silhouette._tamano_silueta(circle, 70.0, 70.0, 45.0)
+    assert abs(w - 70.0) < 0.6 and abs(h - 70.0) < 0.6, (w, h)
+    # alargada 60x20 a 45°: la caja real es (60+20)/√2 ≈ 56,6 en ambos ejes
+    im = Image.new("RGBA", (600, 200), (0, 0, 0, 0))
+    ImageDraw.Draw(im).rectangle((0, 0, 599, 199), fill=(0, 0, 0, 255))
+    w, h = silhouette._tamano_silueta(im, 60.0, 20.0, 45.0)
+    assert abs(w - 56.57) < 1.0 and abs(h - 56.57) < 1.0, (w, h)
+    # sin giro manda el tamaño pedido (exacto, sin redondear a la rejilla)
+    assert silhouette._tamano_silueta(im, 60.0, 20.0, 0.0) == (60.0, 20.0)
+    assert silhouette._tamano_silueta(im, 60.0, 20.0, 90.0) == (20.0, 60.0)
+
+
+def test_placement_girado_usa_la_silueta():
+    """Colocar un círculo a 45° no debe inflar su caja en el resultado."""
+    circle = _circle(70)
+    ctx = silhouette._Ctx(area_a4(), {"espacio_mm": 0.0}, cell=0.5)
+    ctx.new_page()
+    rm, dm = ctx.rotated("c", 70.0, 70.0, 45.0, circle)
+    got = ctx.best_for(0, dm, rm)
+    silhouette._commit_offset(ctx, "c", "c", 0, 45.0, 1.0, False, rm, dm,
+                              got[0], 70.0, 70.0, circle)
+    p = ctx.placements[-1]
+    assert abs(p.w - 70.0) < 0.6 and abs(p.h - 70.0) < 0.6, (p.w, p.h)
 
 
 def test_contornos_simplificados_bien_formados():

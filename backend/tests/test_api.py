@@ -933,12 +933,6 @@ def _optimizar_y_esperar(c, n_esperado=1):
     return c.get("/api/result").json()
 
 
-@pytest.mark.skip(reason="PENDIENTE: contornos vectoriales en piezas giradas. "
-                  "Las rectas dan ~90% de cobertura; con ang=90 baja al 26%. "
-                  "Datos: x=22.1 y=21.9 w=16.9 h=30.5 ang=90. El render usa "
-                  "PIL rotate(expand)+escala uniforme; hay que igualar esa "
-                  "transformación exacta (o tomar el contorno del PNG ya "
-                  "renderizado, que sí está alineado).")
 def test_contornos_posicion_tamano_y_angulo(client):
     """Los contornos vectoriales caen en su sitio, con su tamaño y su ángulo.
 

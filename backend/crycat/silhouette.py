@@ -499,7 +499,22 @@ class _Ctx:
         self.cache: dict = {}
         self.out_cache: dict = {}
         self.rot_cache: dict = {}   # (aid, tamaño, ángulo) → (rm, dm) cacheado
+        self.size_cache: dict = {}  # tamaño REAL de la silueta girada
         self.mask_cells = 0
+
+    def tamano_silueta(self, img: Image.Image, w_mm: float, h_mm: float,
+                       angle: float) -> tuple[float, float]:
+        """Caja REAL de la silueta girada (mm), cacheada por (imagen, tamaño,
+        ángulo): los minis repiten muchísimo la misma combinación."""
+        clave = (id(img), round(w_mm, 3), round(h_mm, 3),
+                 round(float(angle) % 360.0, 3))
+        c = self.size_cache.get(clave)
+        if c is None:
+            if len(self.size_cache) > 400:
+                self.size_cache.clear()
+            c = _tamano_silueta(img, w_mm, h_mm, angle)
+            self.size_cache[clave] = c
+        return c
 
     def out_corr(self, dm: np.ndarray) -> np.ndarray:
         """Correlación cacheada de la máscara dilatada con lo NO permitido.
@@ -632,7 +647,7 @@ def _try_place(ctx: _Ctx, aid: str, name: str, w_mm: float, h_mm: float,
                 got = ctx.best_for(pi, dm, rm)
                 if got is not None:
                     return _commit_offset(ctx, aid, name, pi, ang, scale, mini,
-                                          rm, dm, got[0], w_mm, h_mm)
+                                          rm, dm, got[0], w_mm, h_mm, img)
         if new_page_ok:
             n_pags = len(ctx.pages)
             pi = ctx.new_page()
@@ -644,7 +659,7 @@ def _try_place(ctx: _Ctx, aid: str, name: str, w_mm: float, h_mm: float,
                 got = ctx.best_for(pi, dm, rm)
                 if got is not None:
                     return _commit_offset(ctx, aid, name, pi, ang, scale,
-                                          mini, rm, dm, got[0], w_mm, h_mm)
+                                          mini, rm, dm, got[0], w_mm, h_mm, img)
             # OJO: en modo «Solo 1 página» `new_page` NO añade nada y devuelve
             # la 0: sin esta comprobación el pop VACIABA la página ya llena
             # (las colocaciones seguían en la lista → piezas duplicadas).
@@ -671,7 +686,7 @@ def _try_place(ctx: _Ctx, aid: str, name: str, w_mm: float, h_mm: float,
     if best is not None:
         _, pi, ang, off, rm, dm = best
         return _commit_offset(ctx, aid, name, pi, ang, scale, mini,
-                              rm, dm, off, w_mm, h_mm)
+                              rm, dm, off, w_mm, h_mm, img)
     if new_page_ok:
         n_pags = len(ctx.pages)
         pi = ctx.new_page()
@@ -683,7 +698,7 @@ def _try_place(ctx: _Ctx, aid: str, name: str, w_mm: float, h_mm: float,
             got = ctx.best_for(pi, dm, rm if contacto else None)
             if got is not None:
                 return _commit_offset(ctx, aid, name, pi, ang, scale, mini,
-                                      rm, dm, got[0], w_mm, h_mm)
+                                      rm, dm, got[0], w_mm, h_mm, img)
         # igual que en first_fit: solo se descarta la hoja si era NUEVA
         del ctx.pages[n_pags:]
         del ctx.pages_sil[n_pags:]
@@ -751,7 +766,7 @@ def _try_place_voronoi(ctx: _Ctx, aid: str, name: str, w_mm: float,
     if mejor is not None:
         _, pi, ang, off, rm, dm = mejor
         return _commit_offset(ctx, aid, name, pi, ang, scale, mini,
-                              rm, dm, off, w_mm, h_mm)
+                              rm, dm, off, w_mm, h_mm, img)
     # reserva: colocación Bottom-Left normal (nunca peor que greedy)
     return _try_place(ctx, aid, name, w_mm, h_mm, scale, mini, img,
                       rot_angles, new_page_ok, contacto=True, voronoi=False)
@@ -845,7 +860,7 @@ def _try_place_pareja(ctx: _Ctx, aid: str, name: str, w_mm: float, h_mm: float,
         return False
     _, _y_mm, _x_mm, pi, ang, rm, dm, off = mejor
     return _commit_offset(ctx, aid, name, pi, ang, scale, False, rm, dm, off,
-                          w_mm, h_mm)
+                          w_mm, h_mm, img)
 
 def _ref_medida(w_mm: float, h_mm: float, medida: str) -> float:
     """Tamaño de referencia según cómo se mide (igual que en importación)."""
@@ -917,8 +932,49 @@ def _exact_size(w_mm: float, h_mm: float, angle: float) -> tuple[float, float]:
     return rotated_size(w_mm, h_mm, a)
 
 
+def _tamano_silueta(img: Image.Image, w_mm: float, h_mm: float,
+                    angle: float, dpi: float = 300.0) -> tuple[float, float]:
+    """Tamaño REAL de la silueta girada (caja del alfa), en mm.
+
+    NUNCA la caja del rectángulo girado (`rotated_size`): un círculo de 70 mm
+    girado 45° sigue midiendo 70 mm, no 99. El área de una pieza es SIEMPRE su
+    silueta (la misma transformación del render: recorte al alfa, escala al
+    tamaño pedido y giro), nunca una inventada que inflaba las cajas del
+    visor, los contornos y el tamaño del diseño.
+    """
+    a = float(angle) % 360.0
+    if abs(a) < 0.01 or abs(a - 180.0) < 0.01:
+        return w_mm, h_mm
+    if abs(a - 90.0) < 0.01 or abs(a - 270.0) < 0.01:
+        return h_mm, w_mm
+    try:
+        rgba = img.convert("RGBA")
+        caja = rgba.getchannel("A").getbbox()
+        if caja:
+            rgba = rgba.crop(caja)
+        tw = max(1, int(round(w_mm / 25.4 * dpi)))
+        th = max(1, int(round(h_mm / 25.4 * dpi)))
+        k = min(tw / rgba.width, th / rgba.height)
+        # tope de coste: una pieza enorme no necesita más resolución que
+        # ~2000 px para medir su caja con precisión de sobra (<0,2 mm)
+        tope = 2000.0 / max(1, max(rgba.width, rgba.height))
+        k = min(k, tope)
+        nw = max(1, int(round(rgba.width * k)))
+        nh = max(1, int(round(rgba.height * k)))
+        if (nw, nh) != rgba.size:
+            rgba = rgba.resize((nw, nh), Image.Resampling.BILINEAR)
+        girada = rgba.rotate(a, expand=True, resample=Image.Resampling.BICUBIC)
+        bb = girada.getchannel("A").getbbox()
+        if not bb:
+            return w_mm, h_mm
+        return ((bb[2] - bb[0]) / dpi * 25.4, (bb[3] - bb[1]) / dpi * 25.4)
+    except Exception:
+        from .geometry import rotated_size
+        return rotated_size(w_mm, h_mm, a)
+
+
 def _commit_offset(ctx, aid, name, pi, ang, scale, mini, rm, dm, off,
-                   w_mm: float, h_mm: float) -> bool:
+                   w_mm: float, h_mm: float, img: Image.Image) -> bool:
     ty, tx = off
     h, w = dm.shape
     occ = ctx.pages[pi]
@@ -931,8 +987,9 @@ def _commit_offset(ctx, aid, name, pi, ang, scale, mini, rm, dm, off,
     ys, xs = np.where(rm)
     x_mm = (tx + xs.min()) * ctx.cell + ctx.x0
     y_mm = (ty + ys.min()) * ctx.cell + ctx.y0
-    # tamaño EXACTO (no el de la rejilla): escala uniforme + giro
-    we, he = _exact_size(w_mm, h_mm, ang)
+    # tamaño REAL de la silueta (no la caja del rectángulo girado): un círculo
+    # girado mide lo mismo, y una pieza alargada mide su caja girada de verdad
+    we, he = ctx.tamano_silueta(img, w_mm, h_mm, ang)
     ctx.placements.append(Placement(
         uid=f"{aid}#{len(ctx.placements)}", asset_id=aid, page=pi,
         x=x_mm, y=y_mm, w=we, h=he, angle=ang, mini=mini, scale=scale,
@@ -1376,7 +1433,8 @@ def _one_pass(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
             occ_sil[ty:ty + h, tx:tx + w] = np.maximum(
                 occ_sil[ty:ty + h, tx:tx + w], rm.astype(np.float32))
             ctx.mask_cells += int(np.count_nonzero(rm))
-        we, he = _exact_size(a["w_mm"] * esc, a["h_mm"] * esc, p.angle)
+        we, he = ctx.tamano_silueta(img, a["w_mm"] * esc, a["h_mm"] * esc,
+                                    p.angle)
         ctx.placements.append(Placement(
             uid=p.uid, asset_id=p.asset_id, page=pi, x=p.x, y=p.y,
             w=we, h=he, angle=p.angle, mini=p.mini, scale=p.scale,
@@ -2326,8 +2384,8 @@ def compactar(assets: list[dict], masks: dict, area: CutArea, settings: dict,
             _, y_mm, x_mm, ang = mejor
             if y_mm < p.y - 1e-6 or (abs(y_mm - p.y) < 1e-6 and x_mm < p.x - 1e-6):
                 p.y, p.x, p.angle = y_mm, x_mm, ang
-                we, he = _exact_size(a["w_mm"] * esc, a["h_mm"] * esc, ang)
-                p.w, p.h = we, he
+                p.w, p.h = ctx.tamano_silueta(img, a["w_mm"] * esc,
+                                              a["h_mm"] * esc, ang)
                 mejoro = hubo = True
         if not mejoro:
             break

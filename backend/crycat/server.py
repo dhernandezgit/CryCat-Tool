@@ -1163,8 +1163,29 @@ def create_app(store: Session = session) -> FastAPI:
                     for poly in girados]
 
         imagenes = store.images()
-        sin_borde = {a.id: a.img for a in store.assets.values()}
+        sin_borde = store.images_sin_borde()
         por_id = {a["id"]: a for a in store.asset_dicts()}
+        giro_cache: dict = {}
+
+        def contenido_girado(img, ang: float):
+            """Contenido recortado al alfa y GIRADO igual que el render.
+
+            El contorno sale del contenido YA girado (misma transformación que
+            el render: giro con expand). Antes se extraía de la imagen sin
+            girar y `colocar` estiraba la forma a la caja girada: en las
+            piezas giradas el contorno no cuadraba con lo dibujado.
+            """
+            key = (id(img), round(float(ang) % 360.0, 3))
+            g = giro_cache.get(key)
+            if g is None:
+                from .imaging import trim as _trim
+                from .compose import _content_image
+                class _Ang:
+                    angle = float(ang)
+                g = _trim(_content_image(img, _Ang()))
+                giro_cache[key] = g
+            return g
+
         salida = []
         for p in store.last.placements:
             a = por_id.get(p.asset_id)
@@ -1172,14 +1193,18 @@ def create_app(store: Session = session) -> FastAPI:
             ori = sin_borde.get(p.asset_id)
             if a is None or fin is None:
                 continue
-            final = colocar(polys_de(fin, p.w, p.h), p.w, p.h, p.angle,
+            # el contorno de la pieza va en su caja REAL (silueta girada):
+            # la misma que el render y que el visor
+            rot = contenido_girado(fin, p.angle)
+            final = colocar(polys_de(rot, p.w, p.h), p.w, p.h, 0.0,
                             p.x, p.y, p.w, p.h)
             original = []
-            if ori is not None and fin.width and fin.height:
-                w_o = p.w * ori.width / fin.width
-                h_o = p.h * ori.height / fin.height
+            if ori is not None and rot.width and rot.height:
+                rot_o = contenido_girado(ori, p.angle)
+                w_o = p.w * rot_o.width / rot.width
+                h_o = p.h * rot_o.height / rot.height
                 original = colocar(
-                    polys_de(ori, w_o, h_o), w_o, h_o, p.angle,
+                    polys_de(rot_o, w_o, h_o), w_o, h_o, 0.0,
                     p.x + (p.w - w_o) / 2.0, p.y + (p.h - h_o) / 2.0,
                     w_o, h_o)
             salida.append({"uid": p.uid, "page": p.page,
