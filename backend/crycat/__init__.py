@@ -1,5 +1,5 @@
 """CryCat - colocación óptima de imágenes para Cricut."""
 
-__version__ = "2.9.26"
+__version__ = "2.9.28"
 APP_NAME = "CryCat"
 AUTOR = "Daniel Hernández Ferrándiz y Wivi.eve"

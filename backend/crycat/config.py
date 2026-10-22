@@ -14,7 +14,7 @@ APP_NAME = "CryCat"
 APP_W = 210.0
 APP_H = 297.0
 
-CONFIG_VERSION = 26  # subir para migrar configuraciones antiguas
+CONFIG_VERSION = 27  # subir para migrar configuraciones antiguas
 
 # Tiempo máximo RECOMENDADO por método (segundos). El usuario puede
 # desactivar el automático y fijar su propio presupuesto.
@@ -120,7 +120,7 @@ DEFAULTS: dict = {
     "mini_max_rescale": 70.0,    # tamaño máximo del mini (% del original)
     "mini_rotacion": "libre",    # no | 90 (0/90/180/270) | libre (por defecto)
     "mini_tamanos": "iguales",   # iguales (por defecto) | grandes
-    "mini_usar_lista": True,     # por defecto manda la LISTA de tamaños
+    "mini_usar_lista": False,    # por defecto AUTOMÁTICO (mínimo + %); la lista es opcional
     "mini_lista_modo": "mm",
     "mini_lista_medida": "circulo",  # la lista en mm se mide así: circulo (defecto) | menor | mayor
     # borde de los minis: igual (mismos mm que el grande, por defecto),
@@ -215,7 +215,13 @@ class Settings:
                 if CONFIG_FILE.exists():
                     saved = json.loads(CONFIG_FILE.read_text("utf-8"))
                     if saved.get("_v") != CONFIG_VERSION:
-                        if saved.get("_v") == 25:
+                        if saved.get("_v") == 26:
+                            # los minis pasan a ser AUTOMÁTICOS por defecto
+                            # (antes mandaba la lista de tamaños): el tamaño lo
+                            # elige el optimizador entre el mínimo y el % máximo
+                            saved["mini_usar_lista"] = False
+                            saved["_v"] = CONFIG_VERSION
+                        elif saved.get("_v") == 25:
                             # los minis pasan a estar desactivados por defecto
                             saved["usar_minis"] = False
                             saved["_v"] = CONFIG_VERSION

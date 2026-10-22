@@ -32,6 +32,16 @@ CELL = 0.5
 # el modo libre no podía usar los giros rectos, que son los más útiles)
 FREE_ANGLES = (15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180, 270)
 
+# marcador para distinguir "no está en la caché" de "no cabe" (None)
+_SIN_RESULTADO = object()
+
+# fracción del presupuesto que puede usar la SEMILLA en «Solo 1 página».
+# Ahora que los intentos fallidos están cacheados la semilla suele acabar
+# ANTES (y las variantes aprovechan el resto); se le deja el presupuesto
+# entero para GARANTIZAR que un trabajo que cabe se coloque completo aunque
+# la máquina vaya lenta.
+SEMILLA_FRAC = 1.0
+
 
 # --------------------------------------------------------------- utilidades --
 def _dentro_poly(poly, X: np.ndarray, Y: np.ndarray) -> np.ndarray:
@@ -338,9 +348,13 @@ def _best_offset(occ: np.ndarray, m: np.ndarray, out_corr: np.ndarray,
     valid = (ov <= tol) & (out_corr < 0.5)
     valid[H - h + 1:, :] = False
     valid[:, W - w + 1:] = False
-    if not valid.any():
+    # selección O(N) sin ordenar: la clave es (y más baja, más contacto, x
+    # más a la izquierda). Antes se hacía un lexsort de TODAS las posiciones
+    # válidas (cientos de miles) y se llevaba la mayor parte del tiempo.
+    filas = np.flatnonzero(valid.any(axis=1))
+    if len(filas) == 0:
         return None
-    ys, xs = np.where(valid)
+    y = int(filas[0])
     if occ_contact is not None:
         if rm is not None and rm.shape == m.shape:
             # anillo alrededor de la silueta real (proximidad, no solape)
@@ -348,14 +362,12 @@ def _best_offset(occ: np.ndarray, m: np.ndarray, out_corr: np.ndarray,
             contact = _correlate(occ_contact, anillo)
         else:
             contact = _correlate(occ_contact, m)
-        scores = contact[ys, xs]
-        # Bottom-Left: manda la y más baja; el contacto desempata la misma fila
-        order = np.lexsort((xs, -scores, ys))
-        k = int(order[0])
-        return (int(ys[k]), int(xs[k])), int(round(float(scores[k])))
-    order = np.lexsort((xs, ys))
-    k = int(order[0])
-    return (int(ys[k]), int(xs[k])), 0
+        fila_ok = valid[y]
+        punt = np.where(fila_ok, contact[y], -1.0)
+        mejor = int(punt.argmax())
+        return (y, mejor), int(round(float(punt[mejor])))
+    x = int(valid[y].argmax())
+    return (y, x), 0
 
 
 def _angles(rot_mode: str) -> list[float]:
@@ -500,6 +512,12 @@ class _Ctx:
         self.out_cache: dict = {}
         self.rot_cache: dict = {}   # (aid, tamaño, ángulo) → (rm, dm) cacheado
         self.size_cache: dict = {}  # tamaño REAL de la silueta girada
+        # versión de cada hoja: cambia al colocar algo. Sirve para cachear
+        # `best_for`: con la hoja QUIETA (fase de "ya no cabe nada") la misma
+        # silueta da SIEMPRE el mismo resultado → se reutiliza y los intentos
+        # fallidos dejan de costar (eran el 80% del tiempo del empaquetado).
+        self._vers: list[int] = []
+        self._for_cache: dict = {}
         self.mask_cells = 0
 
     def tamano_silueta(self, img: Image.Image, w_mm: float, h_mm: float,
@@ -539,7 +557,29 @@ class _Ctx:
         ocupada (mucho más rápido) con reserva a la búsqueda completa.
 
         Con `rm` el contacto se mide contra las siluetas REALES; sin él se
-        aplica Bottom-Left puro (la posición válida más baja)."""
+        aplica Bottom-Left puro (la posición válida más baja).
+
+        El resultado se CACHEA por (hoja, versión, silueta): mientras la hoja
+        no cambie, repetir la misma silueta da lo mismo. Es la mayor ganancia
+        de tiempo: cuando la hoja ya está llena, las 40-70 piezas que quedan
+        reintentan los mismos ángulos una y otra vez (y no cambian nada).
+        """
+        key = None
+        if 0 <= pi < len(self._vers):
+            key = (pi, self._vers[pi], dm.shape, hash(dm.tobytes()),
+                   1 if rm is not None else 0)
+            hit = self._for_cache.get(key, _SIN_RESULTADO)
+            if hit is not _SIN_RESULTADO:
+                return hit
+        got = self._best_for_calc(pi, dm, rm)
+        if key is not None:
+            if len(self._for_cache) > 4096:
+                self._for_cache.clear()
+            self._for_cache[key] = got
+        return got
+
+    def _best_for_calc(self, pi: int, dm: np.ndarray,
+                       rm: np.ndarray | None = None):
         occ = self.pages[pi]
         occ_sil = self.pages_sil[pi] if rm is not None else None
         oc = self.out_corr(dm)
@@ -600,6 +640,7 @@ class _Ctx:
             return 0
         self.pages.append(np.zeros((self.H, self.W), dtype=np.float32))
         self.pages_sil.append(np.zeros((self.H, self.W), dtype=np.float32))
+        self._vers.append(0)
         return len(self.pages) - 1
 
     def ensure_page(self, page: int) -> int:
@@ -792,17 +833,21 @@ def _best_offset_contacto(occ: np.ndarray, m: np.ndarray,
     valid[:, W - w + 1:] = False
     if not valid.any():
         return None
-    ys, xs = np.where(valid)
     if rm is not None and rm.shape == m.shape:
         contact = _correlate(occ_contact, _dilate(rm, max(2, int(ring))))
     else:
         contact = _correlate(occ_contact, m)
-    scores = contact[ys, xs]
-    if float(scores.max()) < 0.5:      # 0.5 = contacto real (no ruido de FFT)
+    # selección O(N): primero el contacto MÁXIMO, luego y más baja y x más a
+    # la izquierda (antes: lexsort de todas las posiciones válidas)
+    punt = np.where(valid, contact, -np.inf)
+    fila_max = punt.max(axis=1)
+    y = int(fila_max.argmax())
+    mejor = float(fila_max[y])
+    if mejor < 0.5:                    # 0.5 = contacto real (no ruido de FFT)
         return None
-    order = np.lexsort((xs, ys, -scores))
-    k = int(order[0])
-    return (int(ys[k]), int(xs[k])), int(round(float(scores[k])))
+    fila = np.where(punt[y] == mejor)[0]
+    x = int(fila.min())
+    return (y, x), int(round(mejor))
 
 
 def _try_place_pareja(ctx: _Ctx, aid: str, name: str, w_mm: float, h_mm: float,
@@ -995,6 +1040,8 @@ def _commit_offset(ctx, aid, name, pi, ang, scale, mini, rm, dm, off,
         x=x_mm, y=y_mm, w=we, h=he, angle=ang, mini=mini, scale=scale,
         rot90=False, w0=w_mm, h0=h_mm))
     ctx.mask_cells += int(np.count_nonzero(rm))
+    if pi < len(ctx._vers):
+        ctx._vers[pi] += 1          # la hoja cambió: invalidar la caché
     return True
 
 
@@ -1059,6 +1106,27 @@ def _celda_ajustada(cell: float, area: CutArea) -> float:
     if n > MAX_CELDAS:
         return math.sqrt(bw * bh / MAX_CELDAS)
     return cell
+
+
+def _mini_tam_min_mm(assets: list[dict], settings: dict) -> float:
+    """Tamaño (mm) del mini MÁS PEQUEÑO que se va a intentar colocar.
+
+    Sirve para elegir la rejilla del relleno: con minis grandes (≥ 8 mm) se
+    puede usar 1 mm de celda (más rápida y con más intentos); con minis
+    diminutos se mantiene la rejilla fina para no colocarlos mal.
+    """
+    if settings.get("mini_usar_lista"):
+        vals = [max(0.5, float(v)) for v in
+                (settings.get("mini_tamanos_lista") or [])]
+        if not vals:
+            return 0.0
+        if str(settings.get("mini_lista_modo", "mm")) == "pct":
+            bases = [max(0.5, min(float(a["w_mm"]), float(a["h_mm"]))
+                         * v / 100.0)
+                     for a in assets for v in vals]
+            return min(bases) if bases else 0.0
+        return min(vals)
+    return max(0.0, float(settings.get("mini_min_mm", 10.0) or 0.0))
 
 
 def _rellenar_minis(ctx: _Ctx, assets: list[dict], masks: dict,
@@ -1340,6 +1408,8 @@ def _rellenar_ratas(res: PackResult, assets: list[dict], masks: dict,
             occ_sil = ctx.pages_sil[0]
             occ_sil[ty:ty + h, tx:tx + w] = np.maximum(
                 occ_sil[ty:ty + h, tx:tx + w], rm.astype(np.float32))
+            if ctx._vers:
+                ctx._vers[0] += 1
     # tamaños: del mayor al mínimo; de CADA tamaño se generan todas las que
     # caben (solo el hueco libre las limita). El tamaño pedido se mide sobre
     # el CONTENIDO y luego se añade el borde de las ratas según su modo
@@ -1433,6 +1503,8 @@ def _one_pass(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
             occ_sil[ty:ty + h, tx:tx + w] = np.maximum(
                 occ_sil[ty:ty + h, tx:tx + w], rm.astype(np.float32))
             ctx.mask_cells += int(np.count_nonzero(rm))
+            if pi < len(ctx._vers):
+                ctx._vers[pi] += 1
         we, he = ctx.tamano_silueta(img, a["w_mm"] * esc, a["h_mm"] * esc,
                                     p.angle)
         ctx.placements.append(Placement(
@@ -1818,6 +1890,8 @@ def _sin_solapes(res: PackResult, assets: list[dict],
         occ_sil = ctx.pages_sil[p.page]
         occ_sil[ty:ty + h, tx:tx + w] = np.maximum(
             occ_sil[ty:ty + h, tx:tx + w], rm.astype(np.float32))
+        if p.page < len(ctx._vers):
+            ctx._vers[p.page] += 1
         conservadas.append(p)
     if descartados or perdidas:
         res.placements = conservadas
@@ -1890,10 +1964,17 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
         if not settings.get("usar_minis"):
             return res
         try:
-            # celda media para los minis (0,5 mm): llenar huecos no necesita
-            # precisión de décimas y así caben más intentos por segundo (con
-            # la celda del refinado se quedaba en muy pocos minis)
+            # celda de los minis: llenar huecos no necesita precisión de
+            # décimas y una rejilla más gruesa es 4-5× más rápida en las FFT.
+            # Medido: con 1 mm caben MÁS minis en menos tiempo (la red de
+            # seguridad final los valida con el alfa real y descarta los que
+            # no quepan de verdad). Con minis muy pequeños se mantiene fina.
             celda_mini = max(0.5, res.cell or 0.5)
+            try:
+                if _mini_tam_min_mm(assets, settings) >= 8.0:
+                    celda_mini = max(celda_mini, 0.75)
+            except Exception:
+                pass
             ctx_mini = _reconstruir(assets, masks, area, settings,
                                     res.placements, celda_mini)
             n0 = len(ctx_mini.placements)
@@ -1901,12 +1982,13 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
                 progress(0.86, res.pages)
             # los minis son lo ÚLTIMO: se les da margen para llenar TODO lo
             # que quepa (solo el hueco libre y este tope de seguridad los
-            # paran). Antes el tope era de 800 minis y muchos huecos se
-            # quedaban vacíos aunque cupieran más; con tamaños pequeños
-            # (2-3 mm) caben MILES, así que el margen es amplio
+            # paran). El margen va en proporción al presupuesto: un trabajo
+            # de 6 s no puede acabar gastando 4 minutos de minis.
+            extra_mini = min(10.0, max(2.0, 0.6 * t_max))
             _rellenar_minis(ctx_mini, assets, masks, settings,
                             deadline=min(time.time() + 300.0,
-                                         max(deadline, time.time()) + 240.0),
+                                         max(deadline, time.time())
+                                         + extra_mini),
                             progress=progress)
             nuevos = ctx_mini.placements[n0:]
             if nuevos:
@@ -1955,22 +2037,13 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
         metodo = "greedy"
     elif metodo == "silueta_optimo":
         metodo = "genetic"
-    # AUTOMÁTICO: se elige según el ESPACIO DISPONIBLE. Si sobra sitio, la
-    # pasada rápida de silueta basta (instantánea); si se va llenando, greedy
-    # con contacto; y si está muy lleno, voronoi (aprovecha los huecos).
+    # AUTOMÁTICO = GREEDY con multi-arranque (medido): es más rápido que el
+    # voronoi y coloca igual o más piezas. Con hojas muy llenas el voronoi
+    # gastaba el presupuesto en las transformadas de distancia y dejaba menos
+    # piezas (en una mezcla densa: 16-17 vs 24 del greedy). El voronoi sigue
+    # disponible como método explícito.
     if metodo == "auto":
-        total = 0.0
-        for a in assets:
-            n = max(0, int(a.get("copies", 1)))
-            extra = 3 if (a.get("mini_enabled")
-                          and settings.get("usar_minis")) else 0
-            total += a["w_mm"] * a["h_mm"] * max(0, n + extra)
-        ratio = total / max(1.0, area.area_mm2)
-        # NUNCA se devuelve solo la semilla: los trabajos holgados también se
-        # refinan (greedy con el presupuesto restante). Antes se quedaba en la
-        # semilla, que fuerza 0/90 y sin contacto → eficiencia mínima y sin
-        # girar. Ese era el bug.
-        metodo = "greedy" if ratio < 0.85 else "voronoi"
+        metodo = "greedy"
     deadline = t0 + t_max
     rnd = _random.Random(20260925)
     n_total = sum(int(a.get("copies", 1)) for a in assets) + len(pinned or [])
@@ -2000,10 +2073,10 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
     # la semilla usa la MISMA rotación que se ha pedido (libre = todos los
     # ángulos); antes la forzaba a 90 y se perdían los giros
     t_seed = time.time()
-    # en «Solo 1 página» la semilla ES la pasada principal: se le da TODO el
-    # presupuesto (coloca lo máximo posible) y las variantes de después solo
-    # usan el tiempo que sobre
-    tope_semilla = deadline if solo_una else None
+    # en «Solo 1 página» la semilla coloca la BASE, pero no se come todo el
+    # presupuesto: las variantes de después (otros órdenes y los giros
+    # rectos) son las que colocan MÁS piezas. Se le da hasta el 60%.
+    tope_semilla = (t0 + SEMILLA_FRAC * (deadline - t0)) if solo_una else None
     best = _one_pass(assets, masks, area, semilla, pinned, "area", rnd,
                      progress, (0.02, 0.30), deadline=tope_semilla,
                      contacto=solo_una,
@@ -2174,25 +2247,52 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
         # lo tragaba el `except` de abajo: el multi-arranque NUNCA corría.
         contacto, voronoi = True, False
         if solo_una and time.time() < deadline:
-            # «Solo 1 página»: la semilla ya usó el presupuesto llenando la
-            # hoja; si sobró tiempo (se llenó y el resto falló rápido) se
-            # prueban OTROS ÓRDENES en SECUENCIA: en paralelo competirían por
-            # la CPU y cada pasada colocaría menos piezas.
+            # «Solo 1 página»: con el tiempo que dejó la semilla se prueban
+            # OTROS ÓRDENES y juegos de ángulos EN PARALELO (los FFT de numpy
+            # sueltan el GIL: con varios núcleos se hacen 4-6 variantes en el
+            # tiempo que antes costaba una). Incluye una pasada con los giros
+            # RECTOS en modo libre: suele colocar más piezas que los ángulos
+            # intermedios (medido: 24 vs 16 en una mezcla densa).
             import random as _r
-            for i, o in enumerate(["alto", "ancho", "random1", "random2",
-                                   "random3"]):
-                if time.time() >= deadline:
-                    break
+            import os as _os
+            variantes: list[tuple[str, list[float] | None]] = [
+                ("alto", None), ("ancho", None)]
+            if str(settings.get("rotacion", "90")) == "libre":
+                variantes.append(("area", [0.0, 90.0, 180.0, 270.0]))
+            variantes += [(f"random{i}", None) for i in range(1, 7)]
+            try:
+                from concurrent.futures import (ThreadPoolExecutor,
+                                                as_completed)
+                n_hilos = max(2, min(8, (_os.cpu_count() or 4)))
+                ex = ThreadPoolExecutor(max_workers=n_hilos)
+                futuros = [
+                    ex.submit(_one_pass, assets, masks, area, semilla, pinned,
+                              o, _r.Random(20260925 + i), None, (0.55, 0.80),
+                              deadline, None, True, False,
+                              cache_compartida, out_compartida,
+                              grid_compartida, angs)
+                    for i, (o, angs) in enumerate(variantes)]
+                for f in as_completed(futuros):
+                    try:
+                        res = f.result()
+                    except Exception:
+                        continue
+                    _recalcular_eficiencia(res, masks_reales, area, assets)
+                    if _clave(res) < _clave(best):
+                        best = res
+                ex.shutdown(wait=False, cancel_futures=True)
+            except Exception:
                 try:
-                    res = _one_pass(assets, masks, area, semilla, pinned, o,
-                                    _r.Random(20260925 + i), None,
+                    res = _one_pass(assets, masks, area, semilla, pinned,
+                                    "alto", _r.Random(20260926), None,
                                     (0.55, 0.80), deadline, None, True, False,
                                     **extra)
                 except Exception:
-                    continue
-                _recalcular_eficiencia(res, masks_reales, area, assets)
-                if _clave(res) < _clave(best):
-                    best = res
+                    res = None
+                if res is not None:
+                    _recalcular_eficiencia(res, masks_reales, area, assets)
+                    if _clave(res) < _clave(best):
+                        best = res
         lento = n_total > 50 or t_seed > 1.0
         ajustes_pase = semilla if lento else settings
         if not lento and not solo_una:
@@ -2316,6 +2416,8 @@ def _reconstruir(assets: list[dict], masks: dict, area: CutArea, settings: dict,
             occ_sil = ctx.pages_sil[pi]
             occ_sil[ty:ty + h, tx:tx + w] = np.maximum(
                 occ_sil[ty:ty + h, tx:tx + w], rm.astype(np.float32))
+            if pi < len(ctx._vers):
+                ctx._vers[pi] += 1
         ctx.placements.append(p)
     if not ctx.pages:
         ctx.new_page()

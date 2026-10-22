@@ -671,7 +671,8 @@ export default function Viewer({ assets, result, settings, ui, setUi, saveSettin
   return (
     <div className="viewer" data-testid="viewer">
       {(pages > 1 || (result?.unplaced ?? 0) > 0) && (
-        <div className="aviso-paginas-flotante" data-testid="aviso-paginas">
+        <div className={`aviso-paginas-flotante${pages > 1 ? "" : " con-lista"}`}
+             data-testid="aviso-paginas">
           {pages > 1 ? (
             t("No cabe en una página: {n} páginas", { n: pages })
           ) : (

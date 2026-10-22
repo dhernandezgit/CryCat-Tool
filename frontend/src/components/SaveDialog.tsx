@@ -69,14 +69,20 @@ export default function SaveDialog({ open, files, names, folder, error,
               </>
             )}
             <div className="modal-botones">
-              {esWeb ? files.map((f, i) => (
-                <a key={i} data-testid={`btn-descargar-${i}`} href={f}
-                   download={names?.[i]
-                     ?? `crycat_pagina-${String(i + 1).padStart(2, "0")}.png`}
-                   className="btn-descarga">
-                  <IconoCarpeta size={15} /> {t("Descargar página {n}", { n: i + 1 })}
-                </a>
-              )) : (
+              {esWeb ? files.map((f, i) => {
+                // La descarga de la web va SIEMPRE como .png: si el nombre
+                // llega sin extensión (o con una rara, p. ej. .nuevo) se
+                // fuerza .png aquí.
+                const base = names?.[i]
+                  ?? `crycat_pagina-${String(i + 1).padStart(2, "0")}.png`;
+                const nombre = /\.png$/i.test(base) ? base : `${base}.png`;
+                return (
+                  <a key={i} data-testid={`btn-descargar-${i}`} href={f}
+                     download={nombre} className="btn-descarga">
+                    <IconoCarpeta size={15} /> {t("Descargar página {n}", { n: i + 1 })}
+                  </a>
+                );
+              }) : (
                 <button data-testid="btn-abrir-carpeta"
                   onClick={() => onOpenFolder?.(folder)}>
                   <IconoCarpeta size={15} /> {t("Abrir carpeta")}

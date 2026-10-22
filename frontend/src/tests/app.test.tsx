@@ -356,8 +356,13 @@ describe("Nuevas funciones 2.8", () => {
       return mockFetch(u);
     }));
     render(<App />);
-    expect(await screen.findByTestId("aviso-paginas"))
-      .toHaveTextContent("No caben todas las copias");
+    const aviso = await screen.findByTestId("aviso-paginas");
+    expect(aviso).toHaveTextContent("No caben todas las copias");
+    // el desplegable lleva su propio redondeo (999px cerrado, 12px abierto):
+    // la píldora de fuera se desactiva con «con-lista» para que al desplegar
+    // la lista no se vean los lados abombados
+    expect(aviso).toHaveClass("con-lista");
+    expect(aviso.querySelector("details.aviso-unplaced")).toBeTruthy();
   });
 
   it("el popup de guardado muestra la miniatura de lo guardado", async () => {

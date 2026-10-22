@@ -493,6 +493,25 @@ def test_export_ppp_300_por_defecto_y_144_opcional(client, tmp_path):
         assert im2.height / dpi2[1] * 25.4 <= 269.55 + 0.5
 
 
+def test_migracion_v26_minis_automaticos(client, tmp_path):
+    """Las configuraciones antiguas (v26) pasan a minis AUTOMÁTICOS.
+
+    Antes el modo por defecto mandaba la lista de tamaños; ahora manda el
+    automático (mínimo + % máximo) y la lista queda como opción.
+    """
+    import json
+    import crycat.config as cfg
+    f = tmp_path / "config.json"
+    f.write_text(json.dumps({"_v": 26, "mini_usar_lista": True,
+                             "mini_tamanos_lista": [15.0]}), "utf-8")
+    cfg.settings.load()
+    s = cfg.settings.as_dict()
+    assert s["_v"] == cfg.CONFIG_VERSION
+    assert s["mini_usar_lista"] is False
+    # el resto de lo guardado se conserva tal cual
+    assert s["mini_tamanos_lista"] == [15.0]
+
+
 def test_defaults_extras_pikmin(client):
     """Los extras del Pikmin y el volumen vienen configurados por defecto."""
     c, st, _ = client
@@ -501,7 +520,7 @@ def test_defaults_extras_pikmin(client):
     assert s["pikmin_frecuencia_min"] == 5.0  # 5 minutos de media
     assert s["mini_min_mm"] == 20.0  # por defecto, minis de 20 mm
     assert s["mini_max_rescale"] == 70.0
-    assert s["mini_usar_lista"] is True
+    assert s["mini_usar_lista"] is False  # por defecto: minis AUTOMÁTICOS
     assert s["mini_lista_modo"] == "mm"
     assert s["mini_tamanos_lista"] == [20.0]
     assert s["mini_tamanos"] == "iguales"      # priorizar tamaños iguales
