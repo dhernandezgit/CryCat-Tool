@@ -50,9 +50,15 @@ def tiempo_estimado(d, n_elementos: int = 0,
     local y en el navegador (Pyodide) todo cuesta ~2,5×. Sirve para que la
     barra de progreso y el «tiempo restante» sean realistas.
     """
-    est = 2.5 + 0.00009 * max(0.0, float(area_total_mm2))
+    if str(d.get("modo_forma", "siluetas")) == "rectangulos":
+        # empaquetado por CAJAS: súper rápido
+        est = 0.4 + 0.00002 * max(0.0, float(area_total_mm2))
+    else:
+        est = 2.5 + 0.00009 * max(0.0, float(area_total_mm2))
     if str(d.get("calculo", "estandar")).lower() == "exacto":
         est = est * 1.6 + 5.0
+    if d.get("web_inline_jobs"):
+        est *= 2.5
     if d.get("web_inline_jobs"):
         est *= 2.5
     return max(1.0, min(300.0, est))
