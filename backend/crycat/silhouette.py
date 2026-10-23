@@ -2396,6 +2396,9 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
                 and (best.unplaced or best.pages > 1)):
             try:
                 res_hex = _fase_circulos(assets, masks, area, settings)
+                if res_hex is None:
+                    res_hex = _fase_rectangulos(assets, masks, area,
+                                                settings)
                 if res_hex is not None:
                     _recalcular_eficiencia(res_hex, masks_reales, area,
                                            assets)
@@ -2782,6 +2785,88 @@ def _fase_circulos(assets: list[dict], masks: dict, area: CutArea,
     # COPIA el reparto de sin colocar: las copias que no caben en la rejilla
     faltan = max(0, int(a0.get("copies", 1)) - len(best))
     res.unplaced = [a0["id"]] * faltan
+    _recalcular_eficiencia(res, masks, area, assets)
+    return res
+
+
+def _fase_rectangulos(assets: list[dict], masks: dict, area: CutArea,
+                      settings: dict) -> PackResult | None:
+    """Colocación dedicada de RECTÁNGULOS IGUALES: rejilla óptima con
+    desplazamientos y las dos orientaciones.
+
+    Cuando todas las piezas son el mismo rectángulo (o cuadrado), la rejilla
+    es la colocación más densa posible: se prueban TODOS los desplazamientos
+    de la rejilla en la forma real del área (y 0°/90° si no es cuadrado) y se
+    queda el máximo. Determinista y rápido; luego la búsqueda local puede
+    añadir alguna pieza de borde.
+    """
+    if not assets or not masks or len(assets) != 1:
+        return None
+    a0 = assets[0]
+    w0, h0 = float(a0["w_mm"]), float(a0["h_mm"])
+    img = masks.get(a0["id"])
+    if img is None or w0 <= 1.0 or h0 <= 1.0:
+        return None
+    # ¿es de verdad un rectángulo/cuadrado lleno? (alfa / bbox > 0.9)
+    try:
+        m0 = _asset_mask(img, w0, h0, 0.25)
+        frac = float(m0.sum()) / max(1, m0.size)
+        if frac < 0.88:
+            return None
+    except Exception:
+        return None
+    esp = max(-min(w0, h0) * 0.9,
+              float(settings.get("espacio_mm", 0.0) or 0.0))
+    cell = 0.25
+    allowed, W, H = _grid(area, cell)
+    best: list[tuple[float, float, float]] | None = None
+    for ang in (0.0, 90.0):
+        m = _rotate_mask(m0, ang)
+        mh, mw = m.shape
+        pw = mw * cell + esp
+        ph = mh * cell + esp
+        if pw < 1.0 or ph < 1.0:
+            continue
+        corr = _correlate(allowed.astype(np.float32), m)
+        total = float(m.sum())
+        fits = (corr >= total - 0.5)
+        fits[H - mh + 1:, :] = False
+        fits[:, W - mw + 1:] = False
+        dy = 0.0
+        while dy < ph - 1e-9:
+            dx = 0.0
+            while dx < pw - 1e-9:
+                pos: list[tuple[float, float]] = []
+                y = dy
+                while y + mh * cell <= area.bbox[3] + 1e-9:
+                    x = dx
+                    while x + mw * cell <= area.bbox[2] + 1e-9:
+                        iy = int(round(y / cell))
+                        ix = int(round(x / cell))
+                        if 0 <= iy < H and 0 <= ix < W and fits[iy, ix]:
+                            pos.append((ix * cell, iy * cell))
+                        x += pw
+                    y += ph
+                if best is None or len(pos) > len(best):
+                    best = [(px_, py_, ang) for (px_, py_) in pos]
+                dx += 1.0
+            dy += 1.0
+    if not best:
+        return None
+    copias = max(0, int(a0.get("copies", 1)))
+    best = best[:copias]
+    if not best:
+        return None
+    res = PackResult(method="rejilla", cell=cell)
+    x0, y0 = area.bbox[0], area.bbox[1]
+    for k, (x, y, ang) in enumerate(best):
+        we, he = _exact_size(w0, h0, ang)
+        res.placements.append(Placement(
+            uid=f"{a0['id']}#grid{k}", asset_id=a0["id"], page=0,
+            x=x + x0, y=y + y0, w=we, h=he, angle=ang, mini=False,
+            scale=1.0, rot90=False, w0=w0, h0=h0))
+    res.pages = 1
+    res.unplaced = [a0["id"]] * max(0, copias - len(best))
     _recalcular_eficiencia(res, masks, area, assets)
     return res
 

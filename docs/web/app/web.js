@@ -11816,7 +11816,7 @@ function Fh() {
     )
   ] }) }) : /* @__PURE__ */ o.jsx("div", { style: { padding: 30 }, children: Wf("es", "Cargando CryCat…") });
 }
-const qh = "1792798150065", ip = document.getElementById("root"), vi = [
+const qh = "1792798911554", ip = document.getElementById("root"), vi = [
   "Cargando peluches de apoyo emocional…",
   "Afilando tijeras de pegatinas…",
   "Preparando boba teas…",
