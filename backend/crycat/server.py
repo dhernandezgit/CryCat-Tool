@@ -339,12 +339,16 @@ def create_app(store: Session = session) -> FastAPI:
                     max(0, int(a.get("copies", 1)))
                     for a in store.asset_dicts())
 
-            from .config import tiempo_optimo
+            from .config import tiempo_estimado
             n_pz = int(job.get("n_piezas", 0) or 0)
-            tope = max(0.5, tiempo_optimo(st, n_pz))
-            # TOTAL ESPERADO: historial real para ese nº de piezas o, si no
-            # hay, un 85% del presupuesto (los trabajos suelen acabar antes).
-            total_est = {"v": max(0.5, _esperado_para(n_pz) or tope * 0.85)}
+            # duración ESPERADA real con los métodos actuales (el trabajo
+            # crece con la superficie de las piezas, no solo con el número)
+            area_total = sum(
+                float(a.get("w_mm", 0)) * float(a.get("h_mm", 0))
+                * max(0, int(a.get("copies", 1))) for a in assets)
+            tope = max(0.5, tiempo_estimado(st, n_pz, area_total))
+            # si hay historial real para ese nº de piezas, manda el historial
+            total_est = {"v": max(0.5, _esperado_para(n_pz) or tope)}
 
             def _pinta(fase: float, pages: int, difundir: bool = True) -> None:
                 """Actualiza progreso y ETA con una mezcla HONESTA de tiempo y

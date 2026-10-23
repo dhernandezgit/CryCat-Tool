@@ -451,11 +451,17 @@ def _run_pack(assets: list[dict], area: CutArea, settings: dict,
     if unplaced:
         pending = [i for i in ordered if i.uid in set(unplaced)]
         while pending:
+            antes = len(bins)
             extra = _open_bin_for(bins, area, spacing, solo_una)
             still = _pack_normals([extra], pending, rot_mode, heuristic,
                                   deadline)
             if len(still) == len(pending):
-                bins.pop()          # ni en página nueva: imposible
+                # ni en página nueva: imposible. OJO: en «Solo 1 página»
+                # `_open_bin_for` devuelve la hoja existente y aquí NO se
+                # puede quitar (se perderían todas las colocaciones; era el
+                # bug que dejaba el modo rectángulos con 0 piezas)
+                if len(bins) > antes:
+                    bins.pop()
                 break
             pending = [i for i in pending if i.uid in set(still)]
         unplaced = [i.uid for i in pending]
@@ -538,9 +544,9 @@ def optimize(assets: list[dict], area: CutArea, settings: dict,
     # sin colocar o no cabe en una hoja) se recurre a las SILUETAS con el
     # presupuesto que quede.
     rectangulos = forma == "rectangulos"
-    if (masks and (settings.get("usar_minis")
-                   or settings.get("rata_activo")
-                   or (not rectangulos and not holgado))):
+    if (masks and (settings.get("rata_activo")
+                   or (not rectangulos
+                       and (settings.get("usar_minis") or not holgado)))):
         # el MODO RATA necesita el empaquetado por silueta (coloca las copias
         # extra en los márgenes después): con cajas nunca se colocarían
         from .silhouette import pack as sil_pack
@@ -571,6 +577,9 @@ def optimize(assets: list[dict], area: CutArea, settings: dict,
             return base
         return res
 
+    if rectangulos:
+        # MODO RECTÁNGULOS: cajas, súper rápido: presupuesto corto
+        deadline = min(deadline, t0 + 3.0)
     if method == "maxrects":
         variants = [(o, h) for o in ("area", "alto") for h in ("bssf", "baf", "bl")]
     elif method == "skyline":

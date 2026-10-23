@@ -41,6 +41,23 @@ OPT_POR_PIEZA: dict[str, float] = {
 OPT_TIEMPO_TOPE = 60.0       # techo de seguridad (nunca más de 1 minuto)
 
 
+def tiempo_estimado(d, n_elementos: int = 0,
+                    area_total_mm2: float = 0.0) -> float:
+    """Duración ESPERADA (s) con los métodos actuales: estándar/exacto y web.
+
+    El trabajo real crece sobre todo con la SUPERFICIE total de las piezas
+    (las máscaras/FFT), no solo con el número; el exacto añade la búsqueda
+    local y en el navegador (Pyodide) todo cuesta ~2,5×. Sirve para que la
+    barra de progreso y el «tiempo restante» sean realistas.
+    """
+    est = 2.5 + 0.00009 * max(0.0, float(area_total_mm2))
+    if str(d.get("calculo", "estandar")).lower() == "exacto":
+        est = est * 1.6 + 5.0
+    if d.get("web_inline_jobs"):
+        est *= 2.5
+    return max(1.0, min(300.0, est))
+
+
 def tiempo_optimo(d, n_elementos: int = 0) -> float:
     """Presupuesto efectivo ADAPTADO al número de elementos.
 

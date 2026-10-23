@@ -2520,7 +2520,7 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
                             break
                         mejor_ils = _refinar_ils(
                             assets, masks_reales, area, settings, base,
-                            deadline, max_its=(30 if exacto else 16))
+                            deadline, max_its=(40 if exacto else 8))
                         if _clave(mejor_ils) < _clave(base):
                             # la red de seguridad AHORA y en SU rejilla:
                             # si al validar se pierden piezas, no vale
@@ -2789,7 +2789,9 @@ def _fase_circulos(assets: list[dict], masks: dict, area: CutArea,
 def _refinar_ils(assets: list[dict], masks: dict, area: CutArea,
                  settings: dict, res: PackResult, deadline: float,
                  max_piezas: int = 150, max_its: int = 10,
-                 semilla: int = 20261023) -> PackResult:
+                 semilla: int = 20261023, progress=None,
+                 prog_lo: float = 0.86,
+                 prog_hi: float = 0.97) -> PackResult:
     """Búsqueda local (ILS): quita unas piezas y las recoloca junto a las que
     quedaron fuera, con orden y ángulos aleatorios.
 
@@ -2825,6 +2827,12 @@ def _refinar_ils(assets: list[dict], masks: dict, area: CutArea,
     paginas = str(settings.get("paginas_modo", "una")) != "una"
     while its < max_its and time.time() < deadline:
         its += 1
+        if progress:
+            try:
+                progress(prog_lo + (prog_hi - prog_lo) * its / max_its,
+                         max(1, int(best.pages or 1)))
+            except Exception:
+                pass
         colocadas = [p for p in best.placements
                      if not getattr(p, "rata", False) and not p.pinned]
         if not colocadas or len(colocadas) + len(best.unplaced) > max_piezas:
