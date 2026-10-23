@@ -1,6 +1,6 @@
 import { type AppSettings } from "../api";
 import { useT } from "../i18n";
-import { IconoMini, IconoRecalcular, IconoRotar } from "./iconos";
+import { IconoComprobar, IconoMini, IconoRecalcular, IconoRotar } from "./iconos";
 
 /** Acciones rápidas del panel de ajustes: minis, recálculo, modo y rotación. */
 export default function AccionesRapidas({ settings, saveSettings }: {
@@ -10,6 +10,9 @@ export default function AccionesRapidas({ settings, saveSettings }: {
   const t = useT();
   const usarMinis = settings.usar_minis;
   const experto = settings.modo === "experto";
+  // cálculo: estándar (bueno y rápido) o exacto (el mejor posible). Chip de
+  // PULSAR PARA ALTERNAR, entre el modo y la rotación.
+  const exacto = (settings.calculo ?? "estandar") === "exacto";
   const ROT_SIGUIENTE: Record<string, "90" | "libre" | "no"> = {
     "90": "libre", libre: "no", no: "90",
   };
@@ -54,7 +57,7 @@ export default function AccionesRapidas({ settings, saveSettings }: {
             <IconoRecalcular size={16} /> {t("Auto optimizar")}
           </button>
         </div>
-        {/* segunda fila: modo y rotación */}
+        {/* segunda fila: modo, cálculo y rotación (tres botones) */}
         <div className="fila">
           <button
             className={`chip${experto ? " on" : ""}`}
@@ -63,6 +66,17 @@ export default function AccionesRapidas({ settings, saveSettings }: {
             onClick={() => saveSettings({ modo: experto ? "rapido" : "experto" })}
           >
             {experto ? t("Modo experto") : t("Modo básico")}
+          </button>
+          <button
+            className={`chip${exacto ? " on" : ""}`}
+            data-testid="chip-calculo"
+            data-calculo={exacto ? "exacto" : "estandar"}
+            data-tip={t("Cálculo: estándar (bueno y rápido) o exacto (el mejor posible, más lento). Pulsa para alternar.")}
+            onClick={() => saveSettings({
+              calculo: exacto ? "estandar" : "exacto" })}
+          >
+            <IconoComprobar size={16} />
+            {exacto ? t("Cálculo exacto") : t("Cálculo estándar")}
           </button>
           <button
             className="chip"

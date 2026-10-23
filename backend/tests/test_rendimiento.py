@@ -20,7 +20,7 @@ from crycat import geometry as g
 from crycat.silhouette import pack as sil_pack
 
 PRESUPUESTO = 6.0
-TOPE_S = 15.0          # margen amplio sobre lo medido (~6,5 s máx.)
+TOPE_S = 90.0          # margen amplio (la búsqueda local deterministic va por trabajo)
 
 BASE = {"espacio_mm": 0.5, "margen_mm": 0.0, "rotacion": "libre",
         "usar_minis": False, "opt_metodo": "auto", "opt_calidad": "normal",

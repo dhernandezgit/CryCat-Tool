@@ -143,7 +143,9 @@ export default function App() {
     // esto, la barra de progreso no llegaba a dibujarse nunca
     await new Promise((r) => setTimeout(r, 60));
     try {
-      const j = await api.optimize();
+      // desde CERO siempre: al añadir/quitar algo no se reaprovechan las
+      // posiciones del resultado anterior (force = true)
+      const j = await api.optimize(undefined, true);
       setJob(j);
       pollJob(j.id);
     } catch {

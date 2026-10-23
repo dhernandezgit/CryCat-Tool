@@ -42,16 +42,7 @@ describe("Selector de modos", () => {
     const orden = Array.from(
       screen.getByTestId("modos").querySelectorAll(".modo-btn"))
       .map((b) => b.getAttribute("data-testid"));
-    expect(orden).toEqual(["modo-silueta", "modo-rectangulos", "modo-calculo"]);
-  });
-
-  it("el tercer botón alterna el cálculo estándar ↔ exacto", async () => {
-    const u = userEvent.setup();
-    render(<Modos settings={settings} saveSettings={saveSettings} />);
-    const b = screen.getByTestId("modo-calculo");
-    expect(b).toHaveTextContent("Cálculo estándar");
-    await u.click(b);
-    expect(saveSettings).toHaveBeenCalledWith({ calculo: "exacto" });
+    expect(orden).toEqual(["modo-silueta", "modo-rectangulos"]);
   });
 
   it("Rectángulos avisa de que es rápido", async () => {

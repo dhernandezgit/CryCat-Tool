@@ -7,7 +7,7 @@
 import { useEffect, useState } from "react";
 import { api, type AppSettings } from "../api";
 import { useT } from "../i18n";
-import { IconoPegatina, IconoCartel, IconoRecalcular } from "./iconos";
+import { IconoPegatina, IconoCartel } from "./iconos";
 
 const MODOS: { clave: string; nombre: string; desc: string;
                Icono: (p: { size?: number }) => JSX.Element;
@@ -39,11 +39,6 @@ export default function Modos({ settings, saveSettings }: Props) {
 
   const forma = settings.modo_forma ?? "siluetas";
   const activo = MODOS.find((m) => m.forma === forma)?.clave ?? "silueta";
-  // cálculo: estándar (bueno y rápido) o exacto (el mejor posible). Es un
-  // botón de PULSAR PARA ALTERNAR, en la misma fila que los modos.
-  const exacto = (settings.calculo ?? "estandar") === "exacto";
-  const alternarCalculo = () =>
-    saveSettings({ calculo: exacto ? "estandar" : "exacto" });
 
   const aplicarModo = async (clave: string) => {
     const ajustes = fabrica[clave];
@@ -77,22 +72,6 @@ export default function Modos({ settings, saveSettings }: Props) {
             {activo === m.clave && <span className="modo-check">✓</span>}
           </button>
         ))}
-        {/* tercer botón: cálculo estándar ↔ exacto (pulsar para alternar) */}
-        <button
-          type="button"
-          data-testid="modo-calculo"
-          data-calculo={exacto ? "exacto" : "estandar"}
-          className={`modo-btn calculo${exacto ? " exacto" : ""}`}
-          title={t("Pulsa para cambiar entre cálculo estándar y exacto")}
-          onClick={alternarCalculo}
-        >
-          <IconoRecalcular size={24} />
-          <span className="modo-txt">
-            <b>{exacto ? t("Cálculo exacto") : t("Cálculo estándar")}</b>
-            <i>{exacto ? t("el mejor posible · más lento")
-                        : t("bueno y rápido")}</i>
-          </span>
-        </button>
       </div>
       {aviso && <div className="hint" data-testid="modos-aviso">{aviso}</div>}
     </div>

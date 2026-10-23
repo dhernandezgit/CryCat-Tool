@@ -2487,57 +2487,57 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
                             best = res_gen
                     if not best.unplaced and best.pages <= 1:
                         break
-            # BÚSQUEDA LOCAL ILS (solo EXACTO): quitar y recolocar piezas
-            # escapa de los mínimos locales del voraz (piezas grandes: 60 mm
-            # 10 → 11; 80 mm 5 → 6; 90×50 7 → 8). Para al estancarse.
-            if (exacto and time.time() < deadline
-                    and (best.unplaced or best.pages > 1)):
-                if progress:
-                    try:
-                        progress(0.99, best.pages)
-                    except Exception:
-                        pass
-                # CADENAS ILS desde dos puntos de partida: el mejor actual y
-                # el resultado de la SEMILLA (rejilla gruesa). El refinado se
-                # queda atascado en un mínimo local; desde la semilla el ILS
-                # encuentra colocaciones que el otro camino no ve. Varias
-                # cadenas por punto (cada una parte de lo mejor anterior).
+        # BÚSQUEDA LOCAL ILS (los DOS modos; el exacto con más
+        # iteraciones): quitar y recolocar piezas escapa de los mínimos
+        # locales del voraz (piezas grandes: 60 mm 10 → 11; 80 mm 5 → 6;
+        # 90×50 7 → 8). Para al estancarse (determinista).
+        if (metodo == "inteligente" and time.time() < deadline
+                and (best.unplaced or best.pages > 1)):
+            if progress:
                 try:
-                    # el punto de partida fértil es la SEMILLA (rejilla
-                    # gruesa); el refinado se queda atascado. Solo una
-                    # partida para acotar el tiempo (determinista)
-                    partidas = [best_semilla]
-                    vistos = set()
-                    for partida in partidas:
-                        clave_p = (id(partida.placements), len(partida.placements))
-                        if clave_p in vistos:
-                            continue
-                        vistos.add(clave_p)
-                        base = partida
-                        for _cadena in range(1):
-                            if time.time() >= deadline:
-                                break
-                            mejor_ils = _refinar_ils(assets, masks_reales,
-                                                     area, settings, base,
-                                                     deadline)
-                            if _clave(mejor_ils) < _clave(base):
-                                # la red de seguridad AHORA y en SU rejilla:
-                                # si al validar se pierden piezas, no vale
-                                cand = _sin_solapes(mejor_ils, assets,
-                                                    masks_reales, area,
-                                                    settings, extra,
-                                                    cell_hint=0.5)
-                                if _clave(cand) <= _clave(base):
-                                    base = cand
-                                    if _clave(base) < _clave(best):
-                                        best = base
-                                else:
-                                    break
-                            else:
-                                break
+                    progress(0.99, best.pages)
                 except Exception:
                     pass
-
+            # CADENAS ILS desde dos puntos de partida: el mejor actual y
+            # el resultado de la SEMILLA (rejilla gruesa). El refinado se
+            # queda atascado en un mínimo local; desde la semilla el ILS
+            # encuentra colocaciones que el otro camino no ve. Varias
+            # cadenas por punto (cada una parte de lo mejor anterior).
+            try:
+                # el punto de partida fértil es la SEMILLA (rejilla
+                # gruesa); el refinado se queda atascado. Solo una
+                # partida para acotar el tiempo (determinista)
+                partidas = [best_semilla]
+                vistos = set()
+                for partida in partidas:
+                    clave_p = (id(partida.placements), len(partida.placements))
+                    if clave_p in vistos:
+                        continue
+                    vistos.add(clave_p)
+                    base = partida
+                    for _cadena in range(1):
+                        if time.time() >= deadline:
+                            break
+                        mejor_ils = _refinar_ils(
+                            assets, masks_reales, area, settings, base,
+                            deadline, max_its=(30 if exacto else 16))
+                        if _clave(mejor_ils) < _clave(base):
+                            # la red de seguridad AHORA y en SU rejilla:
+                            # si al validar se pierden piezas, no vale
+                            cand = _sin_solapes(mejor_ils, assets,
+                                                masks_reales, area,
+                                                settings, extra,
+                                                cell_hint=0.5)
+                            if _clave(cand) <= _clave(base):
+                                base = cand
+                                if _clave(base) < _clave(best):
+                                    best = base
+                            else:
+                                break
+                        else:
+                            break
+            except Exception:
+                pass
     assert best is not None
     # fase de compactación (estilo DeepNest): acerca cada pieza al borde,
     # pero SOLO con el tiempo que quede (nunca se pasa del presupuesto)
@@ -2788,7 +2788,8 @@ def _fase_circulos(assets: list[dict], masks: dict, area: CutArea,
 
 def _refinar_ils(assets: list[dict], masks: dict, area: CutArea,
                  settings: dict, res: PackResult, deadline: float,
-                 max_piezas: int = 150) -> PackResult:
+                 max_piezas: int = 150, max_its: int = 10,
+                 semilla: int = 20261023) -> PackResult:
     """Búsqueda local (ILS): quita unas piezas y las recoloca junto a las que
     quedaron fuera, con orden y ángulos aleatorios.
 
@@ -2812,12 +2813,13 @@ def _refinar_ils(assets: list[dict], masks: dict, area: CutArea,
                    for a in assets if a["id"] in masks)
     cell = (0.5 if min_lado >= 20.0
             else min(0.5, max(0.25, float(res.cell or 0.5))))
-    rnd = _rand.Random(20261023)
+    rnd = _rand.Random(semilla)
     best = res
     t0 = time.time()
     total_seg = max(1.0, deadline - t0)
     limite_quieto = max(15.0, 0.5 * total_seg)
     ultima = t0
+    its = 0
     sin_mejora_its = 0
     todos_angs = _angles(str(settings.get("rotacion", "libre")))
     paginas = str(settings.get("paginas_modo", "una")) != "una"
@@ -2871,11 +2873,13 @@ def _refinar_ils(assets: list[dict], masks: dict, area: CutArea,
             img = masks.get(aid)
             if a is None or img is None:
                 continue
-            # TODOS los ángulos permitidos, barajados: en los huecos muy
-            # justos la orientación exacta decide si cabe (quitarlos perdía
-            # piezas que sí caben); se prueban en orden aleatorio para no
-            # sesgar siempre los mismos
-            angs = todos_angs[:]
+            # ángulos: los "buenos" (0/90/180/270) + 2 al azar: probar los
+            # 13 en cada intento multiplicaba el coste de cada ronda (y la
+            # mejora no depende de eso: medido)
+            base_angs = [0.0, 90.0, 180.0, 270.0]
+            otros = [x for x in todos_angs if x not in base_angs]
+            rnd.shuffle(otros)
+            angs = base_angs + otros[:2]
             rnd.shuffle(angs)
             try:
                 ok = _try_place(ctx, aid, a.get("name", ""), a["w_mm"],

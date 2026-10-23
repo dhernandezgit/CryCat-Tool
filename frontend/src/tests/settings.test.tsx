@@ -50,24 +50,26 @@ describe("Panel de ajustes", () => {
     expect(screen.getByTestId("chip-minis")).toBeInTheDocument();
   });
 
-  it("el botón de cálculo (arriba, junto a los modos) alterna estándar ↔ exacto", async () => {
+  it("el chip de cálculo va entre el modo y la rotación y alterna estándar ↔ exacto", async () => {
     const u = userEvent.setup();
     render(<SettingsPanel settings={settings} saveSettings={saveSettings} />);
-    // por defecto: estándar y está en la fila de los modos
-    const boton = screen.getByTestId("modo-calculo");
+    // por defecto: estándar, en la fila de modo/rotación
+    const boton = screen.getByTestId("chip-calculo");
     expect(boton).toHaveTextContent("Cálculo estándar");
     expect(boton).toHaveAttribute("data-calculo", "estandar");
+    const fila = boton.parentElement!;
+    expect(fila.contains(screen.getByTestId("chip-modo"))).toBe(true);
+    expect(fila.contains(screen.getByTestId("chip-rotacion"))).toBe(true);
     // al pulsar alterna a exacto
     await u.click(boton);
     expect(saveSettings).toHaveBeenCalledWith({ calculo: "exacto" });
-    // con la opción exacta, el botón lo refleja
+    // con la opción exacta, el chip lo refleja y vuelve a estándar
     cleanup();
     render(<SettingsPanel settings={{ ...settings, calculo: "exacto" }}
                           saveSettings={saveSettings} />);
-    const b2 = screen.getByTestId("modo-calculo");
+    const b2 = screen.getByTestId("chip-calculo");
     expect(b2).toHaveTextContent("Cálculo exacto");
     expect(b2).toHaveAttribute("data-calculo", "exacto");
-    // y al volver a pulsar, regresa a estándar
     await u.click(b2);
     expect(saveSettings).toHaveBeenCalledWith({ calculo: "estandar" });
   });
