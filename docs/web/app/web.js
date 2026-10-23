@@ -6457,6 +6457,12 @@ const Zd = {
   "Añadir tamaño": "Add size",
   "Cada valor es el tamaño del mini respecto al original; se prueban de mayor a menor hasta que quepan.": "Each value is the mini's size relative to the original; they are tried from largest to smallest until they fit.",
   Método: "Method",
+  "Selección inteligente": "Smart selection",
+  "Selección inteligente (la mejor, sin gastar de más)": "Smart selection (the best, without wasting time)",
+  Cálculo: "Calculation",
+  "Cálculo estándar": "Standard calculation",
+  "Cálculo exacto": "Exact calculation",
+  "Ambos son inteligentes: si el trabajo es fácil acaban pronto. «Estándar» busca un buen resultado con un tiempo ajustado; «Exacto» apura más (varias configuraciones y métodos) para acercarse al mejor resultado posible.": "Both are smart: easy jobs finish quickly. “Standard” looks for a good result within a tight time; “Exact” pushes harder (several configurations and methods) to get as close as possible to the best result.",
   "Greedy / Bottom-Left (rápido)": "Greedy / Bottom-Left (fast)",
   "Largest First (mayor primero)": "Largest First (biggest first)",
   "Voronoi (huecos más grandes)": "Voronoi (largest gaps)",
@@ -9452,14 +9458,16 @@ function Lc(e, t) {
   return e.split(new RegExp(`(${t.join("|")})`)).map((n, a) => t.includes(n) ? /* @__PURE__ */ o.jsx("strong", { children: n }, a) : n);
 }
 const Ch = {
-  auto: 6,
+  inteligente: 8,
+  auto: 8,
   rapido: 3,
   greedy: 6,
   largest: 3,
   voronoi: 6,
   genetic: 25
 }, Sh = {
-  auto: "Automático",
+  inteligente: "Selección inteligente",
+  auto: "Selección inteligente",
   rapido: "Silueta rápida",
   greedy: "Greedy / Bottom-Left",
   largest: "Largest First",
@@ -9621,6 +9629,32 @@ function _h({
           icon: /* @__PURE__ */ o.jsx(Ha, { size: 15 }),
           children: [
             /* @__PURE__ */ o.jsxs(z, { titulo: "Colocación", children: [
+              /* @__PURE__ */ o.jsxs("div", { className: "ctl", children: [
+                /* @__PURE__ */ o.jsx("label", { children: a("Cálculo") }),
+                /* @__PURE__ */ o.jsxs("div", { className: "seg", "data-testid": "calculo-modo", children: [
+                  /* @__PURE__ */ o.jsx(
+                    "button",
+                    {
+                      type: "button",
+                      "data-testid": "calculo-estandar",
+                      className: (e.calculo ?? "estandar") === "estandar" ? "on" : "",
+                      onClick: () => b({ calculo: "estandar" }),
+                      children: a("Cálculo estándar")
+                    }
+                  ),
+                  /* @__PURE__ */ o.jsx(
+                    "button",
+                    {
+                      type: "button",
+                      "data-testid": "calculo-exacto",
+                      className: e.calculo === "exacto" ? "on" : "",
+                      onClick: () => b({ calculo: "exacto" }),
+                      children: a("Cálculo exacto")
+                    }
+                  )
+                ] }),
+                /* @__PURE__ */ o.jsx("div", { className: "hint", children: a("Ambos son inteligentes: si el trabajo es fácil acaban pronto. «Estándar» busca un buen resultado con un tiempo ajustado; «Exacto» apura más (varias configuraciones y métodos) para acercarse al mejor resultado posible.") })
+              ] }),
               /* @__PURE__ */ o.jsxs("div", { className: "ctl-fila", children: [
                 w(
                   "Espacio entre elementos",
@@ -9967,6 +10001,7 @@ function _h({
           icon: /* @__PURE__ */ o.jsx(pr, { size: 15 }),
           children: [
             O("Método", "opt_metodo", [
+              ["inteligente", "Selección inteligente (la mejor, sin gastar de más)"],
               ["greedy", "Greedy / Bottom-Left (rápido)"],
               ["largest", "Largest First (mayor primero)"],
               ["voronoi", "Voronoi (huecos más grandes)"],
@@ -11788,7 +11823,7 @@ function Fh() {
     )
   ] }) }) : /* @__PURE__ */ o.jsx("div", { style: { padding: 30 }, children: Hf("es", "Cargando CryCat…") });
 }
-const qh = "1792698463848", op = document.getElementById("root"), vi = [
+const qh = "1792718065187", op = document.getElementById("root"), vi = [
   "Cargando peluches de apoyo emocional…",
   "Afilando tijeras de pegatinas…",
   "Preparando boba teas…",

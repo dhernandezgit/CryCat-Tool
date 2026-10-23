@@ -1665,7 +1665,10 @@ def _pase_genetico(assets: list[dict], masks: dict[str, Image.Image],
                    area: CutArea, settings: dict,
                    pinned: list[Placement] | None, deadline: float,
                    progress=None,
-                   masks_reales: dict | None = None) -> PackResult | None:
+                   masks_reales: dict | None = None,
+                   seed: int = 20260925,
+                   poblacion_n: int = 8,
+                   estancamiento: int = 2) -> PackResult | None:
     """Algoritmo GENÉTICO sobre el orden de inserción.
 
     Cada individuo es un orden de colocación; se evalúa con el colocador por
@@ -1673,7 +1676,7 @@ def _pase_genetico(assets: list[dict], masks: dict[str, Image.Image],
     tiempo. Es el método más lento pero el que mejor aprovecha la hoja.
     """
     import random as _random
-    rnd = _random.Random(20260925)
+    rnd = _random.Random(seed)
     n = sum(int(a.get("copies", 1)) for a in assets
             if a["id"] in masks and int(a.get("copies", 1)) > 0)
     if n <= 0:
@@ -1694,7 +1697,7 @@ def _pase_genetico(assets: list[dict], masks: dict[str, Image.Image],
 
     poblacion: list[list[int]] = [list(range(n)),
                                   list(range(n - 1, -1, -1))]
-    while len(poblacion) < 8:
+    while len(poblacion) < max(4, int(poblacion_n)):
         q = list(range(n))
         rnd.shuffle(q)
         poblacion.append(q)
@@ -1704,7 +1707,7 @@ def _pase_genetico(assets: list[dict], masks: dict[str, Image.Image],
     for generacion in range(60):
         if time.time() > deadline and mejores:
             break
-        if sin_mejora >= 4:
+        if sin_mejora >= max(1, int(estancamiento)):
             break                # estancado: no gastar el presupuesto entero
         resultados = []
         for perm in poblacion:
@@ -1713,9 +1716,16 @@ def _pase_genetico(assets: list[dict], masks: dict[str, Image.Image],
         resultados.sort(key=lambda t: t[0])
         anterior = (_clave_estanca(mejores[0][2]) if mejores else None)
         mejores = resultados[:4]
-        sin_mejora = 0 if (anterior is None
-                           or _clave_estanca(mejores[0][2]) < anterior) \
-            else sin_mejora + 1
+        if anterior is None:
+            sin_mejora = 0
+        else:
+            a_unp, a_pag, a_ef = anterior
+            b_unp, b_pag, b_ef = _clave_estanca(mejores[0][2])
+            # solo cuenta como mejora de VERDAD: una pieza más, una hoja
+            # menos o ≥0,5 puntos de eficiencia (los micro-cambios de la FFT
+            # mantenían viva la búsqueda gastando todo el presupuesto)
+            sin_mejora = 0 if (b_unp < a_unp or b_pag < a_pag
+                               or b_ef > a_ef + 0.005) else sin_mejora + 1
         if progress:
             progress(min(0.80, 0.30 + 0.50 * (generacion + 1) / 12.0),
                      mejores[0][2].pages)
@@ -2020,6 +2030,10 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
         t_max = max(0.5, float(presupuesto_s))
     else:
         t_max = max(0.5, tiempo_optimo(settings, n_prev))
+    # CÁLCULO: estándar (bueno y con tiempo ajustado) o EXACTO (el mejor
+    # posible en un tiempo razonable: más configuraciones, más métodos y una
+    # cartera de búsqueda más profunda)
+    exacto = str(settings.get("calculo", "estandar")).lower() == "exacto"
     # MUCHOS elementos o hoja MUY llena → rejilla EXACTA: cuesta más pero
     # exprime el hueco al máximo (el usuario quiere la mejor eficiencia)
     try:
@@ -2031,19 +2045,21 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
             settings = dict(settings, opt_calidad="exacta")
     except Exception:
         pass
-    metodo = str(settings.get("opt_metodo", "auto")).lower()
+    metodo = str(settings.get("opt_metodo", "inteligente")).lower()
     # compatibilidad con los nombres antiguos
     if metodo in ("silueta_rapido", "silueta", "maxrects", "skyline"):
         metodo = "greedy"
     elif metodo == "silueta_optimo":
         metodo = "genetic"
-    # AUTOMÁTICO = GREEDY con multi-arranque (medido): es más rápido que el
-    # voronoi y coloca igual o más piezas. Con hojas muy llenas el voronoi
-    # gastaba el presupuesto en las transformadas de distancia y dejaba menos
-    # piezas (en una mezcla densa: 16-17 vs 24 del greedy). El voronoi sigue
-    # disponible como método explícito.
-    if metodo == "auto":
-        metodo = "greedy"
+    # SELECCIÓN INTELIGENTE (por defecto): cartera de configuraciones que
+    # cambian de verdad el resultado — varios órdenes de inserción, juegos de
+    # ángulos y la rejilla (el genético evalúa en rejilla gruesa y refina el
+    # ganador con la fina) — y MÉTODOS: primero el greedy con multi-arranque
+    # y, si el trabajo se queda corto, el genético del orden. Se queda el
+    # mejor resultado. Todo con paradas tempranas: en cuanto el resultado se
+    # estabiliza NO se gasta el presupuesto restante.
+    if metodo in ("auto", "inteligente"):
+        metodo = "inteligente"
     deadline = t0 + t_max
     rnd = _random.Random(20260925)
     n_total = sum(int(a.get("copies", 1)) for a in assets) + len(pinned or [])
@@ -2127,7 +2143,7 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
     # Si la semilla ya coloca TODO en una sola página, no tiene sentido gastar
     # el presupuesto entero: un refino ACOTADO y se devuelve. Así los trabajos
     # fáciles responden en 2-3 s (antes agotaban el tope aunque sobrara sitio).
-    if (metodo in ("auto", "greedy", "largest", "voronoi")
+    if (metodo in ("inteligente", "greedy", "largest", "voronoi")
             and best.placements and not best.unplaced and best.pages <= 1):
         # variantes RÁPIDAS en paralelo (misma rejilla gruesa, otras órdenes):
         # dan una base mejor sin gastar presupuesto. En modo libre se añade
@@ -2238,7 +2254,7 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
             _recalcular_eficiencia(res_gen, masks_reales, area, assets)
             if _clave(res_gen) < _clave(best):
                 best = res_gen
-    else:  # greedy: Largest First como solución inicial + multi-arranque paralelo
+    else:  # greedy / inteligente: Largest First + multi-arranque paralelo
         # ENFOQUE SEGÚN EL NÚMERO DE ELEMENTOS: en trabajos grandes (o con
         # semilla lenta) la rejilla fina tarda demasiado por pasada, así que
         # se hacen MUCHAS pasadas GRUESAS en paralelo (más intentos, mejor
@@ -2246,7 +2262,12 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
         # OJO: estas dos variables se perdieron en un refactor y el NameError
         # lo tragaba el `except` de abajo: el multi-arranque NUNCA corría.
         contacto, voronoi = True, False
-        if solo_una and time.time() < deadline:
+        # en INTELIGENTE se reserva ~45% del presupuesto para el genético
+        # sin recorte de tiempo: las variantes terminan antes solas (en
+        # cuanto varias seguidas no mejoran se cancelan las que faltan) y así
+        # el genético y el refino fino usan el tiempo que sobre
+        fin_greedy = deadline
+        if solo_una and time.time() < fin_greedy:
             # «Solo 1 página»: con el tiempo que dejó la semilla se prueban
             # OTROS ÓRDENES y juegos de ángulos EN PARALELO (los FFT de numpy
             # sueltan el GIL: con varios núcleos se hacen 4-6 variantes en el
@@ -2268,10 +2289,11 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
                 futuros = [
                     ex.submit(_one_pass, assets, masks, area, semilla, pinned,
                               o, _r.Random(20260925 + i), None, (0.55, 0.80),
-                              deadline, None, True, False,
+                              fin_greedy, None, True, False,
                               cache_compartida, out_compartida,
                               grid_compartida, angs)
                     for i, (o, angs) in enumerate(variantes)]
+                sin_mejora = 0
                 for f in as_completed(futuros):
                     try:
                         res = f.result()
@@ -2280,6 +2302,14 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
                     _recalcular_eficiencia(res, masks_reales, area, assets)
                     if _clave(res) < _clave(best):
                         best = res
+                        sin_mejora = 0
+                    else:
+                        sin_mejora += 1
+                    # varias variantes seguidas sin mejorar → el resto ya no
+                    # aporta: se cancelan y se deja tiempo a lo que sí puede
+                    # (genético / refino fino)
+                    if sin_mejora >= 4:
+                        break
                 ex.shutdown(wait=False, cancel_futures=True)
             except Exception:
                 try:
@@ -2304,7 +2334,7 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
                 best = res_g
         if (not solo_una
                 and not (not best.unplaced and best.pages == 1)
-                and time.time() < deadline):
+                and time.time() < fin_greedy):
             ordenes = ["alto", "ancho"] + \
                 [f"random{i}" for i in range(1, 9)]
             try:
@@ -2317,7 +2347,7 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
                 futuros = {
                     ex.submit(_one_pass, assets, masks, area, ajustes_pase,
                               pinned, o, _r.Random(20260925 + i), None,
-                              (0.55, 0.80), deadline, None, contacto,
+                              (0.55, 0.80), fin_greedy, None, contacto,
                               voronoi, cache_compartida, out_compartida,
                               grid_compartida): o
                     for i, o in enumerate(ordenes)
@@ -2351,6 +2381,90 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
                     progress(0.95, best.pages)
                 except Exception:
                     pass
+        # ESCALADA (solo inteligente): si el greedy se queda corto, el
+        # genético del orden suele apretar más (mezcla densa: 24 → 32). Tiene
+        # su propia parada por estancamiento, así que no se lleva el tiempo
+        # que no necesita.
+        if (metodo == "inteligente" and time.time() < deadline
+                and (best.unplaced or best.pages > 1)):
+            # REFINO FINO (solo exacto, ANTES del genético): con piezas
+            # pequeñas la rejilla gruesa pierde unas cuantas. Un lote EN
+            # PARALELO con la rejilla FINA (calidad exacta) recupera esas
+            # piezas: es la variación de rejilla que de verdad cambia el
+            # resultado.
+            if exacto and best.unplaced:
+                if progress:
+                    try:
+                        progress(0.96, best.pages)
+                    except Exception:
+                        pass
+                fino = dict(settings, opt_calidad="exacta")
+                fin_fino = min(deadline,
+                               time.time() + 0.45 * (deadline - time.time()))
+                # giros rectos: son los que mejor aprietan y, en rejilla
+                # fina, 3-4× más rápidos que los ángulos libres (el lote debe
+                # ser corto para dejar tiempo al genético)
+                variantes_f = [("area", [0.0, 90.0, 180.0, 270.0]),
+                               ("alto", [0.0, 90.0, 180.0, 270.0])]
+                try:
+                    from concurrent.futures import (ThreadPoolExecutor,
+                                                    as_completed)
+                    exf = ThreadPoolExecutor(max_workers=3)
+                    futs = [
+                        exf.submit(_one_pass, assets, masks, area, fino,
+                                   pinned, o, _random.Random(40 + i), None,
+                                   (0.30, 0.95), fin_fino, None, True, False,
+                                   cache_compartida, out_compartida,
+                                   grid_compartida, angs)
+                        for i, (o, angs) in enumerate(variantes_f)]
+                    for f in as_completed(futs):
+                        try:
+                            res_f = f.result()
+                        except Exception:
+                            continue
+                        _recalcular_eficiencia(res_f, masks_reales, area,
+                                               assets)
+                        if _clave(res_f) < _clave(best):
+                            best = res_f
+                    exf.shutdown(wait=False, cancel_futures=True)
+                except Exception:
+                    pass
+
+            # GENÉTICO del orden: el que más aprieta en trabajos difíciles
+            # (mezcla densa: 24 → 32-34). En EXACTO con varias semillas y
+            # población mayor; en ESTÁNDAR una pasada. Paradas de verdad: por
+            # estancamiento y al cumplir el objetivo (todo en una hoja).
+            if time.time() < deadline and (best.unplaced or best.pages > 1):
+                if progress:
+                    try:
+                        progress(0.97, best.pages)
+                    except Exception:
+                        pass
+                semillas = (list(settings.get("_genetic_seeds") or [])
+                            or ([20260925, 7919, 104729] if exacto
+                                else [20260925]))
+                # población/estancamiento iguales en los dos modos: el
+                # genético converge ANTES con la población pequeña (medido:
+                # 35 piezas en 18 s vs 32,5 s con población 12)
+                pob, est = 8, 2
+                for sem in semillas:
+                    if time.time() >= deadline:
+                        break
+                    try:
+                        res_gen = _pase_genetico(assets, masks, area, settings,
+                                                 pinned, deadline, progress,
+                                                 masks_reales=masks_reales,
+                                                 seed=sem, poblacion_n=pob,
+                                                 estancamiento=est)
+                    except Exception:
+                        res_gen = None
+                    if res_gen is not None:
+                        _recalcular_eficiencia(res_gen, masks_reales, area,
+                                               assets)
+                        if _clave(res_gen) < _clave(best):
+                            best = res_gen
+                    if not best.unplaced and best.pages <= 1:
+                        break
 
     assert best is not None
     # fase de compactación (estilo DeepNest): acerca cada pieza al borde,

@@ -88,6 +88,7 @@ export interface AppSettings {
   mini_borde_modo?: "proporcional" | "igual" | "sin";
   mini_tamanos_lista: number[];
   opt_metodo: string;
+  calculo?: "estandar" | "exacto";   // estándar (rápido) o exacto (el mejor)
   opt_calidad: "exacta" | "normal" | "rapida";
   opt_tiempo_max_s: number;
   opt_tiempo_auto?: boolean;   // usar el tiempo recomendado del método

@@ -50,6 +50,21 @@ describe("Panel de ajustes", () => {
     expect(screen.getByTestId("chip-minis")).toBeInTheDocument();
   });
 
+  it("el cálculo se elige entre estándar (por defecto) y exacto", async () => {
+    const u = userEvent.setup();
+    render(<SettingsPanel settings={settings} saveSettings={saveSettings} />);
+    await u.click(within(screen.getByTestId("sect-general"))
+      .getByText("General"));
+    // por defecto: estándar
+    expect(screen.getByTestId("calculo-estandar")).toHaveClass("on");
+    // y se puede pasar a exacto
+    await u.click(screen.getByTestId("calculo-exacto"));
+    expect(saveSettings).toHaveBeenCalledWith({ calculo: "exacto" });
+    // volver a estándar
+    await u.click(screen.getByTestId("calculo-estandar"));
+    expect(saveSettings).toHaveBeenCalledWith({ calculo: "estandar" });
+  });
+
   it("los créditos del autor aparecen siempre visibles", () => {
     render(<SettingsPanel settings={settings} saveSettings={saveSettings} />);
     expect(screen.getByTestId("creditos")).toHaveTextContent(

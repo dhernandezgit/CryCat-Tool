@@ -173,13 +173,14 @@ function destacar(texto: string, partes: string[]): React.ReactNode[] {
 
 /** Tiempo máximo recomendado por método (igual que en el backend). */
 const OPT_TIEMPOS: Record<string, number> = {
-  auto: 6, rapido: 3, greedy: 6, largest: 3, voronoi: 6, genetic: 25,
+  inteligente: 8, auto: 8, rapido: 3, greedy: 6, largest: 3, voronoi: 6,
+  genetic: 25,
 };
 
 const METODO_NOMBRE: Record<string, string> = {
-  auto: "Automático", rapido: "Silueta rápida",
-  greedy: "Greedy / Bottom-Left", largest: "Largest First",
-  voronoi: "Voronoi", genetic: "Genético",
+  inteligente: "Selección inteligente", auto: "Selección inteligente",
+  rapido: "Silueta rápida", greedy: "Greedy / Bottom-Left",
+  largest: "Largest First", voronoi: "Voronoi", genetic: "Genético",
 };
 
 export default function SettingsPanel({ settings, saveSettings,
@@ -382,6 +383,29 @@ export default function SettingsPanel({ settings, saveSettings,
                toggle={toggle}
                icon={<IconoAjustar size={15} />}>
         <Grupo titulo="Colocación">
+        {/* cálculo: estándar (bueno y rápido) o exacto (el mejor posible) */}
+        <div className="ctl">
+          <label>{t("Cálculo")}</label>
+          <div className="seg" data-testid="calculo-modo">
+            <button type="button" data-testid="calculo-estandar"
+              className={(settings.calculo ?? "estandar") === "estandar"
+                ? "on" : ""}
+              onClick={() => set({ calculo: "estandar" })}>
+              {t("Cálculo estándar")}
+            </button>
+            <button type="button" data-testid="calculo-exacto"
+              className={settings.calculo === "exacto" ? "on" : ""}
+              onClick={() => set({ calculo: "exacto" })}>
+              {t("Cálculo exacto")}
+            </button>
+          </div>
+          <div className="hint">
+            {t("Ambos son inteligentes: si el trabajo es fácil acaban pronto. " +
+               "«Estándar» busca un buen resultado con un tiempo ajustado; " +
+               "«Exacto» apura más (varias configuraciones y métodos) para " +
+               "acercarse al mejor resultado posible.")}
+          </div>
+        </div>
         {/* los dos valores básicos, en la MISMA fila */}
         <div className="ctl-fila">
         {num("Espacio entre elementos", "espacio_mm", -10, 20, 0.5, "mm", undefined,
@@ -644,6 +668,7 @@ export default function SettingsPanel({ settings, saveSettings,
 {experto &&       <Section id="optimizacion" title={t("Optimización")} open={abierto("optimizacion")} toggle={toggle}
                icon={<IconoRecalcular size={15} />}>
         {sel("Método", "opt_metodo", [
+          ["inteligente", "Selección inteligente (la mejor, sin gastar de más)"],
           ["greedy", "Greedy / Bottom-Left (rápido)"],
           ["largest", "Largest First (mayor primero)"],
           ["voronoi", "Voronoi (huecos más grandes)"],

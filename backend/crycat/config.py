@@ -14,28 +14,29 @@ APP_NAME = "CryCat"
 APP_W = 210.0
 APP_H = 297.0
 
-CONFIG_VERSION = 27  # subir para migrar configuraciones antiguas
+CONFIG_VERSION = 28  # subir para migrar configuraciones antiguas
 
 # Tiempo máximo RECOMENDADO por método (segundos). El usuario puede
 # desactivar el automático y fijar su propio presupuesto.
 OPT_TIEMPOS: dict[str, float] = {
-    "auto": 11.0, "rapido": 4.0, "greedy": 11.0, "largest": 5.0,
-    "voronoi": 13.0, "genetic": 18.0,
+    "inteligente": 11.0, "auto": 11.0, "rapido": 4.0, "greedy": 11.0,
+    "largest": 5.0, "voronoi": 13.0, "genetic": 18.0,
 }
 
 
 # nombres antiguos de método → nombre actual
 METODO_ALIAS: dict[str, str] = {
-    "silueta": "greedy", "silueta_rapido": "greedy", "auto": "greedy",
-    "maxrects": "greedy", "skyline": "greedy", "silueta_optimo": "genetic",
+    "silueta": "greedy", "silueta_rapido": "greedy",
+    "auto": "inteligente", "maxrects": "greedy", "skyline": "greedy",
+    "silueta_optimo": "genetic",
 }
 
 
 # segundos EXTRA de presupuesto por cada pieza a colocar (el trabajo crece:
 # más piezas = más intentos, más combinaciones y más minis que rellenan)
 OPT_POR_PIEZA: dict[str, float] = {
-    "auto": 0.2, "rapido": 0.08, "greedy": 0.2, "largest": 0.08,
-    "voronoi": 0.25, "genetic": 0.4,
+    "inteligente": 0.2, "auto": 0.2, "rapido": 0.08, "greedy": 0.2,
+    "largest": 0.08, "voronoi": 0.25, "genetic": 0.4,
 }
 OPT_TIEMPO_TOPE = 60.0       # techo de seguridad (nunca más de 1 minuto)
 
@@ -59,8 +60,15 @@ def tiempo_optimo(d, n_elementos: int = 0) -> float:
         # MISMO (la barra de progreso muestra lo que queda).
         if d.get("web_inline_jobs"):
             t *= 2.5
-        return max(base, min(OPT_TIEMPO_TOPE, t))
-    return max(0.5, float(d.get("opt_tiempo_max_s", 8.0)))
+        t = max(base, min(OPT_TIEMPO_TOPE, t))
+    else:
+        t = max(0.5, float(d.get("opt_tiempo_max_s", 8.0)))
+    # CÁLCULO EXACTO: presupuesto más amplio (techo 90 s) para apurar la
+    # búsqueda. Las paradas tempranas hacen que los trabajos fáciles acaben
+    # mucho antes (el tiempo solo se usa si de verdad mejora el resultado).
+    if str(d.get("calculo", "estandar")).lower() == "exacto":
+        t = min(90.0, max(30.0, 3.0 * t))
+    return t
 
 
 # En la nube se puede fijar una carpeta de datos con CRYCAT_DATA_DIR
@@ -128,7 +136,8 @@ DEFAULTS: dict = {
     "mini_borde_modo": "igual",
     "mini_tamanos_lista": [20.0],  # tamaño deseado (mm del lado menor, o %)
     # Optimización
-    "opt_metodo": "auto",        # auto | rapido | greedy | largest | voronoi | genetic
+    "opt_metodo": "inteligente",  # inteligente | rapido | greedy | largest | voronoi | genetic
+    "calculo": "estandar",       # estandar (bueno y rápido) | exacto (el mejor posible)
     "opt_calidad": "normal",     # exacta | normal | rapida (resolución de siluetas)
     "opt_tiempo_auto": True,     # presupuesto automático por método (si no, el de abajo)
     "opt_tiempo_max_s": 8.0,
@@ -215,7 +224,13 @@ class Settings:
                 if CONFIG_FILE.exists():
                     saved = json.loads(CONFIG_FILE.read_text("utf-8"))
                     if saved.get("_v") != CONFIG_VERSION:
-                        if saved.get("_v") == 26:
+                        if saved.get("_v") == 27:
+                            # el método automático pasa a ser la SELECCIÓN
+                            # INTELIGENTE (cartera de métodos + paradas)
+                            if saved.get("opt_metodo") in (None, "auto"):
+                                saved["opt_metodo"] = "inteligente"
+                            saved["_v"] = CONFIG_VERSION
+                        elif saved.get("_v") == 26:
                             # los minis pasan a ser AUTOMÁTICOS por defecto
                             # (antes mandaba la lista de tamaños): el tamaño lo
                             # elige el optimizador entre el mínimo y el % máximo

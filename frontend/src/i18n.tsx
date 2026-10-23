@@ -416,6 +416,20 @@ export const EN: Record<string, string> = {
     "Each value is the mini's size relative to the original; they are tried " +
     "from largest to smallest until they fit.",
   "Método": "Method",
+  "Selección inteligente": "Smart selection",
+  "Selección inteligente (la mejor, sin gastar de más)":
+    "Smart selection (the best, without wasting time)",
+  "Cálculo": "Calculation",
+  "Cálculo estándar": "Standard calculation",
+  "Cálculo exacto": "Exact calculation",
+  ["Ambos son inteligentes: si el trabajo es fácil acaban pronto. " +
+   "«Estándar» busca un buen resultado con un tiempo ajustado; " +
+   "«Exacto» apura más (varias configuraciones y métodos) para " +
+   "acercarse al mejor resultado posible."]:
+    "Both are smart: easy jobs finish quickly. “Standard” looks for a good " +
+    "result within a tight time; “Exact” pushes harder (several " +
+    "configurations and methods) to get as close as possible to the best " +
+    "result.",
   "Greedy / Bottom-Left (rápido)": "Greedy / Bottom-Left (fast)",
   "Largest First (mayor primero)": "Largest First (biggest first)",
   "Voronoi (huecos más grandes)": "Voronoi (largest gaps)",

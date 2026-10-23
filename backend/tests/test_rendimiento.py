@@ -89,8 +89,10 @@ def _area():
 
 
 def _pack(assets, masks, **extra):
+    # sin `presupuesto_s`: manda `opt_tiempo_max_s` de los ajustes y el modo
+    # de cálculo (el exacto amplía el presupuesto él solo)
     st = dict(BASE, **extra)
-    return sil_pack(assets, masks, _area(), st, presupuesto_s=PRESUPUESTO)
+    return sil_pack(assets, masks, _area(), st)
 
 
 def _resumen(r):
@@ -205,6 +207,38 @@ def test_rendimiento_minis_rellenan_estrellas():
     assert m >= 30, f"solo {m} minis (mejor conocido: 40)"
     assert r.efficiency >= 0.48, f"eficiencia {r.efficiency:.3f} (0,533)"
     _comprueba_tiempo(r)
+
+
+def test_calculo_exacto_recupera_piezas_con_rejilla_fina():
+    """El EXACTO usa la rejilla fina y recupera piezas que el estándar pierde.
+
+    120 círculos de 18 mm: con la rejilla gruesa del estándar quedan unas
+    cuantas fuera; el exacto (rejilla exacta, en paralelo) las coloca todas.
+    Es la prueba de que las configuraciones cambian el resultado de verdad.
+    """
+    im = _circulo(18)
+    assets = [_asset("p", 18.0, 18.0, 120)]
+    masks = {"p": im}
+    r_std = _pack(assets, masks, calculo="estandar")
+    n_std, _ = _resumen(r_std)
+    assert r_std.unplaced, "el estándar debería dejar alguna fuera (rejilla gruesa)"
+    r_exa = _pack(assets, masks, calculo="exacto")
+    n_exa, _ = _resumen(r_exa)
+    assert n_exa == 120 and not r_exa.unplaced, (
+        f"el exacto debe colocar las 120 (colocó {n_exa})")
+    assert r_exa.elapsed_s <= TOPE_S, f"exacto tardó {r_exa.elapsed_s:.1f}s"
+
+
+def test_calculo_no_gasta_tiempo_de_mas_si_es_facil():
+    """Un trabajo que cabe entero acaba pronto también en modo exacto."""
+    im = _redondo(70, 20)
+    assets = [_asset("a", 70.0, 20.0, 24)]
+    r = _pack(assets, {"a": im}, calculo="exacto")
+    n, _ = _resumen(r)
+    assert n == 24 and not r.unplaced
+    # el presupuesto del exacto es amplio, pero el trabajo es fácil: parada
+    # temprana (no debe acercarse al presupuesto)
+    assert r.elapsed_s <= 6.0, f"tardó {r.elapsed_s:.1f}s en un trabajo fácil"
 
 
 def test_eficiencia_mide_la_tinta_de_verdad():

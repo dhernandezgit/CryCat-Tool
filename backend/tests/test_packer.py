@@ -293,7 +293,11 @@ def test_eficiencia_mide_siluetas_reales():
         f"ratio {cir.efficiency / cua.efficiency:.3f}"
 
 
-def test_metodo_por_defecto_es_auto():
-    """Por defecto, AUTOMÁTICO: elige el método según el espacio disponible."""
-    from crycat.config import DEFAULTS
-    assert DEFAULTS["opt_metodo"] == "auto"
+def test_metodo_por_defecto_es_inteligente():
+    """Por defecto, SELECCIÓN INTELIGENTE: cartera de métodos con paradas."""
+    from crycat.config import DEFAULTS, METODO_ALIAS
+    assert DEFAULTS["opt_metodo"] == "inteligente"
+    # el antiguo «auto» sigue funcionando y lleva al inteligente
+    assert METODO_ALIAS["auto"] == "inteligente"
+    # el cálculo por defecto es el estándar (bueno y con tiempo ajustado)
+    assert DEFAULTS["calculo"] == "estandar"

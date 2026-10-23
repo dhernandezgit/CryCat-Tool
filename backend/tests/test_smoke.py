@@ -51,7 +51,7 @@ def test_humo_todo_lo_de_la_interfaz(client):
     c, st, tmp = client
 
     assert c.get("/api/health").json()["ok"] is True
-    assert c.get("/api/settings").json()["settings"]["opt_metodo"] == "auto"
+    assert c.get("/api/settings").json()["settings"]["opt_metodo"] == "inteligente"
 
     # subir + ajustes del elemento
     d = upload(c, "humo.png").json()
