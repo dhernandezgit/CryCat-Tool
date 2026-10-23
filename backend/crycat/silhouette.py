@@ -2404,7 +2404,7 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
             except Exception:
                 pass
         if (metodo == "inteligente" and time.time() < deadline
-                and n_total <= 120
+                and 36 <= n_total <= 120
                 and len({a["id"] for a in assets}) > 1
                 and (best.unplaced or best.pages > 1)):
             # REFINO FINO (solo exacto, ANTES del genético): con piezas
