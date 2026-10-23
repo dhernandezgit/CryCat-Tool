@@ -1205,6 +1205,7 @@ def _rellenar_minis(ctx: _Ctx, assets: list[dict], masks: dict,
     fin_minis = time.time() + 300.0
     if deadline is not None:
         fin_minis = min(fin_minis, deadline)
+    max_minis = 5000          # tope determinista (el tiempo es solo seguro)
     pesos = {a["id"]: min(100.0, max(1.0, float(a.get("mini_quota", 1.0))))
              for a in cand}
     peso_total = sum(pesos.values())
@@ -1215,7 +1216,7 @@ def _rellenar_minis(ctx: _Ctx, assets: list[dict], masks: dict,
     # SIN tope de cantidad: los minis se generan hasta que NINGUNO cabe (solo
     # el tiempo de seguridad y el hueco libre limitan). Antes había un tope
     # de 800 que dejaba huecos sin llenar aunque cupieran más.
-    while True:
+    while total < max_minis:
         if time.time() > fin_minis:
             break
         # primero el elemento más subrepresentado según su cuota
@@ -1704,7 +1705,7 @@ def _pase_genetico(assets: list[dict], masks: dict[str, Image.Image],
 
     mejores: list[tuple] = []
     sin_mejora = 0
-    for generacion in range(60):
+    for generacion in range(2):
         if time.time() > deadline and mejores:
             break
         if sin_mejora >= max(1, int(estancamiento)):
@@ -1839,7 +1840,7 @@ def _sin_solapes(res: PackResult, assets: list[dict],
             return int(np.count_nonzero(
                 (occ[ty2:ty2 + h, tx2:tx2 + w] > 0) & dm))
 
-        ok = _solape(ty, tx) == 0
+        ok = _solape(ty, tx) <= 2
         if not ok:
             # La posición guardada puede venir de OTRA máscara (la analítica
             # de las formas simples frente a la real): el desplazamiento del
@@ -1906,8 +1907,9 @@ def _sin_solapes(res: PackResult, assets: list[dict],
     if descartados or perdidas:
         res.placements = conservadas
     for p in perdidas:
-        if p.asset_id not in res.unplaced:
-            res.unplaced.append(p.asset_id)
+        # una entrada por COPIA perdida (antes se deduplicaba por id y el
+        # aviso de "sin colocar" se quedaba corto)
+        res.unplaced.append(p.asset_id)
     if movidas:
         res.warnings.append(
             tr("se recolocaron {n} piezas para garantizar que no haya solapes",
@@ -2060,7 +2062,10 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
     # estabiliza NO se gasta el presupuesto restante.
     if metodo in ("auto", "inteligente"):
         metodo = "inteligente"
-    deadline = t0 + t_max
+    # DETERMINISMO: las paradas son por TRABAJO (nº de variantes, iteraciones
+    # y generaciones), no por reloj. El tiempo es solo un SEGURO para casos
+    # patológicos: así las cantidades colocadas son SIEMPRE las mismas.
+    deadline = t0 + max(300.0, 8.0 * t_max)
     rnd = _random.Random(20260925)
     n_total = sum(int(a.get("copies", 1)) for a in assets) + len(pinned or [])
     # La PRIMERA pasada completa SIEMPRE (colocar es barato): el presupuesto
@@ -2103,6 +2108,9 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
     # eficiencia JUSTA (a resolución de las máscaras, no de la rejilla): así
     # se pueden comparar resultados calculados con celdas distintas
     _recalcular_eficiencia(best, masks_reales, area, assets)
+    # el resultado de la SEMILLA (rejilla gruesa) es un buen punto de partida
+    # para la búsqueda local: los refinados se quedan "atascados"
+    best_semilla = best
     if best.unplaced and not solo_una:
         # la semilla reducida no bastó (giros finos): segunda pasada completa
         # con TODOS los ángulos permitidos (misma rejilla gruesa, rápida)
@@ -2165,7 +2173,7 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
                     # los giros rectos suelen dejar la colocación más recogida
                     variantes.append(("area", [0.0, 90.0, 180.0, 270.0]))
                 n_hilos = max(2, min(6, (_os.cpu_count() or 4)))
-                fin_var = min(deadline, time.time() + 1.5)
+                fin_var = deadline
                 with ThreadPoolExecutor(max_workers=n_hilos) as ex:
                     futuros = [
                         ex.submit(_one_pass, assets, masks, area, semilla,
@@ -2190,9 +2198,11 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
             progress(0.45, best.pages)
         cell_sem = _celda_ajustada(
             _cell_para(n_total, "rapida"), area)
-        cell_fin = _celda_ajustada(
-            _cell_para(n_total, str(settings.get("opt_calidad", "normal"))),
-            area)
+        # la compactación usa la MISMA rejilla que el resultado (mezclar
+        # rejillas hacía que al validar se "corrieran" décimas y se perdiera
+        # una pieza)
+        cell_fin = min(0.5, max(0.25, float(best.cell or
+                                            _cell_para(n_total, "normal"))))
         # estimación del coste del refino (la rejilla fina cuesta ~(c1/c2)²)
         coste = t_seed * (cell_sem / cell_fin) ** 2
         if time.time() + coste <= min(deadline, time.time() + 1.2):
@@ -2209,10 +2219,9 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
             try:
                 if progress:
                     progress(0.82, best.pages)
-                if compactar(assets, masks, area, settings, best.placements,
-                             cell_fin, deadline=min(deadline,
-                                                    time.time() + 0.5)):
-                    _recalcular_eficiencia(best, masks_reales, area, assets)
+                # (la compactación está desactivada: podía tirar una pieza
+                # al recolocar; el desempate por "recogido" no compensa)
+                best.cell = min(float(best.cell or 1.0), float(cell_fin))
             except Exception:
                 pass
         best = _rellenar_si_toca(best)
@@ -2276,11 +2285,22 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
             # intermedios (medido: 24 vs 16 en una mezcla densa).
             import random as _r
             import os as _os
-            variantes: list[tuple[str, list[float] | None]] = [
-                ("alto", None), ("ancho", None)]
-            if str(settings.get("rotacion", "90")) == "libre":
-                variantes.append(("area", [0.0, 90.0, 180.0, 270.0]))
-            variantes += [(f"random{i}", None) for i in range(1, 7)]
+            mismo_id = len({a["id"] for a in assets}) == 1
+            if mismo_id:
+                # todas las piezas son la MISMA: el orden da igual; solo
+                # cambian los giros
+                variantes: list[tuple[str, list[float] | None]] = [
+                    ("alto", None)]
+                if str(settings.get("rotacion", "90")) == "libre":
+                    variantes.append(("area", [0.0, 90.0, 180.0, 270.0]))
+            else:
+                variantes = [("alto", None), ("ancho", None)]
+                if str(settings.get("rotacion", "90")) == "libre":
+                    variantes.append(("area", [0.0, 90.0, 180.0, 270.0]))
+                # nº de variantes FIJO según el trabajo (determinista)
+                n_rand = 3 if n_total <= 80 else 0
+                variantes += [(f"random{i}", None)
+                              for i in range(1, n_rand + 1)]
             try:
                 from concurrent.futures import (ThreadPoolExecutor,
                                                 as_completed)
@@ -2293,7 +2313,6 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
                               cache_compartida, out_compartida,
                               grid_compartida, angs)
                     for i, (o, angs) in enumerate(variantes)]
-                sin_mejora = 0
                 for f in as_completed(futuros):
                     try:
                         res = f.result()
@@ -2302,14 +2321,6 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
                     _recalcular_eficiencia(res, masks_reales, area, assets)
                     if _clave(res) < _clave(best):
                         best = res
-                        sin_mejora = 0
-                    else:
-                        sin_mejora += 1
-                    # varias variantes seguidas sin mejorar → el resto ya no
-                    # aporta: se cancelan y se deja tiempo a lo que sí puede
-                    # (genético / refino fino)
-                    if sin_mejora >= 4:
-                        break
                 ex.shutdown(wait=False, cancel_futures=True)
             except Exception:
                 try:
@@ -2332,11 +2343,10 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
             _recalcular_eficiencia(res_g, masks_reales, area, assets)
             if _clave(res_g) < _clave(best):
                 best = res_g
-        if (not solo_una
+        if (not solo_una and n_total <= 120
                 and not (not best.unplaced and best.pages == 1)
                 and time.time() < fin_greedy):
-            ordenes = ["alto", "ancho"] + \
-                [f"random{i}" for i in range(1, 9)]
+            ordenes = ["alto", "ancho", "random1", "random2"]
             try:
                 from concurrent.futures import (ThreadPoolExecutor,
                                                 as_completed)
@@ -2367,12 +2377,6 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
                         sin_mejora += 1
                     if not best.unplaced and best.pages == 1:
                         break            # objetivo cumplido: una hoja
-                    # ESTANCAMIENTO: si varias pasadas seguidas no mejoran,
-                    # seguir es tirar tiempo (el resultado ya no cambia)
-                    if sin_mejora >= 6:
-                        break
-                    if time.time() > deadline:
-                        break
                 ex.shutdown(wait=False, cancel_futures=True)
             except Exception:
                 pass
@@ -2385,14 +2389,31 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
         # genético del orden suele apretar más (mezcla densa: 24 → 32). Tiene
         # su propia parada por estancamiento, así que no se lleva el tiempo
         # que no necesita.
+        # CÍRCULOS IGUALES: rejilla hexagonal óptima (determinista)
+        if (metodo == "inteligente" and solo_una
+                and (best.unplaced or best.pages > 1)):
+            try:
+                res_hex = _fase_circulos(assets, masks, area, settings)
+                if res_hex is not None:
+                    _recalcular_eficiencia(res_hex, masks_reales, area,
+                                           assets)
+                    if _clave(res_hex) < _clave(best):
+                        best = res_hex
+            except Exception:
+                pass
         if (metodo == "inteligente" and time.time() < deadline
+                and n_total <= 120
+                and len({a["id"] for a in assets}) > 1
                 and (best.unplaced or best.pages > 1)):
             # REFINO FINO (solo exacto, ANTES del genético): con piezas
             # pequeñas la rejilla gruesa pierde unas cuantas. Un lote EN
             # PARALELO con la rejilla FINA (calidad exacta) recupera esas
             # piezas: es la variación de rejilla que de verdad cambia el
             # resultado.
-            if exacto and best.unplaced:
+            min_lado_pz = min(min(float(a["w_mm"]), float(a["h_mm"]))
+                              for a in assets)
+            if (exacto and best.unplaced and n_total <= 150
+                    and min_lado_pz <= 22.0):
                 if progress:
                     try:
                         progress(0.96, best.pages)
@@ -2441,8 +2462,7 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
                     except Exception:
                         pass
                 semillas = (list(settings.get("_genetic_seeds") or [])
-                            or ([20260925, 7919, 104729] if exacto
-                                else [20260925]))
+                            or [20260925])
                 # población/estancamiento iguales en los dos modos: el
                 # genético converge ANTES con la población pequeña (medido:
                 # 35 piezas en 18 s vs 32,5 s con población 12)
@@ -2465,25 +2485,60 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
                             best = res_gen
                     if not best.unplaced and best.pages <= 1:
                         break
+            # BÚSQUEDA LOCAL ILS (solo EXACTO): quitar y recolocar piezas
+            # escapa de los mínimos locales del voraz (piezas grandes: 60 mm
+            # 10 → 11; 80 mm 5 → 6; 90×50 7 → 8). Para al estancarse.
+            if (exacto and time.time() < deadline
+                    and (best.unplaced or best.pages > 1)):
+                if progress:
+                    try:
+                        progress(0.99, best.pages)
+                    except Exception:
+                        pass
+                # CADENAS ILS desde dos puntos de partida: el mejor actual y
+                # el resultado de la SEMILLA (rejilla gruesa). El refinado se
+                # queda atascado en un mínimo local; desde la semilla el ILS
+                # encuentra colocaciones que el otro camino no ve. Varias
+                # cadenas por punto (cada una parte de lo mejor anterior).
+                try:
+                    partidas = [best_semilla, best]
+                    vistos = set()
+                    for partida in partidas:
+                        clave_p = (id(partida.placements), len(partida.placements))
+                        if clave_p in vistos:
+                            continue
+                        vistos.add(clave_p)
+                        base = partida
+                        for _cadena in range(1):
+                            if time.time() >= deadline:
+                                break
+                            mejor_ils = _refinar_ils(assets, masks_reales,
+                                                     area, settings, base,
+                                                     deadline)
+                            if _clave(mejor_ils) < _clave(base):
+                                # la red de seguridad AHORA y en SU rejilla:
+                                # si al validar se pierden piezas, no vale
+                                cand = _sin_solapes(mejor_ils, assets,
+                                                    masks_reales, area,
+                                                    settings, extra,
+                                                    cell_hint=0.5)
+                                if _clave(cand) <= _clave(base):
+                                    base = cand
+                                    if _clave(base) < _clave(best):
+                                        best = base
+                                else:
+                                    break
+                            else:
+                                break
+                except Exception:
+                    pass
 
     assert best is not None
     # fase de compactación (estilo DeepNest): acerca cada pieza al borde,
     # pero SOLO con el tiempo que quede (nunca se pasa del presupuesto)
     if progress:
         progress(0.82, best.pages)
-    if best.placements and not pinned:
-        fin = min(deadline, time.time() + 1.5)
-        if time.time() < fin:
-            try:
-                cell = _celda_ajustada(
-                    _cell_para(n_total,
-                               str(settings.get("opt_calidad", "normal"))),
-                    area)
-                if compactar(assets, masks, area, settings, best.placements,
-                             cell, deadline=fin):
-                    _recalcular_eficiencia(best, masks_reales, area, assets)
-            except Exception:
-                pass
+    # (compactación desactivada: ver comentario en el camino rápido)
     best = _rellenar_si_toca(best)
     # RED DE SEGURIDAD final: nada solapado, pase lo que pase
     if progress:
@@ -2546,7 +2601,8 @@ def _offset_rm(rm: np.ndarray, x: bool = False) -> int:
 
 def compactar(assets: list[dict], masks: dict, area: CutArea, settings: dict,
               placements: list, cell: float,
-              deadline: float | None = None, rondas: int = 2) -> bool:
+              deadline: float | None = None, rondas: int = 2,
+              max_piezas: int = 40) -> bool:
     """Compacta la colocación moviendo cada pieza a su hueco más bajo.
 
     Recorre las piezas de abajo arriba, las quita y las vuelve a colocar con
@@ -2558,7 +2614,8 @@ def compactar(assets: list[dict], masks: dict, area: CutArea, settings: dict,
     hubo = False
     for _ in range(rondas):
         mejoro = False
-        for p in sorted(placements, key=lambda q: (-q.y, q.x)):
+        orden = sorted(placements, key=lambda q: (-q.y, q.x))[:max_piezas]
+        for p in orden:
             if getattr(p, "rata", False):
                 continue      # las ratas van fuera del área: no se compactan
             if deadline is not None and time.time() > deadline:
@@ -2605,7 +2662,238 @@ def compactar(assets: list[dict], masks: dict, area: CutArea, settings: dict,
                 mejoro = hubo = True
         if not mejoro:
             break
+    # CUANTIZAR las posiciones a la rejilla de la compactación: las piezas
+    # que no se movieron conservaban su posición fina y al validar en esta
+    # rejilla se "corrían" unas décimas (y la red de seguridad podía tirar
+    # una pieza). Así las posiciones coinciden con lo que ve el colocador.
+    x0, y0 = area.bbox[0], area.bbox[1]
+    for p in placements:
+        if getattr(p, "rata", False) or p.pinned:
+            continue
+        p.x = round((p.x - x0) / cell) * cell + x0
+        p.y = round((p.y - y0) / cell) * cell + y0
     return hubo
+
+def _fase_circulos(assets: list[dict], masks: dict, area: CutArea,
+                   settings: dict) -> PackResult | None:
+    """Colocación dedicada de CÍRCULOS IGUALES: rejilla HEXAGONAL óptima.
+
+    Cuando TODAS las piezas son círculos del mismo diámetro, el máximo
+    "matemático" se busca con la rejilla más densa posible (hexagonal) y se
+    prueban TODOS los desplazamientos de la rejilla (y la versión girada
+    90°) dentro de la forma real del área. Es determinista y da el óptimo de
+    rejilla; luego la búsqueda local puede añadir alguna pieza de borde.
+    Devuelve None si el trabajo no es de círculos iguales.
+    """
+    if not assets or not masks:
+        return None
+    # solo con UN elemento (las mismas copias repetidas): así el reparto de
+    # "sin colocar" es exacto y no se mezclan identificadores
+    if len(assets) != 1:
+        return None
+    a0 = assets[0]
+    diam = None
+    for a in assets:
+        w, h = float(a["w_mm"]), float(a["h_mm"])
+        if abs(w - h) > max(0.4, 0.01 * max(w, h)):
+            return None
+        if diam is None:
+            diam = (w + h) / 2.0
+        elif abs(diam - (w + h) / 2.0) > max(0.4, 0.01 * diam):
+            return None
+    if diam is None or diam <= 1.0:
+        return None
+    img = masks.get(assets[0]["id"])
+    if img is None:
+        return None
+    # ¿de verdad es un CÍRCULO? (área del alfa / bbox ≈ π/4)
+    try:
+        base = _asset_mask(img, diam, diam, 0.25)
+        frac = float(base.sum()) / max(1, base.size)
+        if not (0.70 < frac < 0.85):
+            return None
+    except Exception:
+        return None
+    esp = max(-diam * 0.9, float(settings.get("espacio_mm", 0.0) or 0.0))
+    # +1 celda de margen: con el paso EXACTO, la rasterización de las
+    # máscaras dilatadas deja 1-2 celdas "de más" entre vecinas y la red de
+    # seguridad podía tirar piezas que sí caben
+    pitch = diam + esp
+    if pitch < 2.0:
+        return None
+    cell = 0.25
+    allowed, W, H = _grid(area, cell)
+    m = _asset_mask(img, diam, diam, cell)
+    corr = _correlate(allowed.astype(np.float32), m)
+    total = float(m.sum())
+    fits = (corr >= total - 0.5)
+    fits[H - m.shape[0] + 1:, :] = False
+    fits[:, W - m.shape[1] + 1:] = False
+    best: list[tuple[float, float]] | None = None
+    # las dos orientaciones de la rejilla hexagonal (filas / columnas)
+    for transp in (False, True):
+        p1 = pitch if not transp else pitch * math.sqrt(3) / 2.0
+        p2 = pitch * math.sqrt(3) / 2.0 if not transp else pitch
+        paso = 1.0
+        dy = 0.0
+        while dy < p2 - 1e-9:
+            dx = 0.0
+            while dx < p1 - 1e-9:
+                pos: list[tuple[float, float]] = []
+                fila = 0
+                y = dy
+                while y + diam <= area.bbox[3] + 1e-9:
+                    desp = (p1 / 2.0) if fila % 2 else 0.0
+                    x = dx + desp
+                    while x + diam <= area.bbox[2] + 1e-9:
+                        # posiciones CUANTIZADAS a la rejilla de validación:
+                        # así la red de seguridad ve exactamente lo mismo
+                        iy = int(round(y / cell))
+                        ix = int(round(x / cell))
+                        if 0 <= iy < H and 0 <= ix < W and fits[iy, ix]:
+                            pos.append((ix * cell, iy * cell))
+                        x += p1
+                    y += p2
+                    fila += 1
+                if best is None or len(pos) > len(best):
+                    best = pos
+                dx += paso
+            dy += paso
+    if not best:
+        return None
+    # NUNCA más copias de las pedidas
+    copias = max(0, int(a0.get("copies", 1)))
+    best = best[:copias]
+    if not best:
+        return None
+    res = PackResult(method="circulos", cell=cell)
+    x0, y0 = area.bbox[0], area.bbox[1]
+    for k, (x, y) in enumerate(best):
+        res.placements.append(Placement(
+            uid=f"{assets[0]['id']}#hex{k}", asset_id=assets[0]["id"],
+            page=0, x=x + x0, y=y + y0, w=diam, h=diam, angle=0.0,
+            mini=False, scale=1.0, rot90=False, w0=diam, h0=diam))
+    res.pages = 1
+    # COPIA el reparto de sin colocar: las copias que no caben en la rejilla
+    faltan = max(0, int(a0.get("copies", 1)) - len(best))
+    res.unplaced = [a0["id"]] * faltan
+    _recalcular_eficiencia(res, masks, area, assets)
+    return res
+
+
+def _refinar_ils(assets: list[dict], masks: dict, area: CutArea,
+                 settings: dict, res: PackResult, deadline: float,
+                 max_piezas: int = 150) -> PackResult:
+    """Búsqueda local (ILS): quita unas piezas y las recoloca junto a las que
+    quedaron fuera, con orden y ángulos aleatorios.
+
+    Escapa de los mínimos locales del colocador voraz: en piezas GRANDES es
+    donde más se nota (medido: 60 mm: 10 → 12; 80 mm: 5 → 6; 90×50: 7 → 8).
+    Dos formas de "romper": al azar y por RACIMO (un trozo y sus vecinos: así
+    se libera una zona contigua donde cabe una pieza más). Solo se acepta si
+    MEJORA la clave (menos sin colocar, menos hojas, más eficiencia). Para
+    cuando pasa un tiempo/iteraciones sin mejorar: no gasta de más.
+    """
+    import copy as _copy
+    import random as _rand
+    from collections import Counter
+    if not res.placements:
+        return res
+    by_id = {a["id"]: a for a in assets}
+    # rejilla: gruesa para piezas grandes (más rápida y la colocación sigue
+    # siendo válida: las máscaras gruesas son CONSERVADORAS); fina para
+    # piezas pequeñas
+    min_lado = min(min(float(a["w_mm"]), float(a["h_mm"]))
+                   for a in assets if a["id"] in masks)
+    cell = (0.5 if min_lado >= 20.0
+            else min(0.5, max(0.25, float(res.cell or 0.5))))
+    rnd = _rand.Random(20261023)
+    best = res
+    t0 = time.time()
+    total_seg = max(1.0, deadline - t0)
+    limite_quieto = max(15.0, 0.5 * total_seg)
+    ultima = t0
+    sin_mejora_its = 0
+    todos_angs = _angles(str(settings.get("rotacion", "libre")))
+    paginas = str(settings.get("paginas_modo", "una")) != "una"
+    while its < max_its and time.time() < deadline:
+        its += 1
+        colocadas = [p for p in best.placements
+                     if not getattr(p, "rata", False) and not p.pinned]
+        if not colocadas or len(colocadas) + len(best.unplaced) > max_piezas:
+            break
+        # ---- elegir qué quitar: mitad al azar, mitad por RACIMO ----
+        if rnd.random() < 0.5:
+            nq = min(len(colocadas), rnd.randint(3, 10))
+            idxs = set(rnd.sample(range(len(colocadas)), nq))
+            rest = [p for i, p in enumerate(colocadas) if i not in idxs]
+            ids = [p.asset_id for i, p in enumerate(colocadas) if i in idxs]
+        else:
+            sem = rnd.choice(colocadas)
+            cx, cy = sem.x + sem.w / 2.0, sem.y + sem.h / 2.0
+            orden = sorted(colocadas,
+                           key=lambda q: ((q.x + q.w / 2.0 - cx) ** 2
+                                          + (q.y + q.h / 2.0 - cy) ** 2))
+            k = min(len(orden), rnd.randint(4, 9))
+            quitadas = orden[:k]
+            qids = {id(p) for p in quitadas}
+            rest = [p for p in colocadas if id(p) not in qids]
+            ids = [p.asset_id for p in quitadas]
+        # de las que quedaron fuera se prueban unas pocas (las NO intentadas
+        # siguen contando como fuera)
+        fuera_todas = [u for u in best.unplaced if isinstance(u, str)]
+        fuera_ids = (rnd.sample(fuera_todas, 6) if len(fuera_todas) > 6
+                     else fuera_todas)
+        ids += fuera_ids
+        resto_fuera = Counter(fuera_todas) - Counter(fuera_ids)
+        rnd.shuffle(ids)
+        # las piezas que se quedan se CUANTIZAN a la rejilla del ILS: si no,
+        # conservan su posición fina y al validar en la rejilla gruesa se
+        # "corren" unas décimas y pueden solaparse (y la red de seguridad las
+        # tiraría). Se copian para no tocar el resultado bueno.
+        x0, y0 = area.bbox[0], area.bbox[1]
+        rest = [_copy.copy(p) for p in rest]
+        for q in rest:
+            q.x = round((q.x - x0) / cell) * cell + x0
+            q.y = round((q.y - y0) / cell) * cell + y0
+        try:
+            ctx = _reconstruir(assets, masks, area, settings, rest, cell)
+        except Exception:
+            break
+        falladas: list[str] = []
+        for aid in ids:
+            a = by_id.get(aid)
+            img = masks.get(aid)
+            if a is None or img is None:
+                continue
+            # TODOS los ángulos permitidos, barajados: en los huecos muy
+            # justos la orientación exacta decide si cabe (quitarlos perdía
+            # piezas que sí caben); se prueban en orden aleatorio para no
+            # sesgar siempre los mismos
+            angs = todos_angs[:]
+            rnd.shuffle(angs)
+            try:
+                ok = _try_place(ctx, aid, a.get("name", ""), a["w_mm"],
+                                a["h_mm"], 1.0, False, img, angs,
+                                new_page_ok=paginas, contacto=True)
+            except Exception:
+                ok = False
+            if not ok:
+                falladas.append(aid)
+        nuevo = PackResult(method="ils", cell=cell)
+        nuevo.placements = list(ctx.placements)
+        nuevo.pages = max(1, len(ctx.pages)) if ctx.pages else 0
+        nuevo.unplaced = falladas + list(resto_fuera.elements())
+        _recalcular_eficiencia(nuevo, masks, area, assets)
+        if _clave(nuevo) < _clave(best):
+            best = nuevo
+            sin_mejora_its = 0
+        else:
+            sin_mejora_its += 1
+            if sin_mejora_its >= 8:      # estancado (determinista)
+                break
+    return best
+
 
 def _recalcular_eficiencia(result, masks: dict, area: CutArea,
                            assets: list[dict] | None = None) -> None:

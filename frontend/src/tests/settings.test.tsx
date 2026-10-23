@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import SettingsPanel from "../components/SettingsPanel";
@@ -50,18 +50,25 @@ describe("Panel de ajustes", () => {
     expect(screen.getByTestId("chip-minis")).toBeInTheDocument();
   });
 
-  it("el cálculo se elige entre estándar (por defecto) y exacto", async () => {
+  it("el botón de cálculo (arriba, junto a los modos) alterna estándar ↔ exacto", async () => {
     const u = userEvent.setup();
     render(<SettingsPanel settings={settings} saveSettings={saveSettings} />);
-    await u.click(within(screen.getByTestId("sect-general"))
-      .getByText("General"));
-    // por defecto: estándar
-    expect(screen.getByTestId("calculo-estandar")).toHaveClass("on");
-    // y se puede pasar a exacto
-    await u.click(screen.getByTestId("calculo-exacto"));
+    // por defecto: estándar y está en la fila de los modos
+    const boton = screen.getByTestId("modo-calculo");
+    expect(boton).toHaveTextContent("Cálculo estándar");
+    expect(boton).toHaveAttribute("data-calculo", "estandar");
+    // al pulsar alterna a exacto
+    await u.click(boton);
     expect(saveSettings).toHaveBeenCalledWith({ calculo: "exacto" });
-    // volver a estándar
-    await u.click(screen.getByTestId("calculo-estandar"));
+    // con la opción exacta, el botón lo refleja
+    cleanup();
+    render(<SettingsPanel settings={{ ...settings, calculo: "exacto" }}
+                          saveSettings={saveSettings} />);
+    const b2 = screen.getByTestId("modo-calculo");
+    expect(b2).toHaveTextContent("Cálculo exacto");
+    expect(b2).toHaveAttribute("data-calculo", "exacto");
+    // y al volver a pulsar, regresa a estándar
+    await u.click(b2);
     expect(saveSettings).toHaveBeenCalledWith({ calculo: "estandar" });
   });
 

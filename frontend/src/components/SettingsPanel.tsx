@@ -383,29 +383,6 @@ export default function SettingsPanel({ settings, saveSettings,
                toggle={toggle}
                icon={<IconoAjustar size={15} />}>
         <Grupo titulo="Colocación">
-        {/* cálculo: estándar (bueno y rápido) o exacto (el mejor posible) */}
-        <div className="ctl">
-          <label>{t("Cálculo")}</label>
-          <div className="seg" data-testid="calculo-modo">
-            <button type="button" data-testid="calculo-estandar"
-              className={(settings.calculo ?? "estandar") === "estandar"
-                ? "on" : ""}
-              onClick={() => set({ calculo: "estandar" })}>
-              {t("Cálculo estándar")}
-            </button>
-            <button type="button" data-testid="calculo-exacto"
-              className={settings.calculo === "exacto" ? "on" : ""}
-              onClick={() => set({ calculo: "exacto" })}>
-              {t("Cálculo exacto")}
-            </button>
-          </div>
-          <div className="hint">
-            {t("Ambos son inteligentes: si el trabajo es fácil acaban pronto. " +
-               "«Estándar» busca un buen resultado con un tiempo ajustado; " +
-               "«Exacto» apura más (varias configuraciones y métodos) para " +
-               "acercarse al mejor resultado posible.")}
-          </div>
-        </div>
         {/* los dos valores básicos, en la MISMA fila */}
         <div className="ctl-fila">
         {num("Espacio entre elementos", "espacio_mm", -10, 20, 0.5, "mm", undefined,

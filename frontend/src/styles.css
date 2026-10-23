@@ -1270,16 +1270,20 @@ button.primary {
 }
 .modos-seg .modo-btn {
   flex: 1; display: flex; align-items: center; justify-content: center;
-  gap: 8px; padding: 10px 12px;
+  gap: 6px; padding: 9px 6px;
   border: none; border-radius: 0; background: transparent; color: var(--textSoft);
   font: inherit; cursor: pointer; text-align: center; min-width: 0;
 }
+/* el botón de cálculo es un interruptor: se ve "activo" cuando es exacto */
+.modos-seg .modo-btn.calculo { border-left: 2px solid var(--border); }
+.modos-seg .modo-btn.calculo.exacto { background: var(--accent); color: #fff; }
+.modos-seg .modo-btn.calculo.exacto i { opacity: .95; }
 .modos-seg .modo-btn + .modo-btn { border-left: 2px solid var(--border); }
 .modos-seg .modo-btn .modo-txt { display: flex; flex-direction: column;
                                  min-width: 0; line-height: 1.2;
                                  align-items: center; }
-.modos-seg .modo-btn b { font-size: 14px; }
-.modos-seg .modo-btn i { font-style: normal; font-size: 11px; opacity: .85; }
+.modos-seg .modo-btn b { font-size: 12.5px; }
+.modos-seg .modo-btn i { font-style: normal; font-size: 10px; opacity: .85; }
 .modos-seg .modo-btn .modo-check { font-weight: 900; font-size: 15px; }
 .modos-seg .modo-btn:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); }
 .modos-seg .modo-btn.on {

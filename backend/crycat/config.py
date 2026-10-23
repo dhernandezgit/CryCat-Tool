@@ -63,11 +63,15 @@ def tiempo_optimo(d, n_elementos: int = 0) -> float:
         t = max(base, min(OPT_TIEMPO_TOPE, t))
     else:
         t = max(0.5, float(d.get("opt_tiempo_max_s", 8.0)))
-    # CÁLCULO EXACTO: presupuesto más amplio (techo 90 s) para apurar la
-    # búsqueda. Las paradas tempranas hacen que los trabajos fáciles acaben
-    # mucho antes (el tiempo solo se usa si de verdad mejora el resultado).
+    # CÁLCULO: el ESTÁNDAR ya es la búsqueda completa (rejilla fina en
+    # paralelo + genético del orden + paradas tempranas): techo 60 s. El
+    # EXACTO apura aún más con búsqueda local (ILS): techo 150 s. Las
+    # paradas tempranas hacen que los trabajos fáciles acaben mucho antes
+    # (el tiempo solo se usa si de verdad mejora el resultado).
     if str(d.get("calculo", "estandar")).lower() == "exacto":
-        t = min(90.0, max(30.0, 3.0 * t))
+        t = min(150.0, max(90.0, 3.0 * min(60.0, max(30.0, 3.0 * t))))
+    else:
+        t = min(60.0, max(30.0, 3.0 * t))
     return t
 
 

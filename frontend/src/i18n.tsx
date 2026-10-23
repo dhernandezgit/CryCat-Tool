@@ -422,6 +422,10 @@ export const EN: Record<string, string> = {
   "Cálculo": "Calculation",
   "Cálculo estándar": "Standard calculation",
   "Cálculo exacto": "Exact calculation",
+  "Pulsa para cambiar entre cálculo estándar y exacto":
+    "Click to switch between standard and exact calculation",
+  "bueno y rápido": "good and fast",
+  "el mejor posible · más lento": "the best possible · slower",
   ["Ambos son inteligentes: si el trabajo es fácil acaban pronto. " +
    "«Estándar» busca un buen resultado con un tiempo ajustado; " +
    "«Exacto» apura más (varias configuraciones y métodos) para " +

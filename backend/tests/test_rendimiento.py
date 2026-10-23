@@ -209,24 +209,42 @@ def test_rendimiento_minis_rellenan_estrellas():
     _comprueba_tiempo(r)
 
 
-def test_calculo_exacto_recupera_piezas_con_rejilla_fina():
-    """El EXACTO usa la rejilla fina y recupera piezas que el estándar pierde.
+def test_circulos_iguales_máximo_y_sin_inventar_copias():
+    """Círculos IGUALES: rejilla hexagonal (máximo) y NUNCA más copias de las
+    pedidas (la rejilla puede tener más huecos que copias).
 
-    120 círculos de 18 mm: con la rejilla gruesa del estándar quedan unas
-    cuantas fuera; el exacto (rejilla exacta, en paralelo) las coloca todas.
-    Es la prueba de que las configuraciones cambian el resultado de verdad.
+    120 círculos de 18 mm caben todos; con 30 pedidos, la rejilla no puede
+    devolver 120: como máximo 30.
     """
     im = _circulo(18)
-    assets = [_asset("p", 18.0, 18.0, 120)]
-    masks = {"p": im}
-    r_std = _pack(assets, masks, calculo="estandar")
-    n_std, _ = _resumen(r_std)
-    assert r_std.unplaced, "el estándar debería dejar alguna fuera (rejilla gruesa)"
-    r_exa = _pack(assets, masks, calculo="exacto")
-    n_exa, _ = _resumen(r_exa)
-    assert n_exa == 120 and not r_exa.unplaced, (
-        f"el exacto debe colocar las 120 (colocó {n_exa})")
-    assert r_exa.elapsed_s <= TOPE_S, f"exacto tardó {r_exa.elapsed_s:.1f}s"
+    r = _pack([_asset("p", 18.0, 18.0, 120)], {"p": im}, calculo="exacto")
+    n, _ = _resumen(r)
+    assert n == 120 and not r.unplaced, f"deben caber las 120 (colocó {n})"
+    assert len(r.placements) <= 120
+    r2 = _pack([_asset("p", 18.0, 18.0, 30)], {"p": im}, calculo="estandar")
+    n2, _ = _resumen(r2)
+    assert n2 == 30 and len(r2.placements) == 30, (
+        f"con 30 pedidos no pueden salir más (salieron {n2})")
+    assert r2.elapsed_s <= TOPE_S
+
+
+def test_resultado_igual_en_varias_ejecuciones():
+    """DETERMINISMO: el mismo trabajo da SIEMPRE las mismas cantidades.
+
+    Las paradas son por trabajo (variantes, generaciones, iteraciones), no por
+    reloj: dos ejecuciones seguidas deben colocar lo mismo.
+    """
+    im = _circulo(40)
+    assets = [_asset("c", 40.0, 40.0, 70)]
+    masks = {"c": im}
+    a = _pack(assets, masks)
+    b = _pack(assets, masks)
+    na, _ = _resumen(a)
+    nb, _ = _resumen(b)
+    assert na == nb, f"cantidades distintas entre ejecuciones: {na} vs {nb}"
+    assert len(a.unplaced) == len(b.unplaced)
+    assert a.pages == b.pages
+    assert abs(a.efficiency - b.efficiency) < 1e-9
 
 
 def test_calculo_no_gasta_tiempo_de_mas_si_es_facil():
