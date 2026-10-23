@@ -1205,7 +1205,9 @@ def _rellenar_minis(ctx: _Ctx, assets: list[dict], masks: dict,
     fin_minis = time.time() + 300.0
     if deadline is not None:
         fin_minis = min(fin_minis, deadline)
-    max_minis = 5000          # tope determinista (el tiempo es solo seguro)
+    # tope determinista y proporcionado al trabajo: rellenar miles de minis
+    # en un hueco enorme no compensa el tiempo (antes podía pasar de 3 min)
+    max_minis = 400 + 6 * max(1, len(ctx.placements))
     pesos = {a["id"]: min(100.0, max(1.0, float(a.get("mini_quota", 1.0))))
              for a in cand}
     peso_total = sum(pesos.values())
@@ -2501,7 +2503,10 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
                 # encuentra colocaciones que el otro camino no ve. Varias
                 # cadenas por punto (cada una parte de lo mejor anterior).
                 try:
-                    partidas = [best_semilla, best]
+                    # el punto de partida fértil es la SEMILLA (rejilla
+                    # gruesa); el refinado se queda atascado. Solo una
+                    # partida para acotar el tiempo (determinista)
+                    partidas = [best_semilla]
                     vistos = set()
                     for partida in partidas:
                         clave_p = (id(partida.placements), len(partida.placements))
