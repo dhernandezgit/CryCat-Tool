@@ -30,11 +30,10 @@ export default function SaveDialog({ open, files, names, folder, error,
   })();
   const pasos = [
     t("Abre Cricut Design Space."),
-    t("Arrastra el PNG tal cual (no lo redimensiones ni lo recortes) y elige «Imagen completa» para conservar la transparencia."),
-    t("NO uses «Ajustar» ni cambies el tamaño: el archivo ya viene a tamaño real. Comprueba que el ancho × alto coincide con el del nombre del archivo."),
-    t("Si Design Space avisa de que va a redimensionar, cancela: el tamaño ya es el correcto."),
+    t("Carga el PNG y elige «Imagen completa» (conserva la transparencia)."),
+    t("Comprueba que mide lo que dice el nombre del archivo."),
     t("Pulsa «Crear» para preparar el lienzo."),
-    t("Imprime al 100 % (sin «ajustar a la página») en papel mate blanco y colócalo en la esterilla."),
+    t("Imprime en papel mate blanco y colócala en la esterilla."),
     t("¡Listo! La máquina leerá las marcas y cortará tus pegatinas."),
   ];
 
@@ -68,8 +67,8 @@ export default function SaveDialog({ open, files, names, folder, error,
                 </ul>
                 {tamano && (
                   <p className="hint" data-testid="save-tamano">
-                    {t("Tamaño real: {w} × {h} cm. Compruébalo en Design Space antes de crear (si avisa de redimensionar, cancela).",
-                       { w: tamano.w, h: tamano.h })}
+                    {t("Tamaño real que debe tener en Design Space:")}{" "}
+                    <b>{tamano.w} × {tamano.h} cm</b>
                   </p>
                 )}
                 {!esWeb && (

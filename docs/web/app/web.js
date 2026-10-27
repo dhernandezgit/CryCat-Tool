@@ -8241,11 +8241,10 @@ function hh({
     return null;
   })(), N = [
     l("Abre Cricut Design Space."),
-    l("Arrastra el PNG tal cual (no lo redimensiones ni lo recortes) y elige «Imagen completa» para conservar la transparencia."),
-    l("NO uses «Ajustar» ni cambies el tamaño: el archivo ya viene a tamaño real. Comprueba que el ancho × alto coincide con el del nombre del archivo."),
-    l("Si Design Space avisa de que va a redimensionar, cancela: el tamaño ya es el correcto."),
+    l("Carga el PNG y elige «Imagen completa» (conserva la transparencia)."),
+    l("Comprueba que mide lo que dice el nombre del archivo."),
     l("Pulsa «Crear» para preparar el lienzo."),
-    l("Imprime al 100 % (sin «ajustar a la página») en papel mate blanco y colócalo en la esterilla."),
+    l("Imprime en papel mate blanco y colócala en la esterilla."),
     l("¡Listo! La máquina leerá las marcas y cortará tus pegatinas.")
   ];
   return /* @__PURE__ */ o.jsx("div", { className: "modal-back", "data-testid": "save-dialog", children: /* @__PURE__ */ o.jsx("div", { className: "modal", children: d === "resumen" ? /* @__PURE__ */ o.jsxs(o.Fragment, { children: [
@@ -8270,10 +8269,16 @@ function hh({
       ),
       /* @__PURE__ */ o.jsx("p", { className: "hint", children: l("Archivos:") }),
       /* @__PURE__ */ o.jsx("ul", { className: "lista-archivos", children: t.map((x, C) => /* @__PURE__ */ o.jsx("li", { title: (n == null ? void 0 : n[C]) ?? x, children: (n == null ? void 0 : n[C]) ?? x.split(/[\\/]/).pop() }, C)) }),
-      y && /* @__PURE__ */ o.jsx("p", { className: "hint", "data-testid": "save-tamano", children: l(
-        "Tamaño real: {w} × {h} cm. Compruébalo en Design Space antes de crear (si avisa de redimensionar, cancela).",
-        { w: y.w, h: y.h }
-      ) }),
+      y && /* @__PURE__ */ o.jsxs("p", { className: "hint", "data-testid": "save-tamano", children: [
+        l("Tamaño real que debe tener en Design Space:"),
+        " ",
+        /* @__PURE__ */ o.jsxs("b", { children: [
+          y.w,
+          " × ",
+          y.h,
+          " cm"
+        ] })
+      ] }),
       !m && /* @__PURE__ */ o.jsxs("p", { className: "hint", children: [
         l("Carpeta"),
         ": ",
@@ -9782,7 +9787,7 @@ function _h({
                 ),
                 a("Marcas para delimitar")
               ] }),
-              /* @__PURE__ */ o.jsx("div", { className: "hint", children: a("Añade dos cuadrados blancos de 2 mm (arriba-izquierda y abajo-derecha) en los límites del área. Sirven de referencia para que la colocación quede EXACTA siempre en Cricut Design Space. No cuentan para la optimización.") })
+              /* @__PURE__ */ o.jsx("div", { className: "hint", children: a("Opcional: añade cuatro cuadrados blancos de 2 mm en los límites del área como referencia visual en Cricut Design Space. Con las medidas reales del archivo no hacen falta; no cuentan para la optimización.") })
             ] }) })
           ]
         }
@@ -11566,8 +11571,8 @@ function Fh() {
       await H.patchAsset(J, Ve).catch(() => {
       });
     }
-    await A();
-  }, [e, A]), he = g.useRef([]), Ee = g.useRef([]), [Ue, Lt] = g.useState({ puedeDeshacer: !1, puedeRehacer: !1 }), ze = (l == null ? void 0 : l.historial) !== !1, Kt = (l == null ? void 0 : l.historial_max) ?? 40, Nt = g.useRef(!1), Ze = g.useRef(""), $n = g.useRef({ assets: [], result: null, settings: null }), bt = g.useCallback((P, V, Q) => JSON.stringify({
+    await A(), T();
+  }, [e, A, T]), he = g.useRef([]), Ee = g.useRef([]), [Ue, Lt] = g.useState({ puedeDeshacer: !1, puedeRehacer: !1 }), ze = (l == null ? void 0 : l.historial) !== !1, Kt = (l == null ? void 0 : l.historial_max) ?? 40, Nt = g.useRef(!1), Ze = g.useRef(""), $n = g.useRef({ assets: [], result: null, settings: null }), bt = g.useCallback((P, V, Q) => JSON.stringify({
     a: P.map((J) => [
       J.id,
       J.scale_pct,
@@ -11826,7 +11831,7 @@ function Fh() {
     )
   ] }) }) : /* @__PURE__ */ o.jsx("div", { style: { padding: 30 }, children: Wf("es", "Cargando CryCat…") });
 }
-const qh = "1793097846514", ip = document.getElementById("root"), vi = [
+const qh = "1793101238879", ip = document.getElementById("root"), vi = [
   "Cargando peluches de apoyo emocional…",
   "Afilando tijeras de pegatinas…",
   "Preparando boba teas…",

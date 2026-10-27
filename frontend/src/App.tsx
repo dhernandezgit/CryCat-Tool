@@ -316,7 +316,10 @@ export default function App() {
       await api.patchAsset(id, p as never).catch(() => undefined);
     }
     await refresh();
-  }, [assets, refresh]);
+    // los cambios EN BLOQUE también relanzan el cálculo automático (si está
+    // activado): antes solo lo hacían los cambios de una en una
+    scheduleOptimize();
+  }, [assets, refresh, scheduleOptimize]);
 
   // ---- historial local (deshacer/rehacer) ----
   // cada foto guarda los ELEMENTOS, el RESULTADO y los AJUSTES: deshacer

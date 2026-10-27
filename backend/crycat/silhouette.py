@@ -1460,9 +1460,8 @@ def _one_pass(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
     n_total = sum(int(a.get("copies", 1)) for a in assets) + len(pinned or [])
     cell = _celda_ajustada(
         _cell_para(n_total, str(settings.get("opt_calidad", "normal"))), area)
-    if settings.get("web_inline_jobs"):
-        # en el navegador (Pyodide) cada FFT cuesta ~20x más: rejilla gruesa
-        cell = max(cell, 1.0)
+    # (la web usa la MISMA rejilla que el escritorio: antes forzaba 1 mm y
+    # colocaba peor; es más lento, pero los resultados son los mismos)
     ctx = _Ctx(area, settings, cell=cell)
     # cachés compartidas: las máscaras y correlaciones se calculan UNA vez
     if cache is not None:
@@ -2147,7 +2146,7 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
         # la semilla (celda gruesa, completa) ya es válida y rapidísima
         best.method = "rapido"
         best.elapsed_s = time.time() - t0
-        return best
+        return _con_aviso(best)
 
     # ---- CAMINO RÁPIDO: trabajo HOLGADO (todo cabe en una hoja) ----------
     # Si la semilla ya coloca TODO en una sola página, no tiene sentido gastar
@@ -2239,7 +2238,7 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
             progress(0.99, best.pages)
         best.method = metodo
         best.elapsed_s = time.time() - t0
-        return best
+        return _con_aviso(best)
 
     if metodo == "largest":
         res_l = _one_pass(assets, masks, area, settings, pinned, "area", rnd,
@@ -2603,7 +2602,8 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
         progress(0.99, best.pages)
     best.method = metodo
     best.elapsed_s = time.time() - t0
-    return best
+    return _con_aviso(best)
+
 
 def _reconstruir(assets: list[dict], masks: dict, area: CutArea, settings: dict,
                  placements: list, cell: float, saltar: str | None = None):
@@ -2723,6 +2723,20 @@ def compactar(assets: list[dict], masks: dict, area: CutArea, settings: dict,
         p.x = round((p.x - x0) / cell) * cell + x0
         p.y = round((p.y - y0) / cell) * cell + y0
     return hubo
+
+def _con_aviso(res: PackResult) -> PackResult:
+    """Garantiza el aviso de copias sin colocar.
+
+    Algunas fases (rejillas hexagonales/rectangulares, búsqueda local) no
+    añaden el aviso y, al ganar, se perdía: el visor debe decir siempre que
+    quedaron copias fuera.
+    """
+    if res.unplaced and not any("caben" in str(w).lower() for w in res.warnings):
+        res.warnings.append(
+            tr("{n} copias no caben en el área recortable",
+               n=len(res.unplaced)))
+    return res
+
 
 def _fase_circulos(assets: list[dict], masks: dict, area: CutArea,
                    settings: dict) -> PackResult | None:

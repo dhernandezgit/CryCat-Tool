@@ -471,7 +471,7 @@ export default function SettingsPanel({ settings, saveSettings,
             {t("Marcas para delimitar")}
           </label>
           <div className="hint">
-            {t("Añade dos cuadrados blancos de 2 mm (arriba-izquierda y abajo-derecha) en los límites del área. Sirven de referencia para que la colocación quede EXACTA siempre en Cricut Design Space. No cuentan para la optimización.")}
+            {t("Opcional: añade cuatro cuadrados blancos de 2 mm en los límites del área como referencia visual en Cricut Design Space. Con las medidas reales del archivo no hacen falta; no cuentan para la optimización.")}
           </div>
         </div>
         </Grupo>

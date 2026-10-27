@@ -190,7 +190,7 @@ DEFAULTS: dict = {
     # Offset / borde de los elementos (contorno que se añade al recorte)
     "offset_activo": False,
     "paginas_modo": "una",       # una (por defecto) | varias: nunca abre 2ª página en "una"
-    "marcas_delimitar": True,    # 2 cuadrados blancos de 1 mm pegados a los límites
+    "marcas_delimitar": False,   # 4 cuadrados guía (opcional; apagados: el tamaño se indica con las medidas reales)
     "separacion_px": 3,          # separación artificial entre piezas al renderizar (px del resultado)
     # MODO RATA: copias extra SOLO para imprimir, sin borde, en los márgenes
     "rata_activo": False,
