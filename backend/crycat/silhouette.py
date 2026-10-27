@@ -30,7 +30,7 @@ from .packer import PackResult, Placement
 CELL = 0.5
 # "cualquier ángulo": pasos de 15º INCLUYENDO 90/180/270 (antes faltaban y
 # el modo libre no podía usar los giros rectos, que son los más útiles)
-FREE_ANGLES = (15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180, 270)
+FREE_ANGLES = (30, 60, 90, 120, 150, 180, 270)
 
 # marcador para distinguir "no está en la caché" de "no cabe" (None)
 _SIN_RESULTADO = object()
