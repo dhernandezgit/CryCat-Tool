@@ -2541,6 +2541,48 @@ def pack(assets: list[dict], masks: dict[str, Image.Image], area: CutArea,
                             break
             except Exception:
                 pass
+        # REFINO FINO FINAL (solo EXACTO): se reconstruye el resultado en la
+        # rejilla PEQUEÑA (0,25: máscaras reales, más ajustadas) y se
+        # reintentan las copias que quedaron fuera. Las posiciones ya son
+        # múltiplos de 0,25 (todas las rejillas usadas lo son), así que no
+        # hay desplazamientos: los huecos de borde que la rejilla gruesa
+        # tapaba pueden admitir alguna pieza.
+        if exacto and time.time() < deadline and best.unplaced:
+            try:
+                ctx_f = _reconstruir(assets, masks_reales, area, settings,
+                                     best.placements, 0.25)
+                by_id_f = {a["id"]: a for a in assets}
+                angs_f = _angles(str(settings.get("rotacion", "libre")))
+                falladas_f: list[str] = []
+                for aid in [u for u in best.unplaced if isinstance(u, str)]:
+                    a = by_id_f.get(aid)
+                    img = masks_reales.get(aid)
+                    if a is None or img is None:
+                        falladas_f.append(aid)
+                        continue
+                    try:
+                        ok = _try_place(ctx_f, aid, a.get("name", ""),
+                                        a["w_mm"], a["h_mm"], 1.0, False,
+                                        img, angs_f,
+                                        new_page_ok=not solo_una,
+                                        contacto=True)
+                    except Exception:
+                        ok = False
+                    if not ok:
+                        falladas_f.append(aid)
+                cand = PackResult(method="fino", cell=0.25)
+                cand.placements = list(ctx_f.placements)
+                cand.pages = max(1, len(ctx_f.pages)) if ctx_f.pages else 0
+                cand.unplaced = falladas_f
+                _recalcular_eficiencia(cand, masks_reales, area, assets)
+                if _clave(cand) < _clave(best):
+                    # validar en su rejilla antes de aceptar (nunca empeora)
+                    cand2 = _sin_solapes(cand, assets, masks_reales, area,
+                                         settings, extra, cell_hint=0.25)
+                    if _clave(cand2) <= _clave(cand):
+                        best = cand2
+            except Exception:
+                pass
     assert best is not None
     # fase de compactación (estilo DeepNest): acerca cada pieza al borde,
     # pero SOLO con el tiempo que quede (nunca se pasa del presupuesto)
