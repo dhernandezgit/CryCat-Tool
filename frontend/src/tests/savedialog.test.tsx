@@ -29,4 +29,15 @@ describe("SaveDialog (versión web)", () => {
     expect(screen.getByTestId("btn-descargar-0"))
       .toHaveAttribute("download", "crycat_pagina-01.png");
   });
+
+  it("muestra el tamaño real y recuerda comprobarlo en Design Space", () => {
+    render(
+      <SaveDialog open files={[DATA]} folder="web:descargas"
+        names={["pegatinas_20261022_18.26x26.95cm.png"]}
+        onClose={() => {}} />,
+    );
+    const aviso = screen.getByTestId("save-tamano");
+    expect(aviso).toHaveTextContent("18,26 × 26,95 cm");
+    expect(aviso).toHaveTextContent(/Design Space/);
+  });
 });
