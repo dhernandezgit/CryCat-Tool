@@ -1831,17 +1831,24 @@ def _sin_solapes(res: PackResult, assets: list[dict],
         occ = ctx.pages[pi_uso]
         oc = ctx.out_corr(dm)
 
-        def _solape(ty2: int, tx2: int) -> int:
-            """Celdas de solape en esa posición; -1 fuera, -2 fuera de área."""
+        occ_sil = ctx.pages_sil[pi_uso]
+
+        def _solape(ty2: int, tx2: int) -> tuple[int, int]:
+            """(solape real, solape dilatado); (-1/-2) en los especiales."""
             if not (0 <= ty2 and 0 <= tx2
                     and ty2 + h <= ctx.H and tx2 + w <= ctx.W):
-                return -1
+                return (-1, -1)
             if float(oc[ty2, tx2]) >= 0.5:
-                return -2
-            return int(np.count_nonzero(
+                return (-2, -2)
+            real = int(np.count_nonzero(
+                (occ_sil[ty2:ty2 + h, tx2:tx2 + w] > 0) & rm))
+            dil = int(np.count_nonzero(
                 (occ[ty2:ty2 + h, tx2:tx2 + w] > 0) & dm))
+            return (real, dil)
 
-        ok = _solape(ty, tx) <= 2
+        _r, _d = _solape(ty, tx)
+        # real: CERO tolerancia; dilatado: hasta 2 celdas de rasterización
+        ok = (_r == 0 and _d <= 2)
         if not ok:
             # La posición guardada puede venir de OTRA máscara (la analítica
             # de las formas simples frente a la real): el desplazamiento del
@@ -1852,20 +1859,13 @@ def _sin_solapes(res: PackResult, assets: list[dict],
             for dy, dx in ((-1, 0), (1, 0), (0, -1), (0, 1),
                            (-1, -1), (-1, 1), (1, -1), (1, 1),
                            (-2, 0), (2, 0), (0, -2), (0, 2)):
-                if _solape(ty + dy, tx + dx) == 0:
+                _r2, _d2 = _solape(ty + dy, tx + dx)
+                if _r2 == 0 and _d2 <= 2:
                     ty, tx = ty + dy, tx + dx
                     p.x = (tx + ox_rm) * cell + ctx.x0
                     p.y = (ty + oy_rm) * cell + ctx.y0
                     ok = True
                     break
-        if not ok and p.mini:
-            # Los minis se colocan en una rejilla más GRUESA (0,5 mm): al
-            # revalidar más fino (0,25) puede aparecer un solape SUBCELDA
-            # (≤0,25 mm) que es ruido de rasterización, no un solape real.
-            # Se acepta tal cual; si fuese mayor, se recoloca como siempre.
-            s = _solape(ty, tx)
-            if 0 < s <= max(2, int(round(0.25 / cell))):
-                ok = True
         if not ok:
             # recolocar en el primer hueco válido de las hojas que ya hay
             colocado = False
@@ -2779,14 +2779,15 @@ def _fase_circulos(assets: list[dict], masks: dict, area: CutArea,
     except Exception:
         return None
     esp = max(-diam * 0.9, float(settings.get("espacio_mm", 0.0) or 0.0))
-    # +1 celda de margen: con el paso EXACTO, la rasterización de las
-    # máscaras dilatadas deja 1-2 celdas "de más" entre vecinas y la red de
-    # seguridad podía tirar piezas que sí caben
     pitch = diam + esp
     if pitch < 2.0:
         return None
     cell = 0.25
     allowed, W, H = _grid(area, cell)
+    r_sep = (int(math.ceil((esp / 2.0) / cell)) if esp > 0 else 0)
+    if r_sep > 0:
+        from scipy import ndimage as _ndi
+        allowed = _ndi.binary_erosion(allowed, iterations=r_sep)
     m = _asset_mask(img, diam, diam, cell)
     corr = _correlate(allowed.astype(np.float32), m)
     total = float(m.sum())
@@ -2832,11 +2833,14 @@ def _fase_circulos(assets: list[dict], masks: dict, area: CutArea,
         return None
     res = PackResult(method="circulos", cell=cell)
     x0, y0 = area.bbox[0], area.bbox[1]
+    ys_m, xs_m = np.where(m)
+    ox_m = int(xs_m.min()) * cell if len(xs_m) else 0.0
+    oy_m = int(ys_m.min()) * cell if len(ys_m) else 0.0
     for k, (x, y) in enumerate(best):
         res.placements.append(Placement(
             uid=f"{assets[0]['id']}#hex{k}", asset_id=assets[0]["id"],
-            page=0, x=x + x0, y=y + y0, w=diam, h=diam, angle=0.0,
-            mini=False, scale=1.0, rot90=False, w0=diam, h0=diam))
+            page=0, x=x + ox_m + x0, y=y + oy_m + y0, w=diam, h=diam,
+            angle=0.0, mini=False, scale=1.0, rot90=False, w0=diam, h0=diam))
     res.pages = 1
     # COPIA el reparto de sin colocar: las copias que no caben en la rejilla
     faltan = max(0, int(a0.get("copies", 1)) - len(best))
@@ -2875,6 +2879,10 @@ def _fase_rectangulos(assets: list[dict], masks: dict, area: CutArea,
               float(settings.get("espacio_mm", 0.0) or 0.0))
     cell = 0.25
     allowed, W, H = _grid(area, cell)
+    r_sep = (int(math.ceil((esp / 2.0) / cell)) if esp > 0 else 0)
+    if r_sep > 0:
+        from scipy import ndimage as _ndi
+        allowed = _ndi.binary_erosion(allowed, iterations=r_sep)
     best: list[tuple[float, float, float]] | None = None
     for ang in (0.0, 90.0):
         m = _rotate_mask(m0, ang)
@@ -2917,10 +2925,14 @@ def _fase_rectangulos(assets: list[dict], masks: dict, area: CutArea,
     x0, y0 = area.bbox[0], area.bbox[1]
     for k, (x, y, ang) in enumerate(best):
         we, he = _exact_size(w0, h0, ang)
+        mr = _rotate_mask(m0, ang)
+        ys_m, xs_m = np.where(mr)
+        ox_m = int(xs_m.min()) * cell if len(xs_m) else 0.0
+        oy_m = int(ys_m.min()) * cell if len(ys_m) else 0.0
         res.placements.append(Placement(
             uid=f"{a0['id']}#grid{k}", asset_id=a0["id"], page=0,
-            x=x + x0, y=y + y0, w=we, h=he, angle=ang, mini=False,
-            scale=1.0, rot90=False, w0=w0, h0=h0))
+            x=x + ox_m + x0, y=y + oy_m + y0, w=we, h=he, angle=ang,
+            mini=False, scale=1.0, rot90=False, w0=w0, h0=h0))
     res.pages = 1
     res.unplaced = [a0["id"]] * max(0, copias - len(best))
     _recalcular_eficiencia(res, masks, area, assets)
@@ -2952,10 +2964,9 @@ def _refinar_ils(assets: list[dict], masks: dict, area: CutArea,
     # rejilla: gruesa para piezas grandes (más rápida y la colocación sigue
     # siendo válida: las máscaras gruesas son CONSERVADORAS); fina para
     # piezas pequeñas
-    min_lado = min(min(float(a["w_mm"]), float(a["h_mm"]))
-                   for a in assets if a["id"] in masks)
-    cell = (0.5 if min_lado >= 20.0
-            else min(0.5, max(0.25, float(res.cell or 0.5))))
+    # MISMA rejilla que el resultado (si no, la reconstrucción desplaza las
+    # posiciones unas décimas y la validación estricta tira piezas)
+    cell = min(0.5, max(0.25, float(res.cell or 0.5)))
     rnd = _rand.Random(semilla)
     best = res
     t0 = time.time()
